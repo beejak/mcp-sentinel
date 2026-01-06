@@ -1,0 +1,22 @@
+# Malicious requirements.txt for testing
+
+# Legitimate packages
+requests==2.28.2
+flask>=2.0.0
+
+# Known malicious packages
+requestes==2.28.0
+python-mysql==1.0.0
+bitcoin-miner
+
+# Typosquatting attempts
+urlib3==1.26.0
+beautifulsoup==4.11.0
+
+# Suspicious packages
+crypto-miner==0.1.0
+keylogger-test==1.0.0
+
+# Good packages
+numpy==1.24.0
+pandas>=1.5.0
