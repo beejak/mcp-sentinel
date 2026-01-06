@@ -12,6 +12,7 @@ from mcp_sentinel.models.scan_result import ScanResult, ScanStatistics
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
+from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
 from mcp_sentinel.core.exceptions import ScanError
 
 
@@ -36,8 +37,8 @@ class Scanner:
         return [
             SecretsDetector(),
             CodeInjectionDetector(),
+            PromptInjectionDetector(),
             # More detectors will be added here as we implement them:
-            # - PromptInjectionDetector()
             # - ToolPoisoningDetector()
             # - SupplyChainDetector()
             # - XSSDetector()
