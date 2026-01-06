@@ -11,6 +11,7 @@ from mcp_sentinel.models.vulnerability import Vulnerability
 from mcp_sentinel.models.scan_result import ScanResult, ScanStatistics
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
+from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.core.exceptions import ScanError
 
 
@@ -34,7 +35,14 @@ class Scanner:
         """Get the default set of detectors."""
         return [
             SecretsDetector(),
-            # More detectors will be added here as we implement them
+            CodeInjectionDetector(),
+            # More detectors will be added here as we implement them:
+            # - PromptInjectionDetector()
+            # - ToolPoisoningDetector()
+            # - SupplyChainDetector()
+            # - XSSDetector()
+            # - ConfigSecurityDetector()
+            # - PathTraversalDetector()
         ]
 
     async def scan_directory(
