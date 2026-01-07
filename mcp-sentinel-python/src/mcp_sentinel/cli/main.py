@@ -16,6 +16,7 @@ from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Severity
+from mcp_sentinel.reporting.generators import SARIFGenerator, HTMLGenerator
 
 
 console = Console()
@@ -40,24 +41,24 @@ def cli():
     "--output",
     type=click.Choice(["terminal", "json", "sarif", "html"]),
     default="terminal",
-    help="Output format",
+    help="Output format: terminal (colored, default), json (structured), sarif (GitHub Code Scanning), html (interactive dashboard)",
 )
 @click.option(
     "--engines",
     type=str,
     default="static",
-    help="Comma-separated list of engines to use (static, semantic, sast, ai, all). Default: static",
+    help="Comma-separated list of engines to use (static, semantic, sast, ai, all). Currently: static only. Phase 4: multi-engine support",
 )
 @click.option(
     "--severity",
     type=click.Choice(["critical", "high", "medium", "low", "info"]),
     multiple=True,
-    help="Filter by severity (can be used multiple times)",
+    help="Filter by severity level (can be used multiple times, e.g., --severity critical --severity high)",
 )
 @click.option(
     "--json-file",
     type=click.Path(),
-    help="Output JSON results to file",
+    help="Output file path for json/sarif/html formats (e.g., report.html, results.sarif, scan.json)",
 )
 @click.option(
     "--no-progress",
@@ -73,20 +74,28 @@ def scan(target: str, output: str, engines: str, severity: tuple, json_file: str
     Examples:
 
         \b
-        # Scan current directory with static engine
+        # Scan current directory with terminal output (default)
         mcp-sentinel scan .
 
         \b
-        # Scan with multiple engines
-        mcp-sentinel scan . --engines static,sast
+        # Generate beautiful HTML report
+        mcp-sentinel scan . --output html --json-file report.html
 
         \b
-        # Scan with JSON output
-        mcp-sentinel scan /path/to/project --output json
+        # Generate SARIF for GitHub Code Scanning
+        mcp-sentinel scan . --output sarif --json-file results.sarif
+
+        \b
+        # Generate JSON structured output
+        mcp-sentinel scan /path/to/project --output json --json-file scan.json
 
         \b
         # Filter critical and high severity only
-        mcp-sentinel scan . --severity critical --severity high
+        mcp-sentinel scan . --severity critical --severity high --output html --json-file critical-issues.html
+
+        \b
+        # Scan with multiple engines (Phase 4+)
+        mcp-sentinel scan . --engines static,sast --output html --json-file report.html
     """
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
@@ -127,9 +136,9 @@ def scan(target: str, output: str, engines: str, severity: tuple, json_file: str
     elif output == "json":
         _print_json_results(result, json_file)
     elif output == "sarif":
-        console.print("[yellow]SARIF output not yet implemented[/yellow]")
+        _print_sarif_results(result, json_file)
     elif output == "html":
-        console.print("[yellow]HTML output not yet implemented[/yellow]")
+        _print_html_results(result, json_file)
 
     # Exit code based on findings
     if result.has_critical_findings():
@@ -364,6 +373,32 @@ def _print_json_results(result: ScanResult, output_file: str | None = None):
         console.print(json_output)
 
 
+def _print_sarif_results(result: ScanResult, output_file: str | None = None):
+    """Print results in SARIF format."""
+    generator = SARIFGenerator()
+
+    if output_file:
+        generator.save_to_file(result, Path(output_file))
+        console.print(f"[green]SARIF report saved to {output_file}[/green]")
+    else:
+        sarif_json = generator.generate_json(result)
+        console.print(sarif_json)
+
+
+def _print_html_results(result: ScanResult, output_file: str | None = None):
+    """Print results in HTML format."""
+    generator = HTMLGenerator()
+
+    if output_file:
+        generator.save_to_file(result, Path(output_file))
+        console.print(f"[green]HTML report saved to {output_file}[/green]")
+    else:
+        # For terminal output, save to temp file and show path
+        temp_file = Path("mcp-sentinel-report.html")
+        generator.save_to_file(result, temp_file)
+        console.print(f"[green]HTML report saved to {temp_file.absolute()}[/green]")
+
+
 @cli.command()
 @click.option("--host", default="0.0.0.0", help="Host to bind to")
 @click.option("--port", default=8000, help="Port to bind to")
@@ -426,29 +461,66 @@ def init():
     """
     config_content = """# MCP Sentinel Configuration
 
-# Analysis engines to enable
+# Analysis engines to enable (Phase 3: static only, Phase 4+: all engines)
 engines:
-  static: true
-  semantic: true
-  sast: true
-  ai: false  # Requires API keys
+  static: true           # ✅ Available now - Pattern-based detection
+  semantic: false        # 🚧 Phase 4 - Tree-sitter AST analysis
+  sast: false            # 🚧 Phase 4 - Semgrep + Bandit integration
+  ai: false              # 🚧 Phase 4 - AI-powered analysis (requires API keys)
 
-# AI provider configuration (if enabled)
+# AI provider configuration (Phase 4+)
 ai:
-  provider: anthropic  # openai, anthropic, google, ollama
+  provider: anthropic    # Options: openai, anthropic, google, ollama
   model: claude-3-5-sonnet-20241022
-  # api_key: ${ANTHROPIC_API_KEY}
+  # api_key: ${ANTHROPIC_API_KEY}  # Use environment variable
 
-# Reporting
+# Report generation (Phase 3 ✅)
 reporting:
-  formats: [terminal, json]
+  formats: [terminal, html, sarif]  # Available: terminal, json, sarif, html
   output_dir: ./reports
+
+  # Terminal output settings
+  terminal:
+    colored: true
+    show_code_snippets: true
+
+  # HTML report settings
+  html:
+    include_executive_summary: true
+    show_risk_score: true
+    animated_charts: true
+
+  # SARIF settings
+  sarif:
+    github_code_scanning: true  # GitHub-compatible SARIF 2.1.0
+    include_fixes: true
+
+# Scanning configuration
+scan:
+  # Severity filtering
+  min_severity: low  # Options: critical, high, medium, low, info
+
+  # File patterns
+  include_patterns:
+    - "**/*.py"
+    - "**/*.js"
+    - "**/*.ts"
+    - "**/*.go"
+    - "**/*.java"
+
+  exclude_patterns:
+    - "**/node_modules/**"
+    - "**/.git/**"
+    - "**/__pycache__/**"
+    - "**/venv/**"
+    - "**/dist/**"
 
 # Performance
 performance:
-  max_workers: 4
-  cache_enabled: true
+  max_workers: 10       # Concurrent file processing
+  cache_enabled: true   # Cache scan results
   parallel_execution: true
+  timeout_seconds: 300  # Max scan duration
 """
 
     config_path = Path(".mcp-sentinel.yaml")

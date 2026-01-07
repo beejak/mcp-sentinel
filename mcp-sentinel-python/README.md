@@ -23,21 +23,24 @@ Modern Python implementation with async-first architecture, comprehensive testin
 
 </div>
 
-## 🎉 What's New - Phase 3 Complete!
+## 🎉 What's New - Phase 3 Complete + Report Generators!
 
-We've achieved **100% detector parity** with the Rust version, implementing all 8 security detectors with comprehensive test coverage:
+We've achieved **100% detector parity** with the Rust version, implementing all 8 security detectors with comprehensive test coverage, **PLUS** professional report generation capabilities:
 
 | Milestone | Status | Details |
 |-----------|--------|---------|
 | **8/8 Detectors** | ✅ Complete | All vulnerability detectors implemented with high coverage |
 | **274 Tests** | ✅ Passing | ~90% pass rate with 95% average code coverage |
 | **98 Patterns** | ✅ Implemented | Comprehensive vulnerability detection patterns |
+| **4 Report Formats** | ✅ Complete | Terminal, JSON, SARIF 2.1.0, HTML interactive reports |
 | **Enterprise Docs** | ✅ Complete | Full documentation suite with guides and examples |
 
 **Recent Additions (Phase 3):**
 - ✅ **XSSDetector** - 6 pattern categories, 18 patterns, 100% coverage
 - ✅ **ConfigSecurityDetector** - 8 categories, 35 patterns, 96.49% coverage
 - ✅ **PathTraversalDetector** - 5 categories, 22 patterns, 96.67% coverage
+- ✅ **SARIF Report Generator** - GitHub Code Scanning compatible, SARIF 2.1.0 standard
+- ✅ **HTML Report Generator** - Beautiful interactive reports with executive dashboard
 
 ## 🚀 Quick Start
 
@@ -48,14 +51,23 @@ poetry install
 # Or install with pip
 pip install mcp-sentinel
 
-# Run a scan
+# Run a scan with terminal output
 mcp-sentinel scan /path/to/mcp/server
+
+# Generate beautiful HTML report
+mcp-sentinel scan /path/to/mcp/server --output html --json-file report.html
+
+# Generate SARIF report for GitHub Code Scanning
+mcp-sentinel scan /path/to/mcp/server --output sarif --json-file report.sarif
+
+# Generate JSON report
+mcp-sentinel scan /path/to/mcp/server --output json --json-file report.json
+
+# Scan with multiple engines (Phase 4+)
+mcp-sentinel scan /path/to/mcp/server --engines static,sast --output html
 
 # Start API server
 mcp-sentinel server --port 8000
-
-# Run comprehensive audit
-mcp-sentinel audit /path/to/project --output html
 ```
 
 ## ✨ Current Features (Phase 3)
@@ -120,6 +132,32 @@ mcp-sentinel audit /path/to/project --output html
 - Wildcard version specifiers
 - Package confusion attacks
 
+### 📊 Report Generators (Phase 3+)
+
+MCP Sentinel now supports multiple output formats for seamless integration:
+
+| Format | Description | Use Case |
+|--------|-------------|----------|
+| **Terminal** | Rich colored output with tables | Quick scans and debugging |
+| **JSON** | Structured data format | CI/CD pipelines, automation |
+| **SARIF 2.1.0** | Industry standard format | GitHub Code Scanning, IDE integration |
+| **HTML** | Beautiful interactive reports | Executive summaries, sharing with teams |
+
+**SARIF Features:**
+- ✅ GitHub Code Scanning compatible
+- ✅ Full vulnerability location mapping
+- ✅ Rule definitions for all detector types
+- ✅ Severity-based categorization
+- ✅ Remediation suggestions
+
+**HTML Report Features:**
+- ✅ Executive dashboard with key metrics
+- ✅ Risk score visualization
+- ✅ Animated severity breakdown
+- ✅ Detailed findings with code snippets
+- ✅ Self-contained (no external dependencies)
+- ✅ Professional styling with responsive design
+
 ### 🏗️ Architecture Highlights
 
 - **Async-First**: Full asyncio implementation for concurrent scanning
@@ -128,6 +166,7 @@ mcp-sentinel audit /path/to/project --output html
 - **Extensible**: Easy to add new detectors and patterns
 - **Well-Tested**: 274 tests with ~95% average coverage
 - **Modern Python**: Python 3.11+ with latest best practices
+- **Multi-Format Reports**: Terminal, JSON, SARIF, and HTML outputs
 
 ### ⚡ Performance
 
@@ -225,12 +264,19 @@ scan:
 
 # Output configuration
 output:
-  format: json  # json, text (Phase 4: html, sarif, pdf)
+  format: terminal  # terminal, json, sarif, html
   file: scan_results.json
   verbose: true
+
+# Report generation (Phase 3+)
+reporting:
+  formats: [terminal, json, sarif, html]
+  output_dir: ./reports
+  include_code_snippets: true
+  github_code_scanning: true  # SARIF compatibility
 ```
 
-**Note**: Advanced features like AI analysis, enterprise integrations, and HTML reports are planned for Phase 4+. See [Roadmap](#-roadmap) for details.
+**Note**: Advanced features like AI analysis and enterprise integrations are planned for Phase 4+. See [Roadmap](#-roadmap) for details.
 
 ## 📖 Usage Examples (Phase 3)
 
@@ -260,6 +306,51 @@ poetry run pytest -v
 
 # Run specific test
 poetry run pytest tests/unit/test_xss.py::test_dom_xss_detection -v
+```
+
+### Generating Reports
+
+```bash
+# Generate different report formats
+mcp-sentinel scan /path/to/project --output terminal  # Default: colored terminal output
+mcp-sentinel scan /path/to/project --output json --json-file results.json
+mcp-sentinel scan /path/to/project --output sarif --json-file results.sarif
+mcp-sentinel scan /path/to/project --output html --json-file report.html
+
+# Filter by severity
+mcp-sentinel scan /path/to/project --severity critical --severity high --output html
+
+# Scan with specific engines and generate HTML report
+mcp-sentinel scan /path/to/project --engines static --output html --json-file report.html
+
+# Upload SARIF to GitHub Code Scanning
+mcp-sentinel scan /path/to/project --output sarif --json-file results.sarif
+gh api repos/{owner}/{repo}/code-scanning/sarifs -F sarif=@results.sarif
+```
+
+### Using Report Generators Programmatically
+
+```python
+from pathlib import Path
+from mcp_sentinel.core import MultiEngineScanner
+from mcp_sentinel.engines.base import EngineType
+from mcp_sentinel.reporting.generators import SARIFGenerator, HTMLGenerator
+
+# Run a scan
+scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
+result = await scanner.scan_directory("/path/to/project")
+
+# Generate SARIF report
+sarif_gen = SARIFGenerator()
+sarif_gen.save_to_file(result, Path("report.sarif"))
+
+# Generate HTML report
+html_gen = HTMLGenerator()
+html_gen.save_to_file(result, Path("report.html"))
+
+# Get report as string
+sarif_json = sarif_gen.generate_json(result)
+html_content = html_gen.generate(result)
 ```
 
 ### Using Detectors Programmatically
@@ -439,8 +530,23 @@ mcp-sentinel-python/
 │   │   ├── xss.py          # Phase 3: XSS detection
 │   │   ├── config_security.py   # Phase 3: Config security
 │   │   └── path_traversal.py    # Phase 3: Path traversal
+│   ├── core/               # ✅ Core scanning infrastructure
+│   │   ├── scanner.py      # Legacy scanner
+│   │   ├── multi_engine_scanner.py  # Multi-engine orchestration
+│   │   ├── config.py       # Configuration management
+│   │   └── exceptions.py   # Custom exceptions
+│   ├── engines/            # ✅ Analysis engines
+│   │   ├── base.py         # BaseEngine abstract class
+│   │   └── static/         # Static analysis engine
+│   ├── reporting/          # ✅ Report generators (Phase 3+)
+│   │   └── generators/
+│   │       ├── sarif_generator.py   # SARIF 2.1.0 format
+│   │       └── html_generator.py    # HTML interactive reports
+│   ├── cli/                # ✅ Command-line interface
+│   │   └── main.py         # CLI commands and argument parsing
 │   ├── models/             # ✅ Pydantic data models
-│   │   └── vulnerability.py
+│   │   ├── vulnerability.py
+│   │   └── scan_result.py
 │   └── __init__.py
 ├── tests/
 │   ├── unit/               # ✅ 274 comprehensive tests
@@ -494,7 +600,7 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] Expanded test coverage to 95%+
 - [x] Enhanced documentation
 
-### ✅ Phase 3 Complete - 100% Detector Parity (Jan 2026)
+### ✅ Phase 3 Complete - 100% Detector Parity + Report Generators (Jan 2026)
 - [x] XSSDetector: 6 categories, 18 patterns, 100% coverage
   - DOM XSS, event handlers, JavaScript protocol
   - React/Vue framework vulnerabilities, jQuery unsafe methods
@@ -504,11 +610,14 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] PathTraversalDetector: 5 categories, 22 patterns, 96.67% coverage
   - Directory traversal, unsafe file ops, Zip Slip
   - Path manipulation, missing sanitization
+- [x] **SARIF Report Generator**: SARIF 2.1.0 format with GitHub Code Scanning support
+- [x] **HTML Report Generator**: Beautiful interactive reports with executive dashboard
+- [x] **CLI Integration**: Multi-format output support (terminal, JSON, SARIF, HTML)
 - [x] 274 comprehensive tests (~90% pass rate, 95% coverage)
 - [x] Enterprise documentation suite
 - [x] Contributing guidelines and development setup
 
-**Current Status**: 8/8 detectors, 98 patterns, 274 tests, enterprise-ready code quality ✅
+**Current Status**: 8/8 detectors, 98 patterns, 274 tests, 4 report formats, enterprise-ready ✅
 
 ---
 
@@ -557,19 +666,21 @@ Phase 3 maintains enterprise-grade code quality:
   - Configuration file support (YAML)
 
 - [ ] **CLI Application**
-  - `mcp-sentinel scan` command
-  - `--engines` flag (static, semantic, sast, ai, all)
-  - Multiple output formats (JSON, SARIF, HTML, text)
+  - ✅ `mcp-sentinel scan` command (completed Phase 3)
+  - `--engines` flag enhancement (static, semantic, sast, ai, all)
+  - ✅ Multiple output formats (terminal, JSON, SARIF, HTML) - Phase 3
   - Severity filtering and fail-on thresholds
   - GitHub URL scanning support
   - CI/CD integration guides
 
-- [ ] **Report Generation**
-  - SARIF 2.1.0 output for GitHub Code Scanning
-  - JSON structured output with engine attribution
-  - HTML interactive reports with engine breakdown
-  - Terminal colored output with engine indicators
+- [ ] **Enhanced Report Generation**
+  - ✅ SARIF 2.1.0 output for GitHub Code Scanning (Phase 3)
+  - ✅ JSON structured output (Phase 3)
+  - ✅ HTML interactive reports (Phase 3)
+  - ✅ Terminal colored output (Phase 3)
+  - Engine attribution in all report formats
   - Engine comparison and overlap analysis
+  - Multi-engine vulnerability deduplication reporting
 
 - [ ] **Integration Tests**
   - End-to-end multi-engine scanning workflows
@@ -784,6 +895,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 | **Patterns** | 98 vulnerability patterns |
 | **Tests** | 274 comprehensive tests |
 | **Coverage** | ~95% average |
+| **Report Formats** | 4 (Terminal, JSON, SARIF, HTML) |
 | **Code Quality** | Black + Ruff + mypy |
 | **Documentation** | Enterprise-grade |
 

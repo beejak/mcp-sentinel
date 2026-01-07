@@ -94,6 +94,107 @@ poetry run ruff check src/
 poetry run black --check src/
 ```
 
+### Docker Development (Optional)
+
+If you prefer Docker-based development, we provide two Docker Compose configurations:
+
+#### Option 1: Simple Scanner (Recommended for Phase 3)
+
+Use `docker-compose.simple.yml` for lightweight scanning without enterprise infrastructure:
+
+```bash
+# Build the scanner image
+docker-compose -f docker-compose.simple.yml build
+
+# Run a scan on your local project
+docker-compose -f docker-compose.simple.yml run --rm scanner scan /data
+
+# Generate HTML report
+docker-compose -f docker-compose.simple.yml run --rm scanner scan /data \
+  --output html --json-file /reports/report.html
+
+# Generate SARIF for GitHub Code Scanning
+docker-compose -f docker-compose.simple.yml run --rm scanner scan /data \
+  --output sarif --json-file /reports/results.sarif
+
+# Initialize configuration
+docker-compose -f docker-compose.simple.yml run --rm scanner init
+```
+
+**Directory Structure:**
+- `./data/` - Mount your project here for scanning
+- `./reports/` - Generated reports output here
+- `./.mcp-sentinel.yaml` - Optional configuration file
+
+#### Option 2: Full Enterprise Stack (For Phase 5+ Development)
+
+Use `docker-compose.yml` for the complete enterprise platform with PostgreSQL, Redis, Celery, and MinIO:
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f api
+
+# Run migrations
+docker-compose exec api alembic upgrade head
+
+# Access services:
+# - API: http://localhost:8000
+# - Flower (Celery monitoring): http://localhost:5555
+# - MinIO Console: http://localhost:9001
+
+# Stop all services
+docker-compose down
+
+# Clean up (includes volumes)
+docker-compose down -v
+```
+
+**Services Included:**
+- `postgres` - PostgreSQL database
+- `redis` - Cache and message broker
+- `api` - FastAPI server
+- `worker-scan` - Celery worker for scans
+- `worker-report` - Celery worker for reports
+- `flower` - Celery monitoring UI
+- `minio` - S3-compatible object storage
+
+#### Environment Variables
+
+Create a `.env` file for custom configuration:
+
+```bash
+# Database
+DB_USER=sentinel
+DB_PASSWORD=your_secure_password
+DB_NAME=mcp_sentinel
+DB_PORT=5432
+
+# Redis
+REDIS_PASSWORD=your_redis_password
+REDIS_PORT=6379
+
+# API
+API_PORT=8000
+LOG_LEVEL=info
+ENVIRONMENT=development
+
+# Security
+SECRET_KEY=your_secret_key_here
+
+# AI Providers (Phase 4+)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...
+
+# Integrations (Phase 5+)
+JIRA_URL=https://your-org.atlassian.net
+JIRA_API_TOKEN=...
+SLACK_WEBHOOK_URL=...
+```
+
 ---
 
 ## Development Workflow
