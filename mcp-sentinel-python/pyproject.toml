@@ -5,9 +5,9 @@ description = "Enterprise-grade security scanner for Model Context Protocol (MCP
 authors = ["MCP Sentinel Team <team@mcp-sentinel.dev>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/mcp-sentinel/mcp-sentinel-python"
-repository = "https://github.com/mcp-sentinel/mcp-sentinel-python"
-documentation = "https://docs.mcp-sentinel.dev"
+homepage = "https://github.com/beejak/mcp-sentinel"
+repository = "https://github.com/beejak/mcp-sentinel"
+documentation = "https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python/docs"
 keywords = ["security", "mcp", "scanner", "vulnerability", "llm"]
 classifiers = [
     "Development Status :: 4 - Beta",
