@@ -15,6 +15,9 @@ from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
+from mcp_sentinel.detectors.xss import XSSDetector
+from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
+from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.core.exceptions import ScanError
 
 
@@ -35,17 +38,16 @@ class Scanner:
         self.detectors = detectors or self._get_default_detectors()
 
     def _get_default_detectors(self) -> List[BaseDetector]:
-        """Get the default set of detectors."""
+        """Get the default set of detectors (all 8 Phase 3 detectors)."""
         return [
             SecretsDetector(),
             CodeInjectionDetector(),
             PromptInjectionDetector(),
             ToolPoisoningDetector(),
             SupplyChainDetector(),
-            # More detectors will be added here as we implement them:
-            # - XSSDetector()
-            # - ConfigSecurityDetector()
-            # - PathTraversalDetector()
+            XSSDetector(),
+            ConfigSecurityDetector(),
+            PathTraversalDetector(),
         ]
 
     async def scan_directory(

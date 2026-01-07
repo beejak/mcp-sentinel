@@ -29,9 +29,9 @@ def sample_python_file(temp_dir):
     content = '''
 import os
 
-# This is a test file with a hardcoded AWS key
-AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"
-AWS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+# This is a test file with hardcoded credentials (FAKE - for testing only!)
+AWS_ACCESS_KEY = "AKIA1A2B3C4D5E6F7G8H"  # Fake AWS access key for testing
+AWS_SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYA1B2C3D4E5F6"  # Fake AWS secret key
 
 def get_database_url():
     return "postgres://user:password123@localhost:5432/mydb"

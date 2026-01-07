@@ -79,7 +79,7 @@ def vulnerable():
     assert "subprocess.call" in vulns[0].title
     assert "shell=True" in vulns[0].title
     assert vulns[0].cwe_id == "CWE-78"
-    assert vulns[0].line_number == 4
+    assert vulns[0].line_number == 5
 
 
 @pytest.mark.asyncio
