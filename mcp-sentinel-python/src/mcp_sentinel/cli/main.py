@@ -12,6 +12,8 @@ from rich import box
 
 from mcp_sentinel import __version__
 from mcp_sentinel.core.scanner import Scanner
+from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
+from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Severity
 
@@ -41,6 +43,12 @@ def cli():
     help="Output format",
 )
 @click.option(
+    "--engines",
+    type=str,
+    default="static",
+    help="Comma-separated list of engines to use (static, semantic, sast, ai, all). Default: static",
+)
+@click.option(
     "--severity",
     type=click.Choice(["critical", "high", "medium", "low", "info"]),
     multiple=True,
@@ -51,7 +59,12 @@ def cli():
     type=click.Path(),
     help="Output JSON results to file",
 )
-def scan(target: str, output: str, severity: tuple, json_file: str):
+@click.option(
+    "--no-progress",
+    is_flag=True,
+    help="Disable progress output",
+)
+def scan(target: str, output: str, engines: str, severity: tuple, json_file: str, no_progress: bool):
     """
     Scan a directory or file for security vulnerabilities.
 
@@ -60,8 +73,12 @@ def scan(target: str, output: str, severity: tuple, json_file: str):
     Examples:
 
         \b
-        # Scan current directory
+        # Scan current directory with static engine
         mcp-sentinel scan .
+
+        \b
+        # Scan with multiple engines
+        mcp-sentinel scan . --engines static,sast
 
         \b
         # Scan with JSON output
@@ -71,17 +88,30 @@ def scan(target: str, output: str, severity: tuple, json_file: str):
         # Filter critical and high severity only
         mcp-sentinel scan . --severity critical --severity high
     """
+    # Parse engine selection
+    enabled_engines = _parse_engines(engines)
+
+    if not enabled_engines:
+        console.print("[red]Error: At least one engine must be specified[/red]")
+        raise click.Abort()
+
+    # Show selected engines
+    engine_names = [e.value for e in enabled_engines]
     console.print(
         Panel.fit(
             f"[bold cyan]MCP Sentinel v{__version__}[/bold cyan]\n"
-            f"Scanning: [yellow]{target}[/yellow]",
+            f"Scanning: [yellow]{target}[/yellow]\n"
+            f"Engines: [green]{', '.join(engine_names)}[/green]",
             box=box.ROUNDED,
         )
     )
 
-    # Run the scan
-    with console.status("[bold green]Scanning for vulnerabilities..."):
-        result = asyncio.run(_run_scan(target))
+    # Run the scan with progress tracking
+    if no_progress:
+        with console.status("[bold green]Scanning for vulnerabilities..."):
+            result = asyncio.run(_run_scan_multi_engine(target, enabled_engines, None))
+    else:
+        result = asyncio.run(_run_scan_multi_engine(target, enabled_engines, console))
 
     # Filter by severity if specified
     if severity:
@@ -107,9 +137,115 @@ def scan(target: str, output: str, severity: tuple, json_file: str):
 
 
 async def _run_scan(target: str) -> ScanResult:
-    """Run the scan asynchronously."""
+    """Run the scan asynchronously (legacy - uses old Scanner)."""
     scanner = Scanner()
     return await scanner.scan_directory(target)
+
+
+def _parse_engines(engines_str: str) -> set[EngineType]:
+    """
+    Parse engine selection string into set of EngineType.
+
+    Args:
+        engines_str: Comma-separated engine names (e.g., "static,sast,ai" or "all")
+
+    Returns:
+        Set of EngineType enums
+    """
+    engines_str = engines_str.lower().strip()
+
+    # Handle "all" shortcut
+    if engines_str == "all":
+        return {EngineType.STATIC, EngineType.SEMANTIC, EngineType.SAST, EngineType.AI}
+
+    # Parse comma-separated engines
+    enabled = set()
+    engine_map = {
+        "static": EngineType.STATIC,
+        "semantic": EngineType.SEMANTIC,
+        "sast": EngineType.SAST,
+        "ai": EngineType.AI,
+    }
+
+    for engine_name in engines_str.split(","):
+        engine_name = engine_name.strip()
+        if engine_name in engine_map:
+            enabled.add(engine_map[engine_name])
+        elif engine_name:  # Ignore empty strings
+            console.print(f"[yellow]Warning: Unknown engine '{engine_name}' - ignoring[/yellow]")
+
+    return enabled
+
+
+async def _run_scan_multi_engine(
+    target: str,
+    enabled_engines: set[EngineType],
+    console_for_progress: Console | None = None,
+) -> ScanResult:
+    """
+    Run the scan with multiple engines asynchronously.
+
+    Args:
+        target: Path to scan
+        enabled_engines: Set of engines to enable
+        console_for_progress: Console for progress output (None to disable)
+
+    Returns:
+        ScanResult with findings from all enabled engines
+    """
+    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+
+    # Track progress from all engines
+    engine_progress = {}
+
+    def progress_callback(engine_name: str, progress: ScanProgress):
+        """Update progress for an engine."""
+        engine_progress[engine_name] = progress
+
+    # Create scanner with enabled engines
+    scanner = MultiEngineScanner(
+        enabled_engines=enabled_engines,
+        progress_callback=progress_callback if console_for_progress else None,
+    )
+
+    # Run scan with progress display
+    if console_for_progress:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console_for_progress,
+        ) as progress:
+            # Create a task for the overall scan
+            task_id = progress.add_task(
+                f"[cyan]Scanning with {len(enabled_engines)} engine(s)...",
+                total=100,
+            )
+
+            # Start scan in background
+            scan_task = asyncio.create_task(scanner.scan_directory(target))
+
+            # Update progress while scanning
+            while not scan_task.done():
+                # Calculate average progress across all engines
+                if engine_progress:
+                    avg_progress = sum(
+                        p.progress_percentage for p in engine_progress.values()
+                    ) / len(engine_progress)
+                    progress.update(task_id, completed=avg_progress)
+
+                await asyncio.sleep(0.1)
+
+            # Get final result
+            result = await scan_task
+            progress.update(task_id, completed=100)
+
+            return result
+    else:
+        # No progress display
+        return await scanner.scan_directory(target)
 
 
 def _print_terminal_results(result: ScanResult):
