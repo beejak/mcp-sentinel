@@ -28,9 +28,25 @@ def cli():
     """
     MCP Sentinel - Enterprise Security Scanner for MCP Servers
 
-    Scan your codebase for security vulnerabilities including hardcoded secrets,
-    code injection, prompt injection, and more.
-    """
+    Comprehensive security scanning with 8 specialized detectors covering:
+    • Hardcoded Secrets (AWS, API keys, tokens)
+    • Code Injection (SQL, command, eval)
+    • Prompt Injection & AI attacks
+    • XSS vulnerabilities (DOM, event handlers, frameworks)
+    • Configuration security issues
+    • Path traversal & directory attacks
+    • Tool poisoning & Unicode manipulation
+    • Supply chain security risks
+
+    Professional reporting in 4 formats:
+    • Terminal - Rich colored output
+    • JSON - Structured data for automation
+    • SARIF 2.1.0 - GitHub Code Scanning compatible
+    • HTML - Interactive executive dashboards
+
+    Version: {version}
+    Documentation: https://github.com/beejak/mcp-sentinel
+    """.format(version=__version__)
     pass
 
 
