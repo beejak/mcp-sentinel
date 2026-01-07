@@ -54,7 +54,7 @@ azure-pipelines.yml
 # ============================================================================
 # Rust Development Files
 # ============================================================================
-Cargo.lock
+# Cargo.lock
 # Note: We DO want Cargo.lock in the image for reproducible builds
 # So comment out if you want to include it
 

@@ -25,7 +25,7 @@ MCP Sentinel is a next-generation security scanner for Model Context Protocol (M
 
 **Performance:** Stable 7.8s scan time, zero new dependencies, 38% faster than v1.0.0 despite 676% code growth.
 
-**[📥 Download v2.6.0](https://github.com/beejak/MCP_Scanner/releases/tag/v2.6.0)** | **[📖 Release Notes](RELEASE_NOTES_v2.6.0.md)** | **[⚡ Installation Guide](INSTALLATION.md)** | **[🚀 Roadmap](#-implementation-status)**
+**[📥 Download v2.6.0](https://github.com/beejak/MCP_Scanner/releases/tag/v2.6.0)** | **[📖 Release Notes](docs/releases/RELEASE_NOTES_v2.6.0.md)** | **[⚡ Installation Guide](INSTALLATION.md)** | **[🚀 Roadmap](#-implementation-status)**
 
 ---
 
@@ -920,7 +920,7 @@ Set environment variables to customize progress display:
 
 🧠 Threat Intelligence | 🔒 Supply Chain Security | 🌳 Semantic Analysis | 🔍 Semgrep | 📊 HTML Reports | 🐙 GitHub Scanning
 
-**[📥 Download v2.6.0](https://github.com/beejak/MCP_Scanner/releases/tag/v2.6.0)** | **[📖 Release Notes](RELEASE_NOTES_v2.6.0.md)** | **[🚀 Installation Guide](INSTALLATION.md)** | **[🐛 Report Issues](https://github.com/beejak/MCP_Scanner/issues)** | **[⭐ Star on GitHub](https://github.com/beejak/MCP_Scanner)**
+**[📥 Download v2.6.0](https://github.com/beejak/MCP_Scanner/releases/tag/v2.6.0)** | **[📖 Release Notes](docs/releases/RELEASE_NOTES_v2.6.0.md)** | **[🚀 Installation Guide](INSTALLATION.md)** | **[🐛 Report Issues](https://github.com/beejak/MCP_Scanner/issues)** | **[⭐ Star on GitHub](https://github.com/beejak/MCP_Scanner)**
 
 ---
 

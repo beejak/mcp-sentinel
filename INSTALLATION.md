@@ -520,7 +520,7 @@ mcp-sentinel scan --semgrep-rules ./custom-rules.yaml ./project
 - 92% test coverage
 - Zero breaking changes
 
-See `RELEASE_NOTES_v2.6.0.md` for complete details.
+See `docs/releases/RELEASE_NOTES_v2.6.0.md` for complete details.
 
 ---
 

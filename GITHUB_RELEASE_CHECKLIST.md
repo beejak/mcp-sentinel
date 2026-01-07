@@ -73,7 +73,7 @@
 grep '^version = "2.6.0"' Cargo.toml
 
 # Check that all references are updated
-grep -r "2.6.0" README.md RELEASE_NOTES_v2.6.0.md docs/
+grep -r "2.6.0" README.md docs/releases/RELEASE_NOTES_v2.6.0.md docs/
 
 # Verify git is clean
 git status
