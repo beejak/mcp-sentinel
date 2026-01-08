@@ -15,6 +15,7 @@ from mcp_sentinel.models.vulnerability import Vulnerability
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
 from mcp_sentinel.engines.static import StaticAnalysisEngine
+from mcp_sentinel.engines.sast import SASTEngine
 from mcp_sentinel.core.exceptions import ScanError
 
 
@@ -56,16 +57,19 @@ class MultiEngineScanner:
 
     def _get_default_engines(self) -> List[BaseEngine]:
         """
-        Get default engines (currently only Static Analysis).
+        Get default engines.
 
-        As Phase 4 progresses, this will include:
-        - StaticAnalysisEngine (available now)
+        Available engines:
+        - StaticAnalysisEngine - Pattern-based detection (8 detectors)
+        - SASTEngine - Semgrep + Bandit integration (Phase 4.1)
+
+        Coming in future phases:
         - SemanticAnalysisEngine (Phase 4.2)
-        - SASTEngine (Phase 4.3)
-        - AIAnalysisEngine (Phase 4.4)
+        - AIAnalysisEngine (Phase 4.3)
         """
         return [
             StaticAnalysisEngine(enabled=True),
+            SASTEngine(enabled=True),
         ]
 
     def _create_progress_callback(self, engine: BaseEngine) -> Callable[[ScanProgress], None]:

@@ -11,9 +11,9 @@
 
 ## 🛡️ Enterprise-Grade Security Scanner for MCP Servers
 
-**Phase 3 Complete - 100% Detector Parity Achieved ✅**
+**Phase 4.1 Complete - Multi-Engine SAST Integration ✅**
 
-Modern Python implementation with async-first architecture, comprehensive testing, and enterprise-ready code quality.
+Modern Python implementation with async-first architecture, multi-engine scanning (Static + SAST), comprehensive testing, and enterprise-ready code quality.
 
 ---
 
@@ -23,19 +23,28 @@ Modern Python implementation with async-first architecture, comprehensive testin
 
 </div>
 
-## 🎉 What's New - Phase 3 Complete + Report Generators!
+## 🎉 What's New - Phase 4.1: Multi-Engine SAST Integration!
 
-We've achieved **100% detector parity** with the Rust version, implementing all 8 security detectors with comprehensive test coverage, **PLUS** professional report generation capabilities:
+We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **Semgrep** and **Bandit** for industry-standard static analysis alongside our custom pattern-based detectors:
 
 | Milestone | Status | Details |
 |-----------|--------|---------|
+| **Multi-Engine Scanner** | ✅ Complete | Concurrent execution of multiple analysis engines |
+| **SAST Engine** | ✅ Complete | Semgrep + Bandit integration with 50+ mappings |
 | **8/8 Detectors** | ✅ Complete | All vulnerability detectors implemented with high coverage |
-| **274 Tests** | ✅ Passing | ~90% pass rate with 95% average code coverage |
+| **26 SAST Tests** | ✅ Passing | 100% pass rate, 70-80% coverage |
 | **98 Patterns** | ✅ Implemented | Comprehensive vulnerability detection patterns |
 | **4 Report Formats** | ✅ Complete | Terminal, JSON, SARIF 2.1.0, HTML interactive reports |
 | **Enterprise Docs** | ✅ Complete | Full documentation suite with guides and examples |
 
-**Recent Additions (Phase 3):**
+**Recent Additions (Phase 4.1):**
+- ✅ **SAST Engine** - Integrates Semgrep (multi-language) + Bandit (Python security)
+- ✅ **Multi-Engine Architecture** - Concurrent scanning with multiple engines
+- ✅ **Vulnerability Type Mapping** - 50+ tool-specific to MCP Sentinel type mappings
+- ✅ **Graceful Degradation** - Works even when external tools are missing
+- ✅ **26 Comprehensive Tests** - All passing with mock-based and real tool testing
+
+**Phase 3 Highlights:**
 - ✅ **XSSDetector** - 6 pattern categories, 18 patterns, 100% coverage
 - ✅ **ConfigSecurityDetector** - 8 categories, 35 patterns, 96.49% coverage
 - ✅ **PathTraversalDetector** - 5 categories, 22 patterns, 96.67% coverage
@@ -70,9 +79,27 @@ mcp-sentinel scan /path/to/mcp/server --engines static,sast --output html
 mcp-sentinel server --port 8000
 ```
 
-## ✨ Current Features (Phase 3)
+## ✨ Current Features (Phase 4.1)
 
-### 🔍 8 Comprehensive Vulnerability Detectors
+### 🚀 Multi-Engine Architecture
+
+**2 Analysis Engines Available:**
+
+| Engine | Status | Description | Tools |
+|--------|--------|-------------|-------|
+| **Static Analysis** | ✅ Active | Pattern-based detection with 8 specialized detectors | MCP Sentinel (custom) |
+| **SAST Integration** | ✅ Active | Industry-standard static analysis | Semgrep + Bandit |
+| **Semantic Analysis** | 🚧 Phase 4.2 | AST-based dataflow and taint tracking | Tree-sitter (planned) |
+| **AI Analysis** | 🚧 Phase 4.3 | LLM-powered vulnerability detection | LangChain + GPT-4/Claude (planned) |
+
+**Multi-Engine Features:**
+- ✅ Concurrent execution for performance
+- ✅ Automatic deduplication of findings
+- ✅ Unified vulnerability format across all engines
+- ✅ Graceful degradation (works even if tools missing)
+- ✅ Configurable via `--engines` flag
+
+### 🔍 8 Comprehensive Vulnerability Detectors (Static Engine)
 
 | Detector | Patterns | Coverage | Status |
 |----------|----------|----------|--------|

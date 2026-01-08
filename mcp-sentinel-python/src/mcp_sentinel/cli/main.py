@@ -62,8 +62,8 @@ def cli():
 @click.option(
     "--engines",
     type=str,
-    default="static",
-    help="Comma-separated list of engines to use (static, semantic, sast, ai, all). Currently: static only. Phase 4: multi-engine support",
+    default="static,sast",
+    help="Comma-separated list of engines to use (static, sast, semantic, ai, all). Default: static,sast. Phase 4.1: SAST engine available (Semgrep + Bandit)",
 )
 @click.option(
     "--severity",
