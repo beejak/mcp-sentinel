@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Test Coverage](https://img.shields.io/badge/coverage-70%25-green.svg)](https://github.com/beejak/mcp-sentinel)
-[![Tests](https://img.shields.io/badge/tests-331%2F357%20passing-success.svg)](https://github.com/beejak/mcp-sentinel)
+[![Test Coverage](https://img.shields.io/badge/coverage-79.44%25-green.svg)](https://github.com/beejak/mcp-sentinel)
+[![Tests](https://img.shields.io/badge/tests-344%2F373%20passing-success.svg)](https://github.com/beejak/mcp-sentinel)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)](https://github.com/beejak/mcp-sentinel/actions)
 
 <div align="center">
@@ -34,7 +34,7 @@ Modern Python implementation with async-first architecture, multi-engine scannin
 | **Bug Fixes** | ✅ Complete | Secrets: 25%→100%, Config: 70%→92% pass rates |
 | **CI/CD Pipeline** | ✅ Complete | GitHub Actions + pre-commit hooks |
 | **Repository Structure** | ✅ Complete | Python at root (no longer buried) |
-| **357 Tests** | ✅ 92.7% Pass | 331 passing, 70% coverage |
+| **373 Tests** | ✅ 92.2% Pass | 344 passing, 79.44% coverage |
 | **8/8 Detectors** | ✅ Complete | All vulnerability detectors production-ready |
 | **4 Report Formats** | ✅ Complete | Terminal, JSON, SARIF 2.1.0, HTML |
 | **Multi-Engine** | ✅ Complete | Static + SAST concurrent execution |
@@ -47,7 +47,7 @@ Modern Python implementation with async-first architecture, multi-engine scannin
 - ✅ **Security Scanning** - Automated Bandit, pip-audit, safety checks
 - ✅ **Repository Cleanup** - Python at root, Rust archived to rust-legacy/
 
-**Phase 4.1 Complete (Jan 8, 2026):**
+**Phase 4.1 Complete (Jan 12, 2026):**
 - ✅ **SAST Engine** - 26 tests, 100% passing, 72% coverage
 - ✅ **Multi-Engine Architecture** - Concurrent scanning with deduplication
 - ✅ **Graceful Degradation** - Works even when external tools missing
@@ -193,7 +193,7 @@ MCP Sentinel now supports multiple output formats for seamless integration:
 - **Type-Safe**: Comprehensive type hints with Pydantic models
 - **Modular**: Clean detector architecture with BaseDetector pattern
 - **Extensible**: Easy to add new detectors and patterns
-- **Well-Tested**: 274 tests with ~95% average coverage
+- **Well-Tested**: 373 tests, 92.2% pass rate, 79.44% coverage
 - **Modern Python**: Python 3.11+ with latest best practices
 - **Multi-Format Reports**: Terminal, JSON, SARIF, and HTML outputs
 
@@ -314,7 +314,7 @@ reporting:
 Phase 3 focuses on comprehensive detector implementation and testing. You can test each detector individually:
 
 ```bash
-# Test all detectors (274 tests)
+# Test all detectors (373 tests)
 poetry run pytest
 
 # Test specific detector suites
@@ -514,7 +514,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
         ▼                         ▼
   ┌──────────┐            ┌──────────────┐
   │ Pydantic │            │  Test Suite  │
-  │  Models  │            │  (274 tests) │
+  │  Models  │            │  (373 tests) │
   └──────────┘            └──────────────┘
 ```
 
@@ -523,7 +523,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
 - **8 Specialized Detectors**: Complete vulnerability detection coverage
 - **Pydantic Models**: Type-safe data validation with Vulnerability, Confidence, Severity
 - **Async Detection**: Concurrent file processing with asyncio
-- **Comprehensive Tests**: 274 tests with ~95% average coverage
+- **Comprehensive Tests**: 373 tests, 92.2% pass rate, 79.44% coverage
 - **Pattern Matching**: 98 compiled regex patterns for fast detection
 
 ### Planned Components (Phase 4+)
@@ -642,11 +642,11 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] **SARIF Report Generator**: SARIF 2.1.0 format with GitHub Code Scanning support
 - [x] **HTML Report Generator**: Beautiful interactive reports with executive dashboard
 - [x] **CLI Integration**: Multi-format output support (terminal, JSON, SARIF, HTML)
-- [x] 274 comprehensive tests (~90% pass rate, 95% coverage)
+- [x] 373 comprehensive tests (92.2% pass rate, 79.44% coverage)
 - [x] Enterprise documentation suite
 - [x] Contributing guidelines and development setup
 
-**Current Status**: 8/8 detectors, 98 patterns, 274 tests, 4 report formats, enterprise-ready ✅
+**Current Status**: 8/8 detectors, 98 patterns, 373 tests, 4 report formats, enterprise-ready ✅
 
 ---
 
