@@ -66,6 +66,6 @@ CMD ["mcp-sentinel", "server", "--host", "0.0.0.0", "--port", "8000"]
 # Metadata
 LABEL org.opencontainers.image.title="MCP Sentinel"
 LABEL org.opencontainers.image.description="Enterprise security scanner for MCP servers"
-LABEL org.opencontainers.image.version="3.0.0"
+LABEL org.opencontainers.image.version="4.1.0"
 LABEL org.opencontainers.image.authors="MCP Sentinel Team"
-LABEL org.opencontainers.image.source="https://github.com/mcp-sentinel/mcp-sentinel-python"
+LABEL org.opencontainers.image.source="https://github.com/beejak/mcp-sentinel"

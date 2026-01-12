@@ -5,7 +5,7 @@ A comprehensive security platform combining static analysis, semantic analysis,
 SAST, and AI-powered detection to identify vulnerabilities in MCP implementations.
 """
 
-__version__ = "3.0.0"
+__version__ = "4.1.0"
 __author__ = "MCP Sentinel Team"
 __license__ = "MIT"
 

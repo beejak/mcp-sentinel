@@ -26,7 +26,7 @@ C:\Users\rohit.jinsiwale\Trae AI MCP Scanner\mcp-sentinel
 ## Current Project State
 
 ### Version
-- **Current**: v3.0.0 + Phase 4.1 Complete
+- **Current**: v4.1.0 (Phase 4.1 Complete)
 - **Test Status**: 373 tests, 344 passing (92.2%), 79.44% coverage
 - **Next**: Phase 4.2 Semantic Engine (ready to start)
 

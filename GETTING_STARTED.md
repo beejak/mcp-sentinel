@@ -98,7 +98,7 @@ Detailed Findings:
 
 ## What Does MCP Sentinel Detect?
 
-### Currently Implemented (v3.0.0 + Phase 4.1)
+### Currently Implemented (v4.1.0)
 
 ✅ **Secrets Detection (15+ types)** - 100% pass rate
 - AWS Access Keys & Secret Keys

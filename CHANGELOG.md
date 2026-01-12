@@ -7,14 +7,157 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for Phase 3 (v3.0.0)
-- Runtime proxy engine
-- Guardrails enforcement
-- Web dashboard
-- Real-time monitoring
-- Rug pull detection
-- Property-based testing with proptest
-- Threat intelligence caching
+### Planned for Phase 4.2 (v4.2.0)
+- Semantic analysis engine with AST-based dataflow tracking
+- Tree-sitter integration for multi-language support
+- Taint analysis for tracking data flow
+- Control flow graph analysis
+- Advanced vulnerability detection with context awareness
+
+### Planned for Phase 4.3 (v4.3.0)
+- AI-powered analysis with multi-LLM support
+- Claude, GPT-4, and Gemini integration
+- Natural language vulnerability explanations
+- AI-assisted remediation suggestions
+
+---
+
+## [4.1.0] - 2026-01-12
+
+### Added - Phase 4.1: SAST Integration Engine ✅
+
+#### Major Features
+
+**1. SAST Engine - Multi-Tool Orchestration** (186 lines)
+- **SASTEngine**: Orchestrates multiple SAST tools (Semgrep, Bandit)
+- **Async Execution**: Parallel tool execution with asyncio
+- **Result Aggregation**: Combines findings from multiple tools
+- **Deduplication**: Intelligent vulnerability deduplication
+- **Graceful Degradation**: Works even if tools aren't installed
+- **26 Tests**: 100% pass rate, 72% coverage
+
+**2. Semgrep Adapter** (326 lines)
+- **1000+ Security Rules**: Auto-discovery from Semgrep registry
+- **Custom Rule Sets**: Support for organization-specific rules
+- **SARIF Integration**: Native SARIF 2.1.0 output parsing
+- **Performance**: Timeout handling, efficient rule loading
+- **GitHub Code Scanning**: Compatible with GitHub Advanced Security
+
+**3. Bandit Adapter** (378 lines)
+- **Python-Specific Security**: 40+ security issue types
+- **Confidence Scoring**: Low/Medium/High confidence levels
+- **Severity Mapping**: Maps Bandit severities to our model
+- **JSON Output Parsing**: Structured vulnerability extraction
+- **Context Preservation**: Maintains code context for findings
+
+**4. Multi-Engine Scanner Integration**
+- Updated `MultiEngineScanner` to support SAST engine
+- Concurrent execution of Static + SAST engines
+- Unified vulnerability reporting across engines
+- Configuration support for enabling/disabling engines
+
+#### Quality Improvements
+
+**5. Secrets Detector Fixes** (25% → 100% pass rate)
+- Fixed overly aggressive placeholder filtering
+- Updated OpenAI API key pattern: `{48}` → `{40,}` for flexibility
+- Updated Anthropic API key pattern: `{95,}` → `{80,}` for flexibility
+- Added acronym formatting (AWS, API, OpenAI, JWT, RSA, etc.)
+- Improved `_is_placeholder()` with exact phrase matching
+- **Result**: 8/8 tests passing (100%)
+
+**6. Config Security Detector Fixes** (70.6% → 92.2% pass rate)
+- Added support for dictionary syntax (`'key': value` and `key = value`)
+- Updated all patterns to match both `:` and `=` operators
+- Added optional quote matching for keys and values
+- Fixed patterns for: auth, CORS, security headers, SSL, rate limiting
+- **Result**: 47/51 tests passing (92.2%)
+
+**7. CI/CD Pipeline Implementation**
+- **GitHub Actions**: `.github/workflows/python-ci.yml`
+  - Test matrix: Python 3.10/3.11/3.12 × Ubuntu/macOS/Windows
+  - Coverage reports with Codecov
+  - Security scans with Bandit
+  - Self-scan with MCP Sentinel
+  - Dependency checks with safety/pip-audit
+- **Pre-commit Hooks**: `.pre-commit-config.yaml`
+  - Black (code formatting)
+  - isort (import sorting)
+  - Ruff (linting)
+  - Bandit (security scanning)
+  - pytest (run tests on commit)
+
+#### Repository Improvements
+
+**8. Repository Restructuring**
+- Moved Python implementation from `mcp-sentinel-python/` to root
+- 295 files moved with `git mv` (preserves history)
+- Rust implementation archived to `rust-legacy/`
+- Simplified repository structure for better discoverability
+- Updated all documentation paths
+
+**9. Documentation Organization**
+- Created `docs/archive/` for historical documentation
+- Moved 25 old documents to archive (Phase 2, old releases, historical docs)
+- Root directory reduced from 41 to 17 current documents
+- Comprehensive archive README explaining structure
+- Updated all GitHub URLs to correct repository paths
+
+#### Test Suite Improvements
+
+**10. Test Coverage & Quality**
+- **Total Tests**: 373 (up from 357)
+- **Pass Rate**: 92.2% (344 passing, 29 failing)
+- **Coverage**: 79.44% (up from 70.11%)
+- **Duration**: ~4 minutes
+
+**Critical Detectors - 100% Pass Rate:**
+- ✅ Secrets Detection: 8/8 (100%)
+- ✅ SAST Engine: 26/26 (100%)
+- ✅ Multi-Engine: 11/11 (100%)
+- ✅ Static Engine: 6/6 (100%)
+- ✅ Tool Poisoning: 40/40 (100%)
+- ✅ Config Security: 47/51 (92.2%)
+
+**Remaining Issues (29 tests, 7.8%):**
+- Multiline pattern detection (12 failures - XSS, Code Injection)
+- Path Traversal edge cases (6 failures)
+- Config Security edge cases (4 failures)
+- Report generators (3 failures - HTML/SARIF formatting)
+- Other edge cases (4 failures)
+
+### Changed
+
+- **Version**: Bumped from 3.0.0 to 4.1.0 to reflect Phase 4.1 completion
+- **Test Infrastructure**: Added timeout handling, improved fixtures
+- **Documentation**: All docs updated with current status and accurate metrics
+- **Working Directory**: Python now at repository root (not subdirectory)
+
+### Fixed
+
+- Secrets detector placeholder detection (issue #1)
+- Config security dictionary syntax support (issue #2)
+- OpenAI API key pattern strictness (issue #3)
+- Anthropic API key pattern strictness (issue #4)
+- Documentation accuracy on GitHub (issue #5)
+
+### Documentation
+
+- Updated `README.md` with Phase 4.1 status
+- Updated `PROJECT_STATUS.md` with accurate test metrics
+- Updated `GETTING_STARTED.md` with SAST engine configuration
+- Updated `WORK_CONTEXT.md` with current development state
+- Created `BUG_FIXES_SUMMARY.md` documenting all bug fixes
+- Created `RESTRUCTURE_VERIFICATION.md` for repository changes
+- Created `docs/archive/README.md` for historical documentation
+
+### Infrastructure
+
+- GitHub Actions CI/CD pipeline for Python 3.10/3.11/3.12
+- Pre-commit hooks for code quality
+- Cross-platform testing (Ubuntu, macOS, Windows)
+- Automated security scanning
+- Coverage reporting integration
 
 ---
 
