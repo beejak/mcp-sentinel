@@ -133,15 +133,31 @@ class XSSDetector(BaseDetector):
         """
         vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
+        # Track detected categories per line to avoid duplicates
+        detected_per_line: Dict[int, set] = {}
 
         for line_num, line in enumerate(lines, start=1):
             # Skip comments
             if self._is_comment(line, file_type):
                 continue
 
+            # Initialize tracking for this line
+            if line_num not in detected_per_line:
+                detected_per_line[line_num] = set()
+
             # Check all pattern categories
             for category, patterns in self.patterns.items():
+                # Skip if we've already detected this category on this line
+                if category in detected_per_line[line_num]:
+                    continue
+
+                # Track if we found a match in this category
+                found_in_category = False
+
                 for pattern in patterns:
+                    if found_in_category:
+                        break  # Skip remaining patterns in this category
+
                     matches = pattern.finditer(line)
 
                     for match in matches:
@@ -155,6 +171,11 @@ class XSSDetector(BaseDetector):
                                 code_snippet=line.strip(),
                             )
                             vulnerabilities.append(vuln)
+                            # Mark this category as detected for this line
+                            detected_per_line[line_num].add(category)
+                            found_in_category = True
+                            # Break after first match in this category for this line
+                            break
 
         return vulnerabilities
 
@@ -236,8 +257,18 @@ class XSSDetector(BaseDetector):
                 return True
 
         # For template XSS, check if using safe in test files
-        if category == "template_xss" and ("test" in str(line).lower() or "example" in str(line).lower()):
-            return True
+        if category == "template_xss":
+            if "test" in str(line).lower() or "example" in str(line).lower():
+                return True
+            # Check if "safe()" is actually a function definition, not a call
+            if re.search(r'\b(def|function)\s+safe\s*\(', line, re.IGNORECASE):
+                return True
+            # Check if "safe()" is a class method definition
+            if re.search(r'\bclass\s+\w+.*safe\s*\(', line, re.IGNORECASE):
+                return True
+            # Check if "safe()" is an arrow function or method
+            if re.search(r'\bconst\s+safe\s*=|let\s+safe\s*=|var\s+safe\s*=', line, re.IGNORECASE):
+                return True
 
         return False
 
