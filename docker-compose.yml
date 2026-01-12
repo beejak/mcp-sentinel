@@ -1,217 +1,207 @@
-# MCP Sentinel - Docker Compose Configuration
-# Version: 2.5.0
-# Purpose: Easy orchestration of MCP Sentinel scans
-
 version: '3.8'
 
-# ============================================================================
-# Services
-# ============================================================================
 services:
-  # --------------------------------------------------------------------------
-  # Main scanner service
-  # --------------------------------------------------------------------------
-  mcp-sentinel:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: mcp-sentinel-db
+    environment:
+      POSTGRES_USER: ${DB_USER:-sentinel}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sentinel_dev_password}
+      POSTGRES_DB: ${DB_NAME:-mcp_sentinel}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-sentinel}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mcp-network
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-sentinel-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_dev_password}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mcp-network
+
+  # API Server (FastAPI)
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - RUST_VERSION=1.70
-    image: mcp-sentinel:2.5.0
-    container_name: mcp-sentinel-scanner
-
-    # Mount current directory as workspace
-    volumes:
-      - ./:/workspace:ro  # Read-only for security
-      - scan-cache:/home/mcp/.mcp-sentinel  # Persistent cache
-
-    # Environment variables
+    container_name: mcp-sentinel-api
     environment:
-      # Logging
-      - RUST_LOG=${RUST_LOG:-info}
-      - MCP_SENTINEL_LOG_LEVEL=${MCP_SENTINEL_LOG_LEVEL:-info}
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_dev_password}@postgres:5432/${DB_NAME:-mcp_sentinel}
 
-      # API keys (optional - for AI analysis)
-      - MCP_SENTINEL_API_KEY=${MCP_SENTINEL_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Redis
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/0
 
-      # Performance
-      - MCP_SENTINEL_NO_PROGRESS=${MCP_SENTINEL_NO_PROGRESS:-0}
+      # Celery
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/2
 
-    # Resource limits (adjust based on your needs)
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-        reservations:
-          cpus: '1.0'
-          memory: 512M
+      # API Configuration
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
 
-    # Security options
-    security_opt:
-      - no-new-privileges:true
-    read_only: true
-    tmpfs:
-      - /tmp
+      # Security
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
 
-    # Network mode
-    network_mode: bridge
+      # AI Providers (optional)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
 
-    # Default command (can be overridden)
-    command: ["scan", "/workspace", "--enable-semgrep"]
-
-  # --------------------------------------------------------------------------
-  # CI/CD scanner service (for automated pipelines)
-  # --------------------------------------------------------------------------
-  mcp-sentinel-ci:
-    extends: mcp-sentinel
-    container_name: mcp-sentinel-ci
-
-    # CI-specific settings
-    environment:
-      - RUST_LOG=warn  # Less verbose in CI
-      - NO_COLOR=1  # Disable colors for CI logs
-      - MCP_SENTINEL_NO_PROGRESS=1  # No progress bars in CI
-
-    # Override command for CI
-    command: [
-      "scan", "/workspace",
-      "--enable-semgrep",
-      "--fail-on", "high",
-      "--output", "json",
-      "--output-file", "/workspace/scan-results.json"
-    ]
-
-    # CI doesn't need read-only (needs to write results)
-    read_only: false
-
-  # --------------------------------------------------------------------------
-  # Ollama service (optional - for local AI analysis)
-  # --------------------------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: mcp-sentinel-ollama
-    profiles:
-      - ai  # Only starts with --profile ai
-
-    volumes:
-      - ollama-data:/root/.ollama
+      # Integrations (optional)
+      JIRA_URL: ${JIRA_URL:-}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
 
     ports:
-      - "11434:11434"
-
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 8G
-        reservations:
-          cpus: '2.0'
-          memory: 4G
-
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - ./reports:/reports
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        mcp-sentinel server --host 0.0.0.0 --port 8000
+      "
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
+    networks:
+      - mcp-network
 
-  # --------------------------------------------------------------------------
-  # Deep analysis service (with AI)
-  # --------------------------------------------------------------------------
-  mcp-sentinel-deep:
-    extends: mcp-sentinel
-    container_name: mcp-sentinel-deep
-    profiles:
-      - ai  # Only starts with --profile ai
-
-    depends_on:
-      ollama:
-        condition: service_healthy
-
+  # Celery Worker (Scan Tasks)
+  worker-scan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-sentinel-worker-scan
     environment:
-      - OLLAMA_HOST=http://ollama:11434
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_dev_password}@postgres:5432/${DB_NAME:-mcp_sentinel}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/2
+      LOG_LEVEL: ${LOG_LEVEL:-info}
 
-    command: [
-      "scan", "/workspace",
-      "--mode", "deep",
-      "--enable-semgrep",
-      "--llm-provider", "ollama",
-      "--output", "html",
-      "--output-file", "/workspace/comprehensive-audit.html"
-    ]
+      # AI Providers
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
 
-    read_only: false  # Needs to write HTML report
+    volumes:
+      - ./reports:/reports
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A mcp_sentinel.tasks.celery_app worker --loglevel=info --queues=scans --concurrency=4 --hostname=worker-scan@%h
+    networks:
+      - mcp-network
 
-# ============================================================================
-# Volumes (persistent data)
-# ============================================================================
-volumes:
-  # Cache for scan results, AI responses, etc.
-  scan-cache:
-    driver: local
+  # Celery Worker (Report Tasks)
+  worker-report:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-sentinel-worker-report
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-sentinel}:${DB_PASSWORD:-sentinel_dev_password}@postgres:5432/${DB_NAME:-mcp_sentinel}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/0
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/2
+      LOG_LEVEL: ${LOG_LEVEL:-info}
 
-  # Ollama models storage
-  ollama-data:
-    driver: local
+    volumes:
+      - ./reports:/reports
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A mcp_sentinel.tasks.celery_app worker --loglevel=info --queues=reports --concurrency=2 --hostname=worker-report@%h
+    networks:
+      - mcp-network
 
-# ============================================================================
-# Networks (if you need custom networking)
-# ============================================================================
+  # Celery Flower (Monitoring)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-sentinel-flower
+    environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_dev_password}@redis:6379/2
+      FLOWER_PORT: 5555
+    ports:
+      - "${FLOWER_PORT:-5555}:5555"
+    depends_on:
+      - redis
+    command: celery -A mcp_sentinel.tasks.celery_app flower --port=5555
+    networks:
+      - mcp-network
+
+  # MinIO (S3-compatible object storage for reports)
+  minio:
+    image: minio/minio:latest
+    container_name: mcp-sentinel-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - mcp-network
+
 networks:
-  default:
+  mcp-network:
     driver: bridge
 
-# ============================================================================
-# Usage Examples:
-# ============================================================================
-# Basic scan:
-#   docker-compose run --rm mcp-sentinel scan /workspace
-#
-# Scan with Semgrep:
-#   docker-compose run --rm mcp-sentinel scan /workspace --enable-semgrep
-#
-# CI/CD mode:
-#   docker-compose run --rm mcp-sentinel-ci
-#
-# Generate HTML report:
-#   docker-compose run --rm mcp-sentinel scan /workspace --output html --output-file /workspace/report.html
-#
-# Deep analysis with AI (starts Ollama automatically):
-#   docker-compose --profile ai up -d ollama
-#   docker-compose --profile ai run --rm mcp-sentinel-deep
-#
-# Pull Ollama model:
-#   docker-compose --profile ai run --rm ollama ollama pull llama3.2:8b
-#
-# Custom command:
-#   docker-compose run --rm mcp-sentinel scan /workspace --severity high --fail-on critical
-#
-# Interactive shell:
-#   docker-compose run --rm --entrypoint /bin/bash mcp-sentinel
-#
-# Clean up:
-#   docker-compose down -v  # Remove volumes
-#   docker-compose --profile ai down -v  # Include AI services
-#
-# ============================================================================
-# Environment Variables:
-# ============================================================================
-# Create .env file in same directory as docker-compose.yml:
-#
-# # Logging
-# RUST_LOG=debug
-# MCP_SENTINEL_LOG_LEVEL=debug
-#
-# # API Keys (for cloud LLM providers)
-# MCP_SENTINEL_API_KEY=sk-...
-# OPENAI_API_KEY=sk-...
-# ANTHROPIC_API_KEY=sk-ant-...
-#
-# # Performance
-# MCP_SENTINEL_NO_PROGRESS=0
-#
-# Then docker-compose will automatically load these.
-# ============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local

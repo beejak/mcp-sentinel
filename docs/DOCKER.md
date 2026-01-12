@@ -1,827 +1,750 @@
-# MCP Sentinel - Docker Guide
+# MCP Sentinel Python - Docker Guide
 
-**Version:** 2.5.0
-**Purpose:** Complete guide to running MCP Sentinel in Docker
-
----
-
-## 📋 Table of Contents
-
-1. [Quick Start](#-quick-start)
-2. [Installation](#-installation)
-3. [Usage Examples](#-usage-examples)
-4. [Docker Compose](#-docker-compose)
-5. [Configuration](#-configuration)
-6. [AI Analysis with Ollama](#-ai-analysis-with-ollama)
-7. [CI/CD Integration](#-cicd-integration)
-8. [Advanced Usage](#-advanced-usage)
-9. [Troubleshooting](#-troubleshooting)
-10. [Best Practices](#-best-practices)
+**Version**: 1.0.0  
+**Purpose**: Complete guide to containerizing and running Python edition
 
 ---
 
-## 🚀 Quick Start
+## Table of Contents
+
+1. [Quick Start](#quick-start)
+2. [Dockerfile Options](#dockerfile-options)
+3. [Multi-Stage Builds](#multi-stage-builds)
+4. [Docker Compose](#docker-compose)
+5. [Optimization Strategies](#optimization-strategies)
+6. [CI/CD Integration](#cicd-integration)
+7. [Security Best Practices](#security-best-practices)
+8. [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Start
+
+### Using Pre-Built Image
 
 ```bash
-# Pull pre-built image (when available)
-docker pull ghcr.io/beejak/mcp-sentinel:2.5.0
+# Pull from registry (when available)
+docker pull ghcr.io/beejak/mcp-sentinel-python:1.0.0
 
-# Or build locally
-git clone https://github.com/beejak/MCP_Scanner
-cd MCP_Scanner
-docker build -t mcp-sentinel:2.5.0 .
-
-# Run a scan
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 scan /workspace
-
-# With Semgrep
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 scan /workspace --enable-semgrep
+# Run basic scan
+docker run --rm -v $(pwd):/workspace ghcr.io/beejak/mcp-sentinel-python:1.0.0 scan /workspace
 
 # Generate HTML report
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
+docker run --rm -v $(pwd):/workspace ghcr.io/beejak/mcp-sentinel-python:1.0.0 \
   scan /workspace --output html --output-file /workspace/report.html
+
+# Scan with custom config
+docker run --rm -v $(pwd):/workspace \
+  -v $(pwd)/config.toml:/app/config.toml \
+  ghcr.io/beejak/mcp-sentinel-python:1.0.0 \
+  scan /workspace --config /app/config.toml
 ```
 
----
-
-## 📥 Installation
-
-### Option 1: Pre-Built Image (Recommended)
-
-```bash
-# Pull from GitHub Container Registry
-docker pull ghcr.io/beejak/mcp-sentinel:2.5.0
-docker pull ghcr.io/beejak/mcp-sentinel:latest
-
-# Tag for convenience
-docker tag ghcr.io/beejak/mcp-sentinel:2.5.0 mcp-sentinel:2.5.0
-```
-
-### Option 2: Build from Source
+### Building Locally
 
 ```bash
 # Clone repository
 git clone https://github.com/beejak/MCP_Scanner
-cd MCP_Scanner
+cd MCP_Scanner/mcp-sentinel-python
 
-# Build image
-docker build -t mcp-sentinel:2.5.0 .
+# Build Docker image
+docker build -t mcp-sentinel-python:local .
 
-# Verify
-docker run --rm mcp-sentinel:2.5.0 --version
-```
-
-**Build Options:**
-
-```bash
-# Build with custom Rust version
-docker build --build-arg RUST_VERSION=1.72 -t mcp-sentinel:custom .
-
-# Build without cache (clean build)
-docker build --no-cache -t mcp-sentinel:2.5.0 .
-
-# View build progress
-docker build --progress=plain -t mcp-sentinel:2.5.0 .
+# Test the image
+docker run --rm -v $(pwd):/workspace mcp-sentinel-python:local scan /workspace --help
 ```
 
 ---
 
-## 💻 Usage Examples
+## Dockerfile Options
 
-### Basic Scans
+### Standard Dockerfile
 
-```bash
-# Scan current directory
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 scan /workspace
+```dockerfile
+# Dockerfile.python-standard
+FROM python:3.11-slim
 
-# Scan specific directory
-docker run --rm -v /path/to/server:/workspace mcp-sentinel:2.5.0 scan /workspace
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
 
-# Scan with Semgrep
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --enable-semgrep
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Fail on high-severity issues (CI/CD)
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --fail-on high
+# Install Poetry
+RUN pip install poetry==1.6.1
+
+# Set work directory
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies
+RUN poetry install --no-dev --no-interaction --no-ansi
+
+# Copy application code
+COPY . .
+
+# Install the application
+RUN poetry install --no-interaction --no-ansi
+
+# Create non-root user
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Set entrypoint
+ENTRYPOINT ["poetry", "run", "mcp-sentinel"]
+CMD ["--help"]
 ```
 
-### Output Formats
+### Alpine-Based Dockerfile (Smaller)
 
-```bash
-# JSON output
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --output json --output-file /workspace/results.json
+```dockerfile
+# Dockerfile.python-alpine
+FROM python:3.11-alpine
 
-# SARIF output (for GitHub Code Scanning)
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --output sarif --output-file /workspace/results.sarif
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_NO_INTERACTION=1
 
-# HTML report
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --output html --output-file /workspace/audit.html
+# Install system dependencies
+RUN apk add --no-cache \
+    build-base \
+    git \
+    libffi-dev \
+    openssl-dev
+
+# Install Poetry
+RUN pip install poetry==1.6.1
+
+# Set work directory
+WORKDIR /app
+
+# Copy and install dependencies
+COPY pyproject.toml poetry.lock ./
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-dev --no-interaction --no-ansi
+
+# Copy application
+COPY . .
+RUN poetry install --no-interaction --no-ansi
+
+# Create non-root user
+RUN adduser -D -s /bin/sh appuser && chown -R appuser:appuser /app
+USER appuser
+
+ENTRYPOINT ["mcp-sentinel"]
+CMD ["--help"]
 ```
 
-### Severity Filtering
+### Distroless Dockerfile (Security-Focused)
 
-```bash
-# Show only high and critical
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --severity high
+```dockerfile
+# Dockerfile.python-distroless
+# Multi-stage build for minimal attack surface
+FROM python:3.11-slim as builder
 
-# Show all issues
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan /workspace --severity low
-```
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-### GitHub URL Scanning
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-```bash
-# Scan GitHub repository
-docker run --rm mcp-sentinel:2.5.0 \
-  scan https://github.com/owner/repo
+# Install Poetry
+RUN pip install poetry==1.6.1
 
-# Scan specific branch
-docker run --rm mcp-sentinel:2.5.0 \
-  scan https://github.com/owner/repo/tree/develop
+WORKDIR /app
 
-# With Semgrep and HTML output
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 \
-  scan https://github.com/owner/repo \
-  --enable-semgrep \
-  --output html \
-  --output-file /workspace/vendor-audit.html
-```
+# Copy and install dependencies
+COPY pyproject.toml poetry.lock ./
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-dev --no-interaction --no-ansi
 
----
+# Copy application
+COPY . .
+RUN poetry install --no-interaction --no-ansi
 
-## 🐳 Docker Compose
+# Create minimal runtime image
+FROM gcr.io/distroless/python3-debian11
 
-Docker Compose provides easier orchestration for complex workflows.
+WORKDIR /app
 
-### Basic Usage
+# Copy installed packages and application
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin/mcp-sentinel /usr/local/bin/mcp-sentinel
+COPY --from=builder /app /app
 
-```bash
-# Scan with default settings
-docker-compose run --rm mcp-sentinel scan /workspace
+# Set Python path
+ENV PYTHONPATH=/usr/local/lib/python3.11/site-packages
 
-# With Semgrep
-docker-compose run --rm mcp-sentinel scan /workspace --enable-semgrep
-
-# Custom command
-docker-compose run --rm mcp-sentinel scan /workspace --severity high --fail-on critical
-```
-
-### Pre-Configured Services
-
-#### 1. CI/CD Mode
-
-```bash
-# Run CI-optimized scan
-docker-compose run --rm mcp-sentinel-ci
-
-# What it does:
-# - Enables Semgrep
-# - Fails on high+ issues
-# - Outputs JSON to ./scan-results.json
-# - No colors, no progress bars (CI-friendly)
-```
-
-#### 2. Deep Analysis with AI
-
-```bash
-# Start Ollama service
-docker-compose --profile ai up -d ollama
-
-# Wait for Ollama to be ready (30-60 seconds)
-docker-compose --profile ai ps
-
-# Pull AI model
-docker-compose --profile ai run --rm ollama ollama pull llama3.2:8b
-
-# Run deep analysis
-docker-compose --profile ai run --rm mcp-sentinel-deep
-
-# What it does:
-# - Scans with all engines (static + semantic + Semgrep + AI)
-# - Uses local Ollama for privacy
-# - Generates comprehensive HTML report
-```
-
-### Environment Variables
-
-Create `.env` file:
-
-```bash
-# .env file
-RUST_LOG=info
-MCP_SENTINEL_LOG_LEVEL=info
-
-# API keys (optional - for cloud LLM)
-MCP_SENTINEL_API_KEY=sk-...
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Then run:
-
-```bash
-docker-compose run --rm mcp-sentinel scan /workspace --mode deep --llm-provider openai
+ENTRYPOINT ["mcp-sentinel"]
 ```
 
 ---
 
-## ⚙️ Configuration
+## Multi-Stage Builds
 
-### Volume Mounts
+### Development vs Production
 
-```bash
-# Mount current directory (read-only for security)
--v $(pwd):/workspace:ro
+```dockerfile
+# Dockerfile.python-multistage
+FROM python:3.11-slim as base
 
-# Mount specific directory
--v /path/to/mcp-server:/workspace
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_NO_INTERACTION=1
 
-# Mount with write permissions (for reports)
--v $(pwd):/workspace
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Mount custom config
--v $(pwd)/.mcp-sentinel.yaml:/home/mcp/.mcp-sentinel/config.yaml:ro
+RUN pip install poetry==1.6.1
+
+WORKDIR /app
+
+# Development stage
+FROM base as development
+
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --no-interaction --no-ansi
+
+COPY . .
+RUN poetry install --no-interaction --no-ansi
+
+EXPOSE 8000
+CMD ["poetry", "run", "mcp-sentinel", "scan", "/workspace", "--watch"]
+
+# Production stage
+FROM base as production
+
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --no-dev --no-interaction --no-ansi
+
+COPY . .
+RUN poetry install --no-interaction --no-ansi
+
+# Create non-root user
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+USER appuser
+
+ENTRYPOINT ["poetry", "run", "mcp-sentinel"]
+CMD ["--help"]
+
+# Build commands:
+# docker build --target development -t mcp-sentinel-python:dev .
+# docker build --target production -t mcp-sentinel-python:prod .
 ```
 
-### Environment Variables
+### Build Arguments for Flexibility
 
-```bash
-# Logging
--e RUST_LOG=debug
--e MCP_SENTINEL_LOG_LEVEL=debug
+```dockerfile
+# Dockerfile.python-args
+ARG PYTHON_VERSION=3.11
+ARG POETRY_VERSION=1.6.1
 
-# API keys
--e MCP_SENTINEL_API_KEY=sk-...
--e OPENAI_API_KEY=sk-...
+FROM python:${PYTHON_VERSION}-slim
 
-# Performance
--e MCP_SENTINEL_NO_PROGRESS=1
+ARG PYTHON_VERSION
+ARG POETRY_VERSION
 
-# Disable colors (CI)
--e NO_COLOR=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Custom Semgrep
--e SEMGREP_PATH=/custom/path
--e MCP_SENTINEL_SEMGREP_RULES=/path/to/rules.yaml
-```
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
-### Complete Example
+RUN pip install poetry==${POETRY_VERSION}
 
-```bash
-docker run --rm \
-  -v $(pwd):/workspace \
-  -v $(pwd)/.mcp-sentinel.yaml:/home/mcp/.mcp-sentinel/config.yaml:ro \
-  -e RUST_LOG=debug \
-  -e MCP_SENTINEL_API_KEY=sk-... \
-  -e MCP_SENTINEL_NO_PROGRESS=1 \
-  mcp-sentinel:2.5.0 \
-  scan /workspace \
-  --mode deep \
-  --enable-semgrep \
-  --llm-provider openai \
-  --output html \
-  --output-file /workspace/audit.html
-```
+WORKDIR /app
 
----
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --no-dev --no-interaction --no-ansi
 
-## 🤖 AI Analysis with Ollama
+COPY . .
+RUN poetry install --no-interaction --no-ansi
 
-Run AI-powered analysis locally with Ollama (free, private).
+ARG APP_USER=appuser
+RUN adduser --disabled-password --gecos '' ${APP_USER} && chown -R ${APP_USER}:${APP_USER} /app
+USER ${APP_USER}
 
-### Setup
+ENTRYPOINT ["poetry", "run", "mcp-sentinel"]
 
-```bash
-# Start Ollama container
-docker-compose --profile ai up -d ollama
-
-# Check status
-docker-compose --profile ai ps
-
-# Pull model (first time only)
-docker-compose --profile ai run --rm ollama ollama pull llama3.2:8b
-
-# List available models
-docker-compose --profile ai run --rm ollama ollama list
-```
-
-### Run Deep Analysis
-
-```bash
-# Using docker-compose
-docker-compose --profile ai run --rm mcp-sentinel-deep
-
-# Using docker run
-docker run --rm \
-  -v $(pwd):/workspace \
-  --network mcp_scanner_default \
-  -e OLLAMA_HOST=http://ollama:11434 \
-  mcp-sentinel:2.5.0 \
-  scan /workspace \
-  --mode deep \
-  --enable-semgrep \
-  --llm-provider ollama \
-  --output html \
-  --output-file /workspace/comprehensive-audit.html
-```
-
-### Ollama Management
-
-```bash
-# View logs
-docker-compose --profile ai logs ollama
-
-# Restart Ollama
-docker-compose --profile ai restart ollama
-
-# Stop Ollama
-docker-compose --profile ai down
-
-# Clean up (removes models)
-docker-compose --profile ai down -v
-```
-
-### Alternative Models
-
-```bash
-# Pull different model
-docker-compose --profile ai run --rm ollama ollama pull codestral:22b
-
-# Use in scan
-docker run --rm \
-  -v $(pwd):/workspace \
-  --network mcp_scanner_default \
-  -e OLLAMA_HOST=http://ollama:11434 \
-  mcp-sentinel:2.5.0 \
-  scan /workspace \
-  --mode deep \
-  --llm-provider ollama \
-  --llm-model codestral:22b
+# Build with custom arguments:
+# docker build --build-arg PYTHON_VERSION=3.10 --build-arg POETRY_VERSION=1.5.1 -t mcp-sentinel-python:custom .
 ```
 
 ---
 
-## 🔄 CI/CD Integration
+## Docker Compose
 
-### GitHub Actions
+### Basic Development Setup
 
 ```yaml
-# .github/workflows/security.yml
-name: Security Scan
+# docker-compose.dev.yml
+version: '3.8'
 
+services:
+  mcp-sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-standard
+      target: development
+    volumes:
+      - .:/workspace
+      - poetry-cache:/root/.cache/pypoetry
+    environment:
+      - PYTHONPATH=/app
+    command: scan /workspace --output html --output-file /workspace/dev-report.html
+    networks:
+      - sentinel-network
+
+  # Optional: File watcher for continuous scanning
+  sentinel-watch:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-standard
+      target: development
+    volumes:
+      - .:/workspace
+    command: scan /workspace --watch --output json --output-file /workspace/watch-results.json
+    profiles:
+      - watch
+
+volumes:
+  poetry-cache:
+
+networks:
+  sentinel-network:
+    driver: bridge
+```
+
+### Production Setup with Multiple Services
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  # Main scanner service
+  scanner:
+    image: ghcr.io/beejak/mcp-sentinel-python:1.0.0
+    volumes:
+      - ./code:/workspace:ro
+      - ./reports:/reports
+    environment:
+      - SCAN_TIMEOUT=300
+      - MAX_CONCURRENT_FILES=10
+    command: scan /workspace --output html --output-file /reports/scan-report.html
+    networks:
+      - sentinel-network
+    restart: unless-stopped
+
+  # API service (if implementing REST API)
+  api:
+    image: ghcr.io/beejak/mcp-sentinel-python:1.0.0
+    ports:
+      - "8080:8080"
+    environment:
+      - API_MODE=true
+      - SCAN_WORKERS=4
+    volumes:
+      - ./uploads:/uploads
+      - ./reports:/reports
+    networks:
+      - sentinel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - sentinel-network
+    restart: unless-stopped
+
+  # PostgreSQL for results storage (optional)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: sentinel_results
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sentinel123}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - sentinel-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  sentinel-network:
+    driver: bridge
+```
+
+### CI/CD Pipeline Setup
+
+```yaml
+# docker-compose.ci.yml
+version: '3.8'
+
+services:
+  # Scanner for CI/CD pipelines
+  ci-scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile.python-alpine
+    volumes:
+      - ${WORKSPACE:-.}:/workspace:ro
+      - ./ci-reports:/reports
+    environment:
+      - CI=true
+      - SCAN_SEVERITY_THRESHOLD=${THRESHOLD:-MEDIUM}
+      - SCAN_TIMEOUT=180
+    command: >
+      scan /workspace 
+      --output sarif 
+      --output-file /reports/ci-results.sarif
+      --output html 
+      --output-file /reports/ci-results.html
+      --severity-threshold ${THRESHOLD:-MEDIUM}
+    networks:
+      - ci-network
+
+  # SARIF processor for CI
+  sarif-processor:
+    image: ghcr.io/github/sarif-tools:latest
+    volumes:
+      - ./ci-reports:/reports:ro
+    command: >
+      sarif diff 
+      /reports/baseline.sarif 
+      /reports/ci-results.sarif 
+      --output /reports/diff-results.sarif
+    depends_on:
+      - ci-scanner
+    networks:
+      - ci-network
+    profiles:
+      - sarif-diff
+
+networks:
+  ci-network:
+    driver: bridge
+```
+
+---
+
+## Optimization Strategies
+
+### 1. Layer Caching Optimization
+
+```dockerfile
+# Optimize layer caching by copying dependency files first
+FROM python:3.11-slim
+
+# Install Poetry first (rarely changes)
+RUN pip install poetry==1.6.1
+
+# Copy dependency files (change less frequently)
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --no-dev --no-interaction --no-ansi
+
+# Copy source code (changes frequently)
+COPY . .
+RUN poetry install --no-interaction --no-ansi
+```
+
+### 2. Multi-Architecture Builds
+
+```bash
+# Build for multiple architectures
+docker buildx create --name multiarch --use
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag ghcr.io/beejak/mcp-sentinel-python:1.0.0 \
+  --push .
+```
+
+### 3. Size Optimization
+
+```dockerfile
+# Use Python slim variant
+FROM python:3.11-slim
+
+# Remove unnecessary packages after build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && poetry install --no-dev --no-interaction \
+    && apt-get remove -y build-essential \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* /var/tmp/*
+```
+
+### 4. Performance Tuning
+
+```dockerfile
+# Set Python optimizations
+ENV PYTHONOPTIMIZE=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Configure Poetry for performance
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VENV_IN_PROJECT=1 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+```
+
+---
+
+## CI/CD Integration
+
+### GitHub Actions with Docker
+
+```yaml
+name: Docker Security Scan
 on: [push, pull_request]
 
 jobs:
-  security:
+  docker-scan:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Run MCP Sentinel
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build scanner image
+        run: |
+          docker build -f Dockerfile.python-alpine \
+            -t mcp-sentinel-python:ci .
+      
+      - name: Run security scan
         run: |
           docker run --rm \
-            -v ${{ github.workspace }}:/workspace \
-            ghcr.io/beejak/mcp-sentinel:2.5.0 \
+            -v ${{ github.workspace }}:/workspace:ro \
+            -v ${{ github.workspace }}/reports:/reports \
+            mcp-sentinel-python:ci \
             scan /workspace \
-            --enable-semgrep \
-            --fail-on high \
             --output sarif \
-            --output-file /workspace/results.sarif
-
-      - name: Upload SARIF
+            --output-file /reports/results.sarif \
+            --severity-threshold HIGH
+      
+      - name: Upload SARIF results
         if: always()
         uses: github/codeql-action/upload-sarif@v2
         with:
-          sarif_file: results.sarif
+          sarif_file: reports/results.sarif
 ```
 
-### GitLab CI
+### GitLab CI with Docker
 
 ```yaml
 # .gitlab-ci.yml
-security_scan:
-  stage: test
-  image: docker:latest
+docker-security-scan:
+  stage: security
+  image: docker:24-dind
   services:
-    - docker:dind
-
+    - docker:24-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - docker info
   script:
-    - docker run --rm -v $(pwd):/workspace ghcr.io/beejak/mcp-sentinel:2.5.0
-      scan /workspace --enable-semgrep --fail-on high --output json --output-file /workspace/report.json
-
+    - docker build -f Dockerfile.python-standard -t mcp-sentinel-python:gitlab .
+    - docker run --rm \\
+        -v $CI_PROJECT_DIR:/workspace:ro \\
+        -v $CI_PROJECT_DIR/reports:/reports \\
+        mcp-sentinel-python:gitlab \\
+        scan /workspace \\
+        --output sarif \\
+        --output-file /reports/gitlab-results.sarif
   artifacts:
     reports:
-      codequality: report.json
+      sast: reports/gitlab-results.sarif
     paths:
-      - report.json
-    expire_in: 30 days
-
-  allow_failure: false
-```
-
-### Jenkins
-
-```groovy
-// Jenkinsfile
-pipeline {
-    agent any
-
-    stages {
-        stage('Security Scan') {
-            steps {
-                sh '''
-                    docker run --rm \
-                      -v ${WORKSPACE}:/workspace \
-                      ghcr.io/beejak/mcp-sentinel:2.5.0 \
-                      scan /workspace \
-                      --enable-semgrep \
-                      --fail-on high \
-                      --output json \
-                      --output-file /workspace/scan-results.json
-                '''
-            }
-        }
-
-        stage('Publish Results') {
-            steps {
-                archiveArtifacts artifacts: 'scan-results.json', fingerprint: true
-            }
-        }
-    }
-
-    post {
-        always {
-            publishHTML([
-                reportDir: '.',
-                reportFiles: 'scan-results.json',
-                reportName: 'Security Scan Results'
-            ])
-        }
-    }
-}
-```
-
-### CircleCI
-
-```yaml
-# .circleci/config.yml
-version: 2.1
-
-jobs:
-  security_scan:
-    docker:
-      - image: docker:latest
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Run MCP Sentinel
-          command: |
-            docker run --rm \
-              -v $(pwd):/workspace \
-              ghcr.io/beejak/mcp-sentinel:2.5.0 \
-              scan /workspace \
-              --enable-semgrep \
-              --fail-on high \
-              --output json \
-              --output-file /workspace/results.json
-      - store_artifacts:
-          path: results.json
-
-workflows:
-  version: 2
-  security:
-    jobs:
-      - security_scan
+      - reports/gitlab-results.sarif
+    expire_in: 1 week
 ```
 
 ---
 
-## 🎓 Advanced Usage
+## Security Best Practices
 
-### Interactive Shell
+### 1. Non-Root User
 
-```bash
-# Enter container for debugging
-docker run --rm -it \
-  -v $(pwd):/workspace \
-  --entrypoint /bin/bash \
-  mcp-sentinel:2.5.0
-
-# Inside container:
-mcp-sentinel scan /workspace --verbose
-mcp-sentinel --help
+```dockerfile
+# Always run as non-root user
+RUN adduser --disabled-password --gecos '' appuser
+USER appuser
 ```
 
-### Multi-Repository Scanning
+### 2. Read-Only Root Filesystem
 
 ```bash
-#!/bin/bash
-# scan-all.sh
-
-REPOS=(
-  "/path/to/repo1"
-  "/path/to/repo2"
-  "/path/to/repo3"
-)
-
-for REPO in "${REPOS[@]}"; do
-  echo "Scanning $REPO..."
-  docker run --rm \
-    -v "$REPO:/workspace" \
-    mcp-sentinel:2.5.0 \
-    scan /workspace \
-    --enable-semgrep \
-    --output html \
-    --output-file /workspace/audit-$(basename "$REPO").html
-done
-```
-
-### Scheduled Scans (Cron)
-
-```bash
-# Add to crontab
-# Daily scan at 2 AM
-0 2 * * * docker run --rm -v /app:/workspace mcp-sentinel:2.5.0 scan /workspace --enable-semgrep --output json --output-file /app/scan-$(date +\%Y\%m\%d).json
-
-# Weekly comprehensive scan
-0 0 * * 0 docker-compose --profile ai run --rm mcp-sentinel-deep
-```
-
-### Resource Limits
-
-```bash
-# Limit CPU and memory
+# Run container with read-only root filesystem
 docker run --rm \
-  --cpus=2.0 \
-  --memory=2g \
-  -v $(pwd):/workspace \
-  mcp-sentinel:2.5.0 \
-  scan /workspace
-
-# With docker-compose (already configured in docker-compose.yml)
-docker-compose run --rm mcp-sentinel scan /workspace
+  --read-only \
+  -v $(pwd):/workspace:ro \
+  -v /tmp:/tmp \
+  -v $(pwd)/reports:/reports \
+  mcp-sentinel-python scan /workspace
 ```
 
-### Custom Network
+### 3. Security Scanning
 
 ```bash
-# Create network
-docker network create mcp-network
-
-# Run Ollama
-docker run -d \
-  --name ollama \
-  --network mcp-network \
-  ollama/ollama:latest
-
-# Run scanner
+# Scan the Docker image itself for vulnerabilities
 docker run --rm \
-  --network mcp-network \
-  -v $(pwd):/workspace \
-  -e OLLAMA_HOST=http://ollama:11434 \
-  mcp-sentinel:2.5.0 \
-  scan /workspace --mode deep --llm-provider ollama
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  aquasec/trivy:latest image mcp-sentinel-python:1.0.0
+```
+
+### 4. Resource Limits
+
+```bash
+# Run with resource limits
+docker run --rm \
+  --memory=512m \
+  --cpus=1.0 \
+  -v $(pwd):/workspace:ro \
+  mcp-sentinel-python scan /workspace
+```
+
+### 5. Network Isolation
+
+```bash
+# Run in isolated network
+docker network create --driver bridge isolated-scanner
+docker run --rm \
+  --network isolated-scanner \
+  --network-alias scanner \
+  -v $(pwd):/workspace:ro \
+  mcp-sentinel-python scan /workspace
 ```
 
 ---
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
-#### "Permission denied" on mounted volumes
-
+#### 1. Permission Denied
 ```bash
-# Problem: Container can't read files
-# Solution: Check file permissions
-
-# Fix permissions
-chmod -R a+r /path/to/scan
-
-# Or run with current user
+# Fix: Ensure proper volume permissions
 docker run --rm \
-  --user $(id -u):$(id -g) \
+  -u $(id -u):$(id -g) \
   -v $(pwd):/workspace \
-  mcp-sentinel:2.5.0 \
-  scan /workspace
+  mcp-sentinel-python scan /workspace
 ```
 
-#### "Semgrep not found"
-
+#### 2. Memory Issues
 ```bash
-# Problem: Semgrep not in image
-# Solution: Rebuild with Semgrep stage
-
-docker build --no-cache -t mcp-sentinel:2.5.0 .
-
-# Verify Semgrep is available
-docker run --rm mcp-sentinel:2.5.0 semgrep --version
+# Fix: Increase memory limit and reduce concurrency
+docker run --rm \
+  --memory=1g \
+  -e MAX_CONCURRENT_FILES=5 \
+  -v $(pwd):/workspace:ro \
+  mcp-sentinel-python scan /workspace
 ```
 
-#### "Ollama connection refused"
-
+#### 3. Slow Performance
 ```bash
-# Problem: Can't reach Ollama service
-# Solution: Check network and host
-
-# Verify Ollama is running
-docker-compose --profile ai ps
-
-# Check logs
-docker-compose --profile ai logs ollama
-
-# Test connection
-docker run --rm --network mcp_scanner_default curlimages/curl curl http://ollama:11434/api/tags
+# Fix: Use Alpine-based image and optimize mounts
+docker run --rm \
+  --mount type=bind,source=$(pwd),target=/workspace,readonly \
+  --tmpfs /tmp:rw,noexec,nosuid,size=100m \
+  mcp-sentinel-python:alpine scan /workspace
 ```
 
-#### Container exits immediately
-
+#### 4. Poetry Issues in Container
 ```bash
-# Problem: Command syntax error
-# Solution: Check command
-
-# View help
-docker run --rm mcp-sentinel:2.5.0 --help
-
-# Run with verbose
-docker run --rm -v $(pwd):/workspace mcp-sentinel:2.5.0 scan /workspace --verbose
-```
-
-#### Large image size
-
-```bash
-# Check image size
-docker images mcp-sentinel:2.5.0
-
-# Expected: ~250-300 MB
-# If larger, rebuild:
-docker build --no-cache -t mcp-sentinel:2.5.0 .
-
-# Clean up build cache
-docker builder prune
-```
-
-### Debug Mode
-
-```bash
-# Run with maximum verbosity
+# Fix: Clear Poetry cache and reinstall
 docker run --rm \
   -v $(pwd):/workspace \
-  -e RUST_LOG=trace \
-  -e MCP_SENTINEL_LOG_LEVEL=debug \
-  mcp-sentinel:2.5.0 \
-  scan /workspace --verbose
+  mcp-sentinel-python bash -c "
+    poetry cache clear --all pypi
+    poetry install --no-interaction
+    poetry run mcp-sentinel scan /workspace
+  "
 ```
 
-### View Container Logs
+### Debugging Commands
 
 ```bash
-# With docker-compose
-docker-compose logs mcp-sentinel
-docker-compose --profile ai logs ollama
+# Check container logs
+docker logs <container-id>
 
-# With docker run (if running in detached mode)
-docker logs mcp-sentinel-scanner
-```
-
----
-
-## ✅ Best Practices
-
-### Security
-
-```bash
-# 1. Use read-only volumes when possible
--v $(pwd):/workspace:ro
-
-# 2. Run as non-root (already default in our image)
-# User 'mcp' is used automatically
-
-# 3. Enable security options
+# Run with debug output
 docker run --rm \
-  --security-opt no-new-privileges \
-  --read-only \
-  --tmpfs /tmp \
+  -e DEBUG=1 \
   -v $(pwd):/workspace \
-  mcp-sentinel:2.5.0 \
-  scan /workspace
+  mcp-sentinel-python scan /workspace
 
-# 4. Don't expose secrets in commands (use environment variables)
--e MCP_SENTINEL_API_KEY=sk-...  # From .env file
+# Interactive debugging
+docker run --rm -it \
+  -v $(pwd):/workspace \
+  --entrypoint /bin/bash \
+  mcp-sentinel-python
+
+# Check filesystem permissions
+docker run --rm \
+  -v $(pwd):/workspace \
+  mcp-sentinel-python bash -c "ls -la /workspace"
 ```
 
-### Performance
+### Performance Monitoring
 
 ```bash
-# 1. Use specific tags (not 'latest')
-mcp-sentinel:2.5.0  # Good
-mcp-sentinel:latest  # Avoid in production
+# Monitor container resources
+docker stats $(docker run -d -v $(pwd):/workspace mcp-sentinel-python scan /workspace)
 
-# 2. Set resource limits
---cpus=2.0 --memory=2g
-
-# 3. Use docker-compose for complex workflows
-docker-compose run --rm mcp-sentinel-ci
-
-# 4. Clean up after use
-docker run --rm ...  # Automatic cleanup
-```
-
-### CI/CD
-
-```bash
-# 1. Use --fail-on for quality gates
---fail-on high
-
-# 2. Generate machine-readable output
---output json --output-file /workspace/results.json
-
-# 3. Disable progress indicators
--e MCP_SENTINEL_NO_PROGRESS=1
-
-# 4. Cache images in CI
-# Use docker layer caching or registry caching
-```
-
-### Maintenance
-
-```bash
-# Clean up old containers
-docker container prune
-
-# Clean up old images
-docker image prune
-
-# Clean up everything (careful!)
-docker system prune -a
-
-# Update to latest
-docker pull ghcr.io/beejak/mcp-sentinel:latest
+# Profile memory usage
+docker run --rm \
+  -v $(pwd):/workspace \
+  mcp-sentinel-python python -m memory_profiler -c "
+import memory_profiler
+from mcp_sentinel import scan_directory
+scan_directory('/workspace')
+"
 ```
 
 ---
 
-## 📊 Image Details
-
-### Image Layers
-
-```
-debian:bookworm-slim (base)           ~50 MB
-├── System packages (git, curl)        ~30 MB
-├── MCP Sentinel binary               ~20 MB
-├── Semgrep + dependencies            ~150 MB
-└── Configuration files                 ~1 MB
-────────────────────────────────────────────
-Total:                                ~250 MB
-```
-
-### What's Included
-
-- ✅ MCP Sentinel v2.5.0 binary
-- ✅ Semgrep 1.45.0
-- ✅ Git (for GitHub URL scanning)
-- ✅ Curl (for health checks)
-- ✅ Python 3.11 (for Semgrep)
-- ✅ Non-root user (mcp)
-- ✅ Health check configured
-
-### What's NOT Included
-
-- ❌ Development tools
-- ❌ Build artifacts
-- ❌ Documentation
-- ❌ Test fixtures
-- ❌ Source code
-
----
-
-## 🔗 Resources
-
-- [Main README](../README.md) - Project overview
-- [Command Cheat Sheet](CHEATSHEET.md) - Quick reference
-- [CLI Reference](CLI_REFERENCE.md) - Complete documentation
-- [GitHub Repository](https://github.com/beejak/MCP_Scanner)
-
----
-
-## 🆘 Getting Help
-
-- **Issues:** https://github.com/beejak/MCP_Scanner/issues
-- **Discussions:** https://github.com/beejak/MCP_Scanner/discussions
-- **Docker Hub:** (Coming soon)
-- **GHCR:** ghcr.io/beejak/mcp-sentinel
-
----
-
-**Version:** 2.5.0
-**Last Updated:** October 26, 2025
-**Maintained by:** MCP Sentinel Team
+**Docker Checklist**:
+- [ ] Choose appropriate base image (slim/alpine/distroless)
+- [ ] Implement multi-stage builds for optimization
+- [ ] Configure proper caching layers
+- [ ] Set up non-root user
+- [ ] Configure health checks
+- [ ] Implement security scanning
+- [ ] Set up Docker Compose for development
+- [ ] Configure CI/CD integration
+- [ ] Optimize for size and performance
+- [ ] Document troubleshooting steps

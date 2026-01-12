@@ -1,0 +1,217 @@
+# MCP Sentinel - Docker Compose Configuration
+# Version: 2.5.0
+# Purpose: Easy orchestration of MCP Sentinel scans
+
+version: '3.8'
+
+# ============================================================================
+# Services
+# ============================================================================
+services:
+  # --------------------------------------------------------------------------
+  # Main scanner service
+  # --------------------------------------------------------------------------
+  mcp-sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - RUST_VERSION=1.70
+    image: mcp-sentinel:2.5.0
+    container_name: mcp-sentinel-scanner
+
+    # Mount current directory as workspace
+    volumes:
+      - ./:/workspace:ro  # Read-only for security
+      - scan-cache:/home/mcp/.mcp-sentinel  # Persistent cache
+
+    # Environment variables
+    environment:
+      # Logging
+      - RUST_LOG=${RUST_LOG:-info}
+      - MCP_SENTINEL_LOG_LEVEL=${MCP_SENTINEL_LOG_LEVEL:-info}
+
+      # API keys (optional - for AI analysis)
+      - MCP_SENTINEL_API_KEY=${MCP_SENTINEL_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Performance
+      - MCP_SENTINEL_NO_PROGRESS=${MCP_SENTINEL_NO_PROGRESS:-0}
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+    # Network mode
+    network_mode: bridge
+
+    # Default command (can be overridden)
+    command: ["scan", "/workspace", "--enable-semgrep"]
+
+  # --------------------------------------------------------------------------
+  # CI/CD scanner service (for automated pipelines)
+  # --------------------------------------------------------------------------
+  mcp-sentinel-ci:
+    extends: mcp-sentinel
+    container_name: mcp-sentinel-ci
+
+    # CI-specific settings
+    environment:
+      - RUST_LOG=warn  # Less verbose in CI
+      - NO_COLOR=1  # Disable colors for CI logs
+      - MCP_SENTINEL_NO_PROGRESS=1  # No progress bars in CI
+
+    # Override command for CI
+    command: [
+      "scan", "/workspace",
+      "--enable-semgrep",
+      "--fail-on", "high",
+      "--output", "json",
+      "--output-file", "/workspace/scan-results.json"
+    ]
+
+    # CI doesn't need read-only (needs to write results)
+    read_only: false
+
+  # --------------------------------------------------------------------------
+  # Ollama service (optional - for local AI analysis)
+  # --------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mcp-sentinel-ollama
+    profiles:
+      - ai  # Only starts with --profile ai
+
+    volumes:
+      - ollama-data:/root/.ollama
+
+    ports:
+      - "11434:11434"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 8G
+        reservations:
+          cpus: '2.0'
+          memory: 4G
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # --------------------------------------------------------------------------
+  # Deep analysis service (with AI)
+  # --------------------------------------------------------------------------
+  mcp-sentinel-deep:
+    extends: mcp-sentinel
+    container_name: mcp-sentinel-deep
+    profiles:
+      - ai  # Only starts with --profile ai
+
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+
+    command: [
+      "scan", "/workspace",
+      "--mode", "deep",
+      "--enable-semgrep",
+      "--llm-provider", "ollama",
+      "--output", "html",
+      "--output-file", "/workspace/comprehensive-audit.html"
+    ]
+
+    read_only: false  # Needs to write HTML report
+
+# ============================================================================
+# Volumes (persistent data)
+# ============================================================================
+volumes:
+  # Cache for scan results, AI responses, etc.
+  scan-cache:
+    driver: local
+
+  # Ollama models storage
+  ollama-data:
+    driver: local
+
+# ============================================================================
+# Networks (if you need custom networking)
+# ============================================================================
+networks:
+  default:
+    driver: bridge
+
+# ============================================================================
+# Usage Examples:
+# ============================================================================
+# Basic scan:
+#   docker-compose run --rm mcp-sentinel scan /workspace
+#
+# Scan with Semgrep:
+#   docker-compose run --rm mcp-sentinel scan /workspace --enable-semgrep
+#
+# CI/CD mode:
+#   docker-compose run --rm mcp-sentinel-ci
+#
+# Generate HTML report:
+#   docker-compose run --rm mcp-sentinel scan /workspace --output html --output-file /workspace/report.html
+#
+# Deep analysis with AI (starts Ollama automatically):
+#   docker-compose --profile ai up -d ollama
+#   docker-compose --profile ai run --rm mcp-sentinel-deep
+#
+# Pull Ollama model:
+#   docker-compose --profile ai run --rm ollama ollama pull llama3.2:8b
+#
+# Custom command:
+#   docker-compose run --rm mcp-sentinel scan /workspace --severity high --fail-on critical
+#
+# Interactive shell:
+#   docker-compose run --rm --entrypoint /bin/bash mcp-sentinel
+#
+# Clean up:
+#   docker-compose down -v  # Remove volumes
+#   docker-compose --profile ai down -v  # Include AI services
+#
+# ============================================================================
+# Environment Variables:
+# ============================================================================
+# Create .env file in same directory as docker-compose.yml:
+#
+# # Logging
+# RUST_LOG=debug
+# MCP_SENTINEL_LOG_LEVEL=debug
+#
+# # API Keys (for cloud LLM providers)
+# MCP_SENTINEL_API_KEY=sk-...
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
+#
+# # Performance
+# MCP_SENTINEL_NO_PROGRESS=0
+#
+# Then docker-compose will automatically load these.
+# ============================================================================
