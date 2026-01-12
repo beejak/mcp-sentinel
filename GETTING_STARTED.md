@@ -8,8 +8,8 @@ Welcome! This guide will help you get MCP Sentinel up and running in minutes.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/mcp-sentinel-python.git
-cd mcp-sentinel-python
+git clone https://github.com/beejak/mcp-sentinel.git
+cd mcp-sentinel
 
 # 2. Install Poetry (if not already installed)
 curl -sSL https://install.python-poetry.org | python3 -
@@ -98,9 +98,9 @@ Detailed Findings:
 
 ## What Does MCP Sentinel Detect?
 
-### Currently Implemented (v3.0.0)
+### Currently Implemented (v3.0.0 + Phase 4.1)
 
-✅ **Secrets Detection (15+ types)**
+✅ **Secrets Detection (15+ types)** - 100% pass rate
 - AWS Access Keys & Secret Keys
 - OpenAI API Keys
 - Anthropic Claude API Keys
@@ -112,14 +112,32 @@ Detailed Findings:
 - Database Connection Strings (PostgreSQL, MySQL)
 - Generic API Keys
 
+✅ **Code Injection Detection** - Pattern + comment analysis
+
+✅ **Prompt Injection Detection** - AI-specific attacks
+
+✅ **Tool Poisoning Detection** - 40/40 tests passing
+
+✅ **Supply Chain Security** - Dependency vulnerabilities
+
+✅ **XSS Detection** - Cross-site scripting patterns
+
+✅ **Path Traversal Detection** - Directory traversal attacks
+
+✅ **Config Security** - 92.2% pass rate
+
+✅ **SAST Integration (Phase 4.1)** - Semgrep + Bandit
+- 1000+ security rules via Semgrep
+- Python-specific checks via Bandit
+- Multi-engine orchestration
+- 26/26 tests passing
+
+**Overall Status**: 373 tests, 344 passing (92.2%), 79.44% coverage
+
 ### Coming Soon
 
-🔜 Code Injection (Phase 2)
-🔜 Prompt Injection (Phase 2)
-🔜 Tool Poisoning (Phase 2)
-🔜 Supply Chain Attacks (Phase 2)
-🔜 XSS Detection (Phase 2)
-🔜 AI-Powered Analysis (Phase 2)
+🔜 **Semantic Analysis** (Phase 4.2) - AST-based dataflow
+🔜 **AI-Powered Analysis** (Phase 4.3) - Multi-LLM support
 
 ## Common Use Cases
 
@@ -183,10 +201,10 @@ Customize it:
 
 # Engines to enable
 engines:
-  static: true
-  semantic: false  # Not yet implemented
-  sast: false      # Not yet implemented
-  ai: false        # Requires API keys
+  static: true     # Pattern-based detection (default)
+  sast: true       # Semgrep + Bandit (Phase 4.1 complete)
+  semantic: false  # AST dataflow analysis (Phase 4.2 planned)
+  ai: false        # Multi-LLM analysis (Phase 4.3 planned)
 
 # Reporting
 reporting:
@@ -229,8 +247,8 @@ Want to contribute? Here's how to set up for development:
 
 ```bash
 # 1. Fork and clone
-git clone https://github.com/YOUR_USERNAME/mcp-sentinel-python.git
-cd mcp-sentinel-python
+git clone https://github.com/beejak/mcp-sentinel.git
+cd mcp-sentinel
 
 # 2. Install dependencies (including dev tools)
 poetry install --with dev
@@ -322,10 +340,10 @@ Now that you have MCP Sentinel running:
 
 ## Getting Help
 
-- **Issues**: https://github.com/YOUR_USERNAME/mcp-sentinel-python/issues
-- **Discussions**: https://github.com/YOUR_USERNAME/mcp-sentinel-python/discussions
-- **Discord**: Coming soon!
-- **Email**: support@mcp-sentinel.dev
+- **Issues**: https://github.com/beejak/mcp-sentinel/issues
+- **Discussions**: https://github.com/beejak/mcp-sentinel/discussions
+- **Documentation**: Check the `docs/` directory
+- **Status**: See [PROJECT_STATUS.md](PROJECT_STATUS.md) for current state
 
 ## Examples
 
