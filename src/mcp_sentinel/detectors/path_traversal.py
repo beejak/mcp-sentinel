@@ -59,7 +59,7 @@ class PathTraversalDetector(BaseDetector):
             # Pattern 3: Directory traversal sequences
             "traversal_sequences": [
                 re.compile(r"['\"]\.\.\/", re.IGNORECASE),  # Literal "../" in strings
-                re.compile(r"['\"]\.\.\\\\", re.IGNORECASE),  # Literal "..\" in strings
+                re.compile(r"['\"]\.\.\\", re.IGNORECASE),  # Literal "..\" in strings
                 re.compile(r"\.\.\/.*\.\.\/", re.IGNORECASE),  # Multiple "../" sequences
                 re.compile(r"\%2e\%2e\%2f", re.IGNORECASE),  # URL-encoded "../"
                 re.compile(r"\%2e\%2e\/", re.IGNORECASE),  # Partially encoded
