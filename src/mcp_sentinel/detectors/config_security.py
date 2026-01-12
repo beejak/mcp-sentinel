@@ -54,16 +54,16 @@ class ConfigSecurityDetector(BaseDetector):
 
             # Pattern 2: Weak authentication
             "weak_auth": [
-                re.compile(r"auth\s*=\s*False", re.IGNORECASE),
-                re.compile(r"authentication\s*:\s*false", re.IGNORECASE),
-                re.compile(r"require_auth\s*=\s*False", re.IGNORECASE),
-                re.compile(r"ALLOW_ANONYMOUS\s*=\s*True", re.IGNORECASE),
-                re.compile(r"password\s*=\s*['\"](?:admin|password|123|test)['\"]", re.IGNORECASE),
+                re.compile(r"['\"]?auth['\"]?\s*[:=]\s*False", re.IGNORECASE),
+                re.compile(r"['\"]?authentication['\"]?\s*[:=]\s*false", re.IGNORECASE),
+                re.compile(r"['\"]?require_auth['\"]?\s*[:=]\s*False", re.IGNORECASE),
+                re.compile(r"ALLOW_ANONYMOUS\s*[:=]\s*True", re.IGNORECASE),
+                re.compile(r"['\"]?password['\"]?\s*[:=]\s*['\"](?:admin|password|123|test)['\"]", re.IGNORECASE),
             ],
 
             # Pattern 3: Insecure CORS
             "insecure_cors": [
-                re.compile(r"Access-Control-Allow-Origin\s*:\s*\*", re.IGNORECASE),
+                re.compile(r"['\"]?Access-Control-Allow-Origin['\"]?\s*[:=]\s*['\"]?\*['\"]?", re.IGNORECASE),
                 re.compile(r"cors\s*\(\s*\*\s*\)", re.IGNORECASE),
                 re.compile(r"CORS_ORIGINS?\s*=\s*\[\s*['\"\*]", re.IGNORECASE),
                 re.compile(r"allow_origins\s*=\s*\[\s*['\"\*]", re.IGNORECASE),
@@ -72,10 +72,10 @@ class ConfigSecurityDetector(BaseDetector):
 
             # Pattern 4: Missing/insecure security headers
             "security_headers": [
-                re.compile(r"X-Frame-Options\s*:\s*(?!DENY|SAMEORIGIN)", re.IGNORECASE),
+                re.compile(r"['\"]?X-Frame-Options['\"]?\s*[:=]\s*['\"]?(?!DENY|SAMEORIGIN)[A-Z]+", re.IGNORECASE),
                 re.compile(r"Strict-Transport-Security.*max-age\s*=\s*0", re.IGNORECASE),
-                re.compile(r"Content-Security-Policy\s*:\s*['\"]?unsafe", re.IGNORECASE),
-                re.compile(r"HSTS\s*=\s*False", re.IGNORECASE),
+                re.compile(r"Content-Security-Policy\s*[:=]\s*['\"]?.*unsafe", re.IGNORECASE),
+                re.compile(r"HSTS\s*[:=]\s*False", re.IGNORECASE),
             ],
 
             # Pattern 5: Weak secrets/session config
@@ -89,19 +89,19 @@ class ConfigSecurityDetector(BaseDetector):
 
             # Pattern 6: Missing rate limiting
             "rate_limiting": [
-                re.compile(r"rate_limit\s*=\s*(?:None|False|0)", re.IGNORECASE),
-                re.compile(r"RATE_LIMIT\s*=\s*(?:None|False|0)", re.IGNORECASE),
-                re.compile(r"disable_rate_limit\s*=\s*True", re.IGNORECASE),
-                re.compile(r"throttle\s*=\s*False", re.IGNORECASE),
+                re.compile(r"['\"]?rate_limit['\"]?\s*[:=]\s*(?:None|False|0)", re.IGNORECASE),
+                re.compile(r"['\"]?RATE_LIMIT['\"]?\s*[:=]\s*(?:None|False|0)", re.IGNORECASE),
+                re.compile(r"['\"]?disable_rate_limit['\"]?\s*[:=]\s*True", re.IGNORECASE),
+                re.compile(r"['\"]?throttle['\"]?\s*[:=]\s*False", re.IGNORECASE),
             ],
 
             # Pattern 7: Insecure SSL/TLS
             "insecure_ssl": [
-                re.compile(r"SSL_VERIFY\s*=\s*False", re.IGNORECASE),
-                re.compile(r"verify\s*=\s*False.*(?:ssl|tls|https)", re.IGNORECASE),
-                re.compile(r"ssl_version\s*=\s*SSLv[23]", re.IGNORECASE),
-                re.compile(r"TLS_VERSION\s*=\s*['\"]1\.[01]['\"]", re.IGNORECASE),
-                re.compile(r"check_hostname\s*=\s*False", re.IGNORECASE),
+                re.compile(r"['\"]?SSL_VERIFY['\"]?\s*[:=]\s*False", re.IGNORECASE),
+                re.compile(r"['\"]?verify['\"]?\s*[:=]\s*False", re.IGNORECASE),
+                re.compile(r"['\"]?ssl_version['\"]?\s*[:=]\s*SSLv[23]", re.IGNORECASE),
+                re.compile(r"['\"]?TLS_VERSION['\"]?\s*[:=]\s*['\"]1\.[01]['\"]", re.IGNORECASE),
+                re.compile(r"['\"]?check_hostname['\"]?\s*[:=]\s*False", re.IGNORECASE),
             ],
 
             # Pattern 8: Exposed debug/admin endpoints

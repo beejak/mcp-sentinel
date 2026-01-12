@@ -43,12 +43,11 @@ class SecretsDetector(BaseDetector):
             # AWS Secret Keys
             "aws_secret_key": re.compile(r"(?i)aws(.{0,20})?['\"][0-9a-zA-Z/+]{40}['\"]"),
 
-            # OpenAI API Keys
-            "openai_api_key": re.compile(r"sk-[a-zA-Z0-9]{48}"),
-            "openai_legacy_key": re.compile(r"sk-[a-zA-Z0-9]{32}"),
+            # OpenAI API Keys (40+ chars after sk-)
+            "openai_api_key": re.compile(r"sk-[a-zA-Z0-9]{40,}"),
 
-            # Anthropic Claude API Keys
-            "anthropic_api_key": re.compile(r"sk-ant-api03-[a-zA-Z0-9\-_]{95,}"),
+            # Anthropic Claude API Keys (80+ chars after prefix)
+            "anthropic_api_key": re.compile(r"sk-ant-api03-[a-zA-Z0-9\-_]{80,}"),
 
             # Google API Keys
             "google_api_key": re.compile(r"AIza[0-9A-Za-z\-_]{35}"),
@@ -150,26 +149,67 @@ class SecretsDetector(BaseDetector):
 
     def _is_placeholder(self, secret: str) -> bool:
         """Check if the secret is likely a placeholder."""
-        placeholders = [
+        secret_lower = secret.lower()
+
+        # Exact placeholder phrases (common in docs/examples)
+        exact_placeholders = [
             "your_api_key",
             "your_secret",
+            "your_key",
+            "your_token",
+            "your_password",
             "placeholder",
-            "example",
-            "fake",
-            "test",
-            "dummy",
-            "xxx",
-            "yyy",
-            "zzz",
-            "000",
-            "111",
+            "example_key",
+            "example_secret",
+            "example_token",
+            "fake_key",
+            "fake_secret",
+            "dummy_key",
+            "dummy_secret",
+            "test_key",
+            "test_secret",
+            "sample_key",
         ]
-        secret_lower = secret.lower()
-        return any(placeholder in secret_lower for placeholder in placeholders)
+
+        # Check for exact phrase matches
+        if any(placeholder in secret_lower for placeholder in exact_placeholders):
+            return True
+
+        # Check if secret is mostly placeholder characters (xxx, yyy, etc.)
+        if len(set(secret_lower)) <= 3 and len(secret) >= 8:
+            # Only 3 or fewer unique characters - likely a placeholder
+            return True
+
+        # Check for repeated patterns (e.g., "000000", "111111", "xxxxxx")
+        if len(secret) >= 8:
+            for char in ['0', '1', 'x', 'y', 'z', '*', '#']:
+                if secret_lower.count(char) >= len(secret) * 0.8:
+                    return True
+
+        return False
 
     def _format_secret_type(self, secret_type: str) -> str:
         """Format secret type for display."""
-        return secret_type.replace("_", " ").title()
+        formatted = secret_type.replace("_", " ").title()
+
+        # Fix common acronyms to be uppercase
+        acronym_replacements = {
+            "Aws": "AWS",
+            "Api": "API",
+            "Jwt": "JWT",
+            "Rsa": "RSA",
+            "Ec ": "EC ",
+            "Openssh": "OpenSSH",
+            "Openai": "OpenAI",
+            "Url": "URL",
+            "Postgres": "PostgreSQL",
+            "Mysql": "MySQL",
+        }
+
+        for old, new in acronym_replacements.items():
+            formatted = formatted.replace(old, new)
+
+        return formatted
 
     def _generate_description(self, secret_type: str, secret_value: str) -> str:
         """Generate vulnerability description."""
