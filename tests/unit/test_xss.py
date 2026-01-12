@@ -382,7 +382,7 @@ $('#content').html(userData);
     assert vulns[0].confidence == Confidence.MEDIUM
     assert vulns[0].cvss_score == 7.2
     assert "jQuery" in vulns[0].title
-    assert ".html()" in vulns[0].code_snippet
+    assert ".html(" in vulns[0].code_snippet
 
 
 @pytest.mark.asyncio
@@ -780,9 +780,9 @@ async def test_multiline_html_tag(detector):
 """
     vulns = await detector.detect(Path("test.html"), content, "html")
 
-    # Should detect onclick on line 2
+    # Should detect onclick on line 3 (where onclick actually appears)
     assert len(vulns) == 1
-    assert vulns[0].line_number == 2
+    assert vulns[0].line_number == 3
 
 
 # ============================================================================

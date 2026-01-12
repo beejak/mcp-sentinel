@@ -133,7 +133,9 @@ class XSSDetector(BaseDetector):
         """
         vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
-        # Track detected categories per line to avoid duplicates
+        # Track detected matches per line to avoid duplicates
+        # For event handlers: track by (category, handler_name) e.g., ('event_handler_xss', 'onclick')
+        # For other patterns: track by (category, position)
         detected_per_line: Dict[int, set] = {}
 
         for line_num, line in enumerate(lines, start=1):
@@ -147,20 +149,31 @@ class XSSDetector(BaseDetector):
 
             # Check all pattern categories
             for category, patterns in self.patterns.items():
-                # Skip if we've already detected this category on this line
-                if category in detected_per_line[line_num]:
-                    continue
-
-                # Track if we found a match in this category
-                found_in_category = False
-
                 for pattern in patterns:
-                    if found_in_category:
-                        break  # Skip remaining patterns in this category
-
                     matches = pattern.finditer(line)
 
                     for match in matches:
+                        # Create a unique key for this match
+                        # For event handlers, extract the handler name (onclick, onerror, etc.)
+                        # to avoid reporting the same handler twice from different patterns
+                        if category == "event_handler_xss":
+                            # Extract event handler name (e.g., "onclick", "onerror")
+                            handler_match = re.search(r'\bon(click|load|error|mouseover|focus|blur|[a-z]+)',
+                                                     match.group(0), re.IGNORECASE)
+                            if handler_match:
+                                handler_name = handler_match.group(0).lower()
+                                match_key = (category, handler_name)
+                            else:
+                                # Fallback to position if we can't extract handler name
+                                match_key = (category, match.start())
+                        else:
+                            # For non-event-handler patterns, use position
+                            match_key = (category, match.start())
+
+                        # Skip if we've already reported this exact match
+                        if match_key in detected_per_line[line_num]:
+                            continue
+
                         # Additional context checks to reduce false positives
                         if not self._is_likely_false_positive(line, match.group(0), category):
                             vuln = self._create_vulnerability(
@@ -171,11 +184,8 @@ class XSSDetector(BaseDetector):
                                 code_snippet=line.strip(),
                             )
                             vulnerabilities.append(vuln)
-                            # Mark this category as detected for this line
-                            detected_per_line[line_num].add(category)
-                            found_in_category = True
-                            # Break after first match in this category for this line
-                            break
+                            # Mark this specific match as detected
+                            detected_per_line[line_num].add(match_key)
 
         return vulnerabilities
 
