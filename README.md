@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Test Coverage](https://img.shields.io/badge/coverage-79.44%25-green.svg)](https://github.com/beejak/mcp-sentinel)
-[![Tests](https://img.shields.io/badge/tests-344%2F373%20passing-success.svg)](https://github.com/beejak/mcp-sentinel)
+[![Test Coverage](https://img.shields.io/badge/coverage-27%25-yellow.svg)](https://github.com/beejak/mcp-sentinel)
+[![Tests](https://img.shields.io/badge/tests-313%2F331%20passing%20(94.6%25)-success.svg)](https://github.com/beejak/mcp-sentinel)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)](https://github.com/beejak/mcp-sentinel/actions)
 
 <div align="center">
@@ -24,22 +24,30 @@ Modern Python implementation with async-first architecture, multi-engine scannin
 
 </div>
 
-## 🎉 What's New - Production Ready with Bug Fixes + CI/CD!
+## 🎉 What's New - Phase 4.1.1 Bug Fixing Sprint Complete!
 
-**Latest (Jan 12, 2026):** Quality sprint complete with comprehensive CI/CD and critical bug fixes!
+**Latest (Jan 13, 2026):** Phase 4.1.1 - Systematic bug fixing with 94.6% test pass rate!
 
 | Milestone | Status | Details |
 |-----------|--------|---------|
+| **Phase 4.1.1 Bug Fixes** | ✅ Complete | 11 failures fixed, 9 marked for Phase 4.2 |
+| **XSS Detector** | ✅ 100% Pass | Fixed all 7 failures with smart deduplication |
+| **Path Traversal** | ✅ 88% Pass | Fixed backslash pattern, 5 need semantic analysis |
+| **Test Suite** | ✅ 94.6% Pass | 313/331 passing, 9 xfailed (expected) |
 | **Phase 4.1 SAST Engine** | ✅ Complete | Semgrep + Bandit integration with 1000+ rules |
-| **Bug Fixes** | ✅ Complete | Secrets: 25%→100%, Config: 70%→92% pass rates |
-| **CI/CD Pipeline** | ✅ Complete | GitHub Actions + pre-commit hooks |
-| **Repository Structure** | ✅ Complete | Python at root (no longer buried) |
-| **373 Tests** | ✅ 92.2% Pass | 344 passing, 79.44% coverage |
 | **8/8 Detectors** | ✅ Complete | All vulnerability detectors production-ready |
 | **4 Report Formats** | ✅ Complete | Terminal, JSON, SARIF 2.1.0, HTML |
 | **Multi-Engine** | ✅ Complete | Static + SAST concurrent execution |
 
-**Recent Updates (Jan 12, 2026):**
+**Phase 4.1.1 Sprint (Jan 12-13, 2026):**
+- ✅ **XSS Detector Fixed** - Handler-name deduplication, 65/65 tests passing (100%)
+- ✅ **Path Traversal Fixed** - Windows backslash pattern, 37/42 tests passing (88%)
+- ✅ **Semantic Tests Marked** - 9 tests marked as xfail (require Phase 4.2)
+- ✅ **Comprehensive Documentation** - BUGFIX_SPRINT_RESULTS.md with detailed analysis
+- 🔍 **Limitations Identified** - Multi-line patterns need AST/semantic analysis
+- 📋 **Phase 4.2 Requirements** - Taint tracking, control flow, dataflow analysis
+
+**Phase 4.1 Complete (Jan 12, 2026):**
 - ✅ **Secrets Detector Fixed** - Improved pattern matching, 100% test pass rate
 - ✅ **Config Security Fixed** - Dictionary syntax support, 92% test pass rate
 - ✅ **CI/CD Pipeline** - Python 3.10/3.11/3.12 × Ubuntu/macOS/Windows testing
