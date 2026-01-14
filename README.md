@@ -4,15 +4,15 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Test Coverage](https://img.shields.io/badge/coverage-70.44%25-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
-[![Tests](https://img.shields.io/badge/tests-367%2F371%20passing%20(98.9%25)-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
-[![Version](https://img.shields.io/badge/version-v1.0.0--beta.1-blue.svg)](https://github.com/beejak/mcp-sentinel/releases/tag/v1.0.0-beta.1)
+[![Test Coverage](https://img.shields.io/badge/coverage-70.77%25-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Tests](https://img.shields.io/badge/tests-369%2F371%20passing%20(99.5%25)-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Version](https://img.shields.io/badge/version-v1.0.0--beta.2-blue.svg)](https://github.com/beejak/mcp-sentinel/releases/tag/v1.0.0-beta.2)
 
 <div align="center">
 
 ## 🛡️ Enterprise-Grade Security Scanner for MCP Servers
 
-**🎉 Phase 4.2.1 Complete - 98.9% Test Pass Rate (367/371) ✅**
+**🎉 Phase 4.2.2 Progress - 99.5% Test Pass Rate (369/371) ✅**
 
 Modern Python implementation with async-first architecture, semantic analysis engine, multi-engine scanning (Static + SAST + Semantic), and enterprise-ready code quality.
 
@@ -24,32 +24,34 @@ Modern Python implementation with async-first architecture, semantic analysis en
 
 </div>
 
-## 🎯 What's New - v1.0.0-beta.1
+## 🎯 What's New - v1.0.0-beta.2
 
-**Latest (Jan 14, 2026):** Phase 4.2.1 complete with semantic engine integration + 17 bugs fixed!
+**Latest (Jan 14, 2026):** Phase 4.2.2 in progress - 2 more tests passing, approaching 100% coverage!
 
 | Achievement | Value | Details |
 |-------------|-------|---------|
-| **Test Pass Rate** | **98.9%** | 367/371 tests passing (+53 from Phase 4.1.1) |
-| **Code Coverage** | **70.44%** | Nearly 3x improvement from 27% |
-| **Bugs Fixed** | **17 total** | 5 detectors improved across 10 days |
+| **Test Pass Rate** | **99.5%** | 369/371 tests passing (+2 from beta.1) |
+| **Code Coverage** | **70.77%** | Continued improvement |
+| **Tests Fixed** | **2 new** | JavaScript comments + Python fixtures |
 | **Engines** | **3 active** | Static + SAST + Semantic analysis |
 
-### Phase 4.2.1 Highlights
+### Phase 4.2.2 Progress
 
-**Week 1: Semantic Engine Integration**
-- ✅ AST parsing + taint tracking + dataflow analysis
-- ✅ CFG-based guard detection (reduces false positives)
-- ✅ Fixed 5 xfailed tests requiring multi-line analysis
-- ✅ Integrated with PathTraversal & CodeInjection detectors
+**JavaScript Comment Detection (Day 11)**
+- ✅ Multi-line comment stripping for JavaScript/TypeScript (`/* ... */`)
+- ✅ Prevents false positives from code inside comments
+- ✅ test_ignore_javascript_comments now passing
 
-**Week 2: Bug Fixing Sprint**
-- ✅ **Day 6:** 3 report generator bugs (SARIF GitHub compatibility)
-- ✅ **Day 7:** 7 ConfigSecurity bugs (pattern deduplication)
-- ✅ **Day 8:** 2 PromptInjection bugs (false positive reduction)
-- ✅ **Day 9:** 5 CodeInjection + SupplyChain bugs
+**Python Fixture Detection (Day 11)**
+- ✅ Enhanced semantic analysis now detects all patterns in fixture files
+- ✅ Multi-line taint tracking working across complex scenarios
+- ✅ test_python_fixture_file now passing (12+ vulnerabilities detected)
 
-**[📋 View Full Release Notes](RELEASE_NOTES_v1.0.0-beta.1.md)**
+**Remaining Work**
+- 🔄 2 tests still xfailed: Java File() constructor + Node.js file handlers
+- 🎯 These require full semantic analysis for Java/JavaScript (planned for future phase)
+
+**[📋 View Phase 4.2.1 Release Notes](RELEASE_NOTES_v1.0.0-beta.1.md)**
 
 ---
 

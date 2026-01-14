@@ -194,6 +194,56 @@ class CodeInjectionDetector(BaseDetector):
 
         return vulnerabilities
 
+    def _strip_javascript_comments(self, content: str) -> Tuple[str, Dict[int, bool]]:
+        """
+        Strip JavaScript/TypeScript comments and track which lines were inside comments.
+
+        Args:
+            content: File content
+
+        Returns:
+            Tuple of (content with comments removed, dict mapping line_num to is_in_comment)
+        """
+        lines = content.split("\n")
+        result_lines = []
+        line_in_comment = {}
+        in_multiline_comment = False
+
+        for line_num, line in enumerate(lines, start=1):
+            # Track if this line is inside a comment block
+            line_in_comment[line_num] = in_multiline_comment
+
+            # Check for multi-line comment start
+            if "/*" in line:
+                in_multiline_comment = True
+                line_in_comment[line_num] = True
+                # Remove everything after /* on this line
+                before_comment = line.split("/*")[0]
+                result_lines.append(before_comment)
+                continue
+
+            # Check for multi-line comment end
+            if "*/" in line:
+                in_multiline_comment = False
+                # Remove everything before */ on this line
+                after_comment = line.split("*/", 1)[-1]
+                result_lines.append(after_comment)
+                continue
+
+            # If we're in a multi-line comment, skip this line
+            if in_multiline_comment:
+                result_lines.append("")
+                continue
+
+            # Remove single-line comments
+            if "//" in line:
+                before_comment = line.split("//")[0]
+                result_lines.append(before_comment)
+            else:
+                result_lines.append(line)
+
+        return "\n".join(result_lines), line_in_comment
+
     def _detect_javascript_injection(
         self, file_path: Path, content: str
     ) -> List[Vulnerability]:
@@ -208,13 +258,19 @@ class CodeInjectionDetector(BaseDetector):
             List of vulnerabilities
         """
         vulnerabilities: List[Vulnerability] = []
-        lines = content.split("\n")
+
+        # Strip comments and get mapping of lines inside comments
+        cleaned_content, line_in_comment = self._strip_javascript_comments(content)
+        lines = cleaned_content.split("\n")
 
         for pattern_name, pattern in self.javascript_patterns.items():
             for line_num, line in enumerate(lines, start=1):
-                # Skip comments
-                stripped = line.strip()
-                if stripped.startswith("//") or stripped.startswith("/*"):
+                # Skip lines that were inside comments
+                if line_in_comment.get(line_num, False):
+                    continue
+
+                # Skip empty or whitespace-only lines
+                if not line.strip():
                     continue
 
                 matches = pattern.finditer(line)
