@@ -238,11 +238,13 @@ class PathTraversalDetector(BaseDetector):
         if not self.enable_semantic_analysis or not self.semantic_engine:
             return False
 
-        # Only use for Python files (JS/Java support in Phase 4.3)
+        # Enable for Python, JavaScript, TypeScript, and Java (Phase 4.2.2)
+        # JS/Java use regex-based fallbacks until full AST parsing is implemented
         if file_type:
-            return file_type == "python"
+            return file_type in ["python", "javascript", "typescript", "java"]
 
-        return file_path.suffix.lower() == ".py"
+        supported_extensions = [".py", ".js", ".ts", ".jsx", ".tsx", ".java"]
+        return file_path.suffix.lower() in supported_extensions
 
     def _semantic_analysis_detection(
         self, file_path: Path, content: str, file_type: Optional[str]
