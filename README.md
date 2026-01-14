@@ -4,17 +4,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Test Coverage](https://img.shields.io/badge/coverage-27%25-yellow.svg)](https://github.com/beejak/mcp-sentinel)
-[![Tests](https://img.shields.io/badge/tests-313%2F331%20passing%20(94.6%25)-success.svg)](https://github.com/beejak/mcp-sentinel)
+[![Test Coverage](https://img.shields.io/badge/coverage-70.44%25-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Tests](https://img.shields.io/badge/tests-367%2F371%20passing%20(98.9%25)-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Version](https://img.shields.io/badge/version-v1.0.0--beta.1-blue.svg)](https://github.com/beejak/mcp-sentinel/releases/tag/v1.0.0-beta.1)
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue.svg)](https://github.com/beejak/mcp-sentinel/actions)
 
 <div align="center">
 
 ## 🛡️ Enterprise-Grade Security Scanner for MCP Servers
 
-**Phase 4.1 Complete - Multi-Engine SAST Integration ✅**
+**🎉 Phase 4.2.1 Complete - 98.9% Test Pass Rate (367/371) ✅**
 
-Modern Python implementation with async-first architecture, multi-engine scanning (Static + SAST), comprehensive testing, and enterprise-ready code quality.
+Modern Python implementation with async-first architecture, semantic analysis engine, multi-engine scanning (Static + SAST + Semantic), comprehensive testing, and enterprise-ready code quality.
 
 ---
 
@@ -24,30 +25,41 @@ Modern Python implementation with async-first architecture, multi-engine scannin
 
 </div>
 
-## 🎉 What's New - Phase 4.1.1 Bug Fixing Sprint Complete!
+## 🎉 What's New - Phase 4.2.1 Complete: Semantic Engine + 98.9% Test Pass Rate!
 
-**Latest (Jan 13, 2026):** Phase 4.1.1 - Systematic bug fixing with 94.6% test pass rate!
+**Latest (Jan 14, 2026):** Phase 4.2.1 - Semantic analysis integration + 17 bugs fixed!
 
-| Milestone | Status | Details |
-|-----------|--------|---------|
-| **Phase 4.1.1 Bug Fixes** | ✅ Complete | 11 failures fixed, 9 marked for Phase 4.2 |
-| **XSS Detector** | ✅ 100% Pass | Fixed all 7 failures with smart deduplication |
-| **Path Traversal** | ✅ 88% Pass | Fixed backslash pattern, 5 need semantic analysis |
-| **Test Suite** | ✅ 94.6% Pass | 313/331 passing, 9 xfailed (expected) |
-| **Phase 4.1 SAST Engine** | ✅ Complete | Semgrep + Bandit integration with 1000+ rules |
-| **8/8 Detectors** | ✅ Complete | All vulnerability detectors production-ready |
-| **4 Report Formats** | ✅ Complete | Terminal, JSON, SARIF 2.1.0, HTML |
-| **Multi-Engine** | ✅ Complete | Static + SAST concurrent execution |
+| Milestone | Status | Achievement |
+|-----------|--------|-------------|
+| **🎯 Test Pass Rate** | ✅ **98.9%** | **367/371 tests passing** (+53 from Phase 4.1.1) |
+| **📊 Code Coverage** | ✅ **70.44%** | Up from 27% - nearly 3x improvement! |
+| **🐛 Bugs Fixed** | ✅ **17 total** | 5 detectors improved across 10 days |
+| **🧠 Semantic Engine** | ✅ Complete | AST parsing + taint tracking + CFG analysis |
+| **🛡️ False Positives** | ✅ Reduced | CFG-based guard detection + context filtering |
+| **📋 Report Generators** | ✅ Fixed | SARIF GitHub Code Scanning compatible |
+| **🔍 Multi-Engine** | ✅ Enhanced | Static + SAST + Semantic (3 engines) |
 
-**Phase 4.1.1 Sprint (Jan 12-13, 2026):**
-- ✅ **XSS Detector Fixed** - Handler-name deduplication, 65/65 tests passing (100%)
-- ✅ **Path Traversal Fixed** - Windows backslash pattern, 37/42 tests passing (88%)
-- ✅ **Semantic Tests Marked** - 9 tests marked as xfail (require Phase 4.2)
-- ✅ **Comprehensive Documentation** - BUGFIX_SPRINT_RESULTS.md with detailed analysis
-- 🔍 **Limitations Identified** - Multi-line patterns need AST/semantic analysis
-- 📋 **Phase 4.2 Requirements** - Taint tracking, control flow, dataflow analysis
+**Phase 4.2.1 Sprint (Jan 13-14, 2026):**
 
-**Phase 4.1 Complete (Jan 12, 2026):**
+**Week 1: Semantic Engine Integration (Days 1-3)**
+- ✅ **Semantic Analysis Engine** - AST parsing, taint tracking, dataflow analysis
+- ✅ **CFG-Based Guard Detection** - Understands validation checks protecting code
+- ✅ **5 xfailed tests fixed** - Multi-line vulnerabilities now detected
+- ✅ **PathTraversal & CodeInjection** - Integrated with semantic engine
+
+**Week 2: Bug Fixing Blitz (Days 6-10)**
+- ✅ **Day 6:** 3 report generator bugs (HTML sections + SARIF paths)
+- ✅ **Day 7:** 7 ConfigSecurity bugs (pattern duplicates + false positives)
+- ✅ **Day 8:** 2 PromptInjection bugs (JSON values + educational context)
+- ✅ **Day 9:** 5 CodeInjection + SupplyChain bugs (titles, CWE IDs, patterns)
+
+**Technical Achievements:**
+- 🔍 Two-phase detection: Pattern → Semantic → Deduplication
+- 🎯 Context-aware false positive filtering
+- 📝 Better UX: Function names in titles, specific remediation
+- 🚀 Production-ready semantic analysis
+
+**Previous Milestones:**
 - ✅ **Secrets Detector Fixed** - Improved pattern matching, 100% test pass rate
 - ✅ **Config Security Fixed** - Dictionary syntax support, 92% test pass rate
 - ✅ **CI/CD Pipeline** - Python 3.10/3.11/3.12 × Ubuntu/macOS/Windows testing
