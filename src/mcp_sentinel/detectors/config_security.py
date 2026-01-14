@@ -81,18 +81,18 @@ class ConfigSecurityDetector(BaseDetector):
             # Pattern 5: Weak secrets/session config
             "weak_secrets": [
                 re.compile(r"SECRET_KEY\s*=\s*['\"](?:secret|changeme|default|test|dev)['\"]", re.IGNORECASE),
-                re.compile(r"session_secret\s*=\s*['\"](?:secret|key|password)['\"]", re.IGNORECASE),
+                re.compile(r"(?:session_?secret|secret)\s*[:=]\s*['\"](?:secret|key|password)['\"]", re.IGNORECASE),
                 re.compile(r"SESSION_COOKIE_SECURE\s*=\s*False", re.IGNORECASE),
                 re.compile(r"SESSION_COOKIE_HTTPONLY\s*=\s*False", re.IGNORECASE),
-                re.compile(r"secure\s*:\s*false.*cookie", re.IGNORECASE),
+                re.compile(r"(?:secure|httpOnly)\s*:\s*false", re.IGNORECASE),
             ],
 
             # Pattern 6: Missing rate limiting
             "rate_limiting": [
-                re.compile(r"['\"]?rate_limit['\"]?\s*[:=]\s*(?:None|False|0)", re.IGNORECASE),
-                re.compile(r"['\"]?RATE_LIMIT['\"]?\s*[:=]\s*(?:None|False|0)", re.IGNORECASE),
-                re.compile(r"['\"]?disable_rate_limit['\"]?\s*[:=]\s*True", re.IGNORECASE),
-                re.compile(r"['\"]?throttle['\"]?\s*[:=]\s*False", re.IGNORECASE),
+                re.compile(r"['\"]?(?:rate_?limit|rateLimit)['\"]?\s*[:=]\s*(?:None|False|false|null|0)(?:\s|,|$)", re.IGNORECASE),
+                re.compile(r"['\"]?RATE_LIMIT['\"]?\s*[:=]\s*(?:None|False|false|null|0)(?:\s|,|$)"),  # No IGNORECASE - only match uppercase
+                re.compile(r"['\"]?disable_rate_limit['\"]?\s*[:=]\s*(?:True|true)(?:\s|,|$)", re.IGNORECASE),
+                re.compile(r"['\"]?throttle['\"]?\s*[:=]\s*(?:False|false)(?:\s|,|$)", re.IGNORECASE),
             ],
 
             # Pattern 7: Insecure SSL/TLS
@@ -108,6 +108,8 @@ class ConfigSecurityDetector(BaseDetector):
             "exposed_endpoints": [
                 re.compile(r"@app\.route\(['\"](?:/debug|/admin)['\"].*\)", re.IGNORECASE),
                 re.compile(r"path\s*:\s*['\"](?:/debug|/admin|/__debug__|/graphql)['\"]", re.IGNORECASE),
+                # Match router.get/post/etc but not @app.route (handled above)
+                re.compile(r"(?<!@)(?:router)\.\w+\(['\"](?:/debug|/admin|/__debug__|/graphql)['\"]", re.IGNORECASE),
                 re.compile(r"ALLOWED_HOSTS\s*=\s*\[\s*['\"\*]", re.IGNORECASE),
             ],
         }
@@ -178,7 +180,7 @@ class ConfigSecurityDetector(BaseDetector):
 
                     for match in matches:
                         # Additional context checks to reduce false positives
-                        if not self._is_likely_false_positive(line, match.group(0), category):
+                        if not self._is_likely_false_positive(line, match.group(0), category, file_path):
                             vuln = self._create_vulnerability(
                                 category=category,
                                 matched_text=match.group(0),
@@ -217,7 +219,7 @@ class ConfigSecurityDetector(BaseDetector):
 
         return False
 
-    def _is_likely_false_positive(self, line: str, matched_text: str, category: str) -> bool:
+    def _is_likely_false_positive(self, line: str, matched_text: str, category: str, file_path: Path = None) -> bool:
         """
         Check if the match is likely a false positive.
 
@@ -225,6 +227,7 @@ class ConfigSecurityDetector(BaseDetector):
             line: The full line of code
             matched_text: The matched pattern text
             category: The pattern category
+            file_path: Path to the file (optional)
 
         Returns:
             True if likely false positive, False otherwise
@@ -242,6 +245,18 @@ class ConfigSecurityDetector(BaseDetector):
 
         # For debug mode, allow if explicitly marked as local/dev config
         if category == "debug_mode":
+            # Check file path for local/dev indicators (but not unit test files)
+            if file_path:
+                filename_lower = str(file_path).lower()
+                # Only match local/dev config files, not unit test files
+                if any(marker in filename_lower for marker in [
+                    "local", "dev", "development", ".env.local",
+                    "settings_local", "settings_dev", "config_local", "config_dev",
+                    "_local.", "_dev.", ".local.", ".dev."
+                ]):
+                    return True
+
+            # Also check line content
             if any(marker in line_lower for marker in ["local", ".env.local", "development.py", "settings_dev"]):
                 return True
 

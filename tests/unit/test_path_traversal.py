@@ -28,7 +28,6 @@ def detector():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires semantic analysis: taint tracking across lines (Phase 4.2)")
 async def test_detect_open_with_request_param(detector):
     """Test detection of open() with request parameter."""
     content = """
@@ -224,7 +223,6 @@ tar.extractall()
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires semantic analysis: taint tracking across lines (Phase 4.2)")
 async def test_detect_os_path_join_with_request(detector):
     """Test detection of os.path.join with request data."""
     content = """
@@ -396,7 +394,6 @@ fs.readFile(safePath);
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires semantic analysis: control flow analysis for validation guards (Phase 4.2)")
 async def test_safe_zip_extraction_with_validation(detector):
     """Test that validated zip extraction is not flagged."""
     content = """

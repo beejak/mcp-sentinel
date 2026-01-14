@@ -8,7 +8,8 @@ Critical for MCP servers that handle file operations or serve files.
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
+import ast
+from typing import List, Dict, Pattern, Optional, Set, Tuple
 from pathlib import Path
 
 from mcp_sentinel.detectors.base import BaseDetector
@@ -18,6 +19,9 @@ from mcp_sentinel.models.vulnerability import (
     Severity,
     Confidence,
 )
+from mcp_sentinel.engines.semantic import get_semantic_engine, SemanticEngine
+from mcp_sentinel.engines.semantic.models import TaintPath, SinkType
+from mcp_sentinel.engines.semantic.cfg_builder import SimpleCFGBuilder
 
 
 class PathTraversalDetector(BaseDetector):
@@ -32,10 +36,27 @@ class PathTraversalDetector(BaseDetector):
     5. Missing path sanitization
     """
 
-    def __init__(self):
-        """Initialize the Path Traversal detector."""
+    def __init__(self, enable_semantic_analysis: bool = True):
+        """
+        Initialize the Path Traversal detector.
+
+        Args:
+            enable_semantic_analysis: Enable semantic analysis for multi-line detection (default: True)
+        """
         super().__init__(name="PathTraversalDetector", enabled=True)
         self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.enable_semantic_analysis = enable_semantic_analysis
+        self.semantic_engine: Optional[SemanticEngine] = None
+        self.cfg_builder = SimpleCFGBuilder()  # For guard detection
+
+        # Initialize semantic engine if enabled
+        if self.enable_semantic_analysis:
+            try:
+                self.semantic_engine = get_semantic_engine()
+            except Exception as e:
+                # Graceful degradation if semantic engine fails to load
+                self.enable_semantic_analysis = False
+                self.semantic_engine = None
 
     def _compile_patterns(self) -> Dict[str, List[Pattern]]:
         """Compile regex patterns for path traversal detection."""
@@ -119,6 +140,10 @@ class PathTraversalDetector(BaseDetector):
         """
         Detect path traversal vulnerabilities in file content.
 
+        Uses two-phase detection:
+        1. Pattern-based detection (fast, baseline)
+        2. Semantic analysis (slower, more accurate, multi-line)
+
         Args:
             file_path: Path to the file
             content: File content
@@ -128,7 +153,45 @@ class PathTraversalDetector(BaseDetector):
             List of detected path traversal vulnerabilities
         """
         vulnerabilities: List[Vulnerability] = []
+
+        # Phase 1: Pattern-based detection (fast)
+        pattern_vulns = self._pattern_based_detection(file_path, content, file_type)
+        vulnerabilities.extend(pattern_vulns)
+
+        # Phase 2: Semantic analysis (accurate, multi-line)
+        if self._should_use_semantic_analysis(file_path, file_type):
+            semantic_vulns = self._semantic_analysis_detection(file_path, content, file_type)
+            vulnerabilities.extend(semantic_vulns)
+
+        # Phase 3: Deduplication
+        return self._deduplicate_vulnerabilities(vulnerabilities)
+
+    def _pattern_based_detection(
+        self, file_path: Path, content: str, file_type: Optional[str]
+    ) -> List[Vulnerability]:
+        """
+        Pattern-based detection (Phase 1 - fast baseline).
+
+        Args:
+            file_path: Path to the file
+            content: File content
+            file_type: File type (optional)
+
+        Returns:
+            List of vulnerabilities found by pattern matching
+        """
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
+
+        # Build CFG for guard detection (if Python code)
+        cfg = None
+        if file_type == "python" or (file_path.suffix.lower() == ".py"):
+            try:
+                code_ast = ast.parse(content)
+                cfg = self.cfg_builder.build(code_ast)
+            except SyntaxError:
+                # If AST parsing fails, proceed without guard detection
+                cfg = None
 
         for line_num, line in enumerate(lines, start=1):
             # Skip comments
@@ -143,6 +206,11 @@ class PathTraversalDetector(BaseDetector):
                     for match in matches:
                         # Additional context checks to reduce false positives
                         if not self._is_likely_false_positive(line, match.group(0), category):
+                            # Check for validation guards (if CFG available)
+                            if cfg and self._has_guard_before_line(cfg, line_num):
+                                # This vulnerability is protected by a validation guard
+                                continue
+
                             vuln = self._create_vulnerability(
                                 category=category,
                                 matched_text=match.group(0),
@@ -153,6 +221,289 @@ class PathTraversalDetector(BaseDetector):
                             vulnerabilities.append(vuln)
 
         return vulnerabilities
+
+    def _should_use_semantic_analysis(
+        self, file_path: Path, file_type: Optional[str]
+    ) -> bool:
+        """
+        Check if semantic analysis should be used.
+
+        Args:
+            file_path: Path to the file
+            file_type: File type (optional)
+
+        Returns:
+            True if semantic analysis should be used
+        """
+        if not self.enable_semantic_analysis or not self.semantic_engine:
+            return False
+
+        # Only use for Python files (JS/Java support in Phase 4.3)
+        if file_type:
+            return file_type == "python"
+
+        return file_path.suffix.lower() == ".py"
+
+    def _semantic_analysis_detection(
+        self, file_path: Path, content: str, file_type: Optional[str]
+    ) -> List[Vulnerability]:
+        """
+        Semantic analysis detection (Phase 2 - accurate, multi-line).
+
+        Uses AST parsing and taint tracking to detect vulnerabilities
+        that span multiple lines (e.g., request.args.get() on line N,
+        open() on line N+M).
+
+        Also performs CFG-based guard detection to reduce false positives
+        by recognizing validation checks.
+
+        Args:
+            file_path: Path to the file
+            content: File content
+            file_type: File type (optional)
+
+        Returns:
+            List of vulnerabilities found by semantic analysis
+        """
+        if not self.semantic_engine:
+            return []
+
+        vulnerabilities: List[Vulnerability] = []
+
+        try:
+            # Run semantic analysis
+            language = file_type or "python"
+            semantic_result = self.semantic_engine.analyze(content, str(file_path), language)
+
+            # Build CFG for guard detection
+            cfg = None
+            try:
+                code_ast = ast.parse(content)
+                cfg = self.cfg_builder.build(code_ast)
+            except SyntaxError:
+                # If AST parsing fails, proceed without guard detection
+                cfg = None
+
+            # Convert taint paths to vulnerabilities
+            for taint_path in semantic_result.taint_paths:
+                # Only process path traversal related sinks
+                if taint_path.sink.sink_type in [
+                    SinkType.FILE_OPERATION,
+                    SinkType.PATH_OPERATION,
+                ]:
+                    # Check for validation guards between source and sink
+                    if cfg and self._has_validation_guard(cfg, taint_path):
+                        # Path is validated - skip this vulnerability
+                        continue
+
+                    vuln = self._convert_taint_path_to_vulnerability(
+                        taint_path, file_path, content
+                    )
+                    vulnerabilities.append(vuln)
+
+        except Exception as e:
+            # Graceful degradation - log error but don't crash
+            # In production, this would log to a proper logger
+            pass
+
+        return vulnerabilities
+
+    def _has_validation_guard(self, cfg, taint_path: TaintPath) -> bool:
+        """
+        Check if a taint path has validation guards between source and sink.
+
+        Args:
+            cfg: Control flow graph
+            taint_path: Taint path to check
+
+        Returns:
+            True if path is protected by validation guards, False otherwise
+        """
+        source_line = taint_path.source.line
+        sink_line = taint_path.sink.line
+
+        # Try to extract variable name from source
+        # This is a simplified approach - Phase 4.3 will have better variable tracking
+        var_name = None
+        if hasattr(taint_path.source, 'name'):
+            var_name = taint_path.source.name
+        elif taint_path.path:
+            # Try to get first variable in the flow
+            var_name = taint_path.path[0] if taint_path.path else None
+
+        # Check if path is safe using CFG builder
+        if var_name:
+            is_safe = self.cfg_builder.is_path_safe(cfg, source_line, sink_line, var_name)
+            return is_safe
+
+        # If we can't determine variable name, check for any validation guards
+        # between source and sink lines
+        guards = self.cfg_builder.find_guards_before_line(cfg, sink_line)
+        for guard in guards:
+            if guard.line > source_line and guard.line < sink_line:
+                # Found a guard between source and sink
+                if guard.is_exit and guard.guard_type == "validation":
+                    # This is a validation guard with early exit (continue/raise/return)
+                    return True
+
+        return False
+
+    def _has_guard_before_line(self, cfg, line_num: int) -> bool:
+        """
+        Check if there are validation guards before a given line.
+
+        Simpler version for pattern-based detection - just checks if any
+        validation guards exist before the line.
+
+        Args:
+            cfg: Control flow graph
+            line_num: Line number to check
+
+        Returns:
+            True if validation guards exist before this line, False otherwise
+        """
+        guards = self.cfg_builder.find_guards_before_line(cfg, line_num)
+
+        for guard in guards:
+            if guard.line < line_num:
+                # Found a validation guard before this line
+                if guard.is_exit and guard.guard_type == "validation":
+                    # This is a validation guard with early exit (continue/raise/return)
+                    # which suggests the path is protected
+                    return True
+
+        return False
+
+    def _convert_taint_path_to_vulnerability(
+        self, taint_path: TaintPath, file_path: Path, content: str
+    ) -> Vulnerability:
+        """
+        Convert a TaintPath from semantic analysis to a Vulnerability.
+
+        Args:
+            taint_path: Taint path from semantic engine
+            file_path: Path to the file
+            content: File content
+
+        Returns:
+            Vulnerability object
+        """
+        # Get code snippet around the sink line
+        lines = content.split("\n")
+        sink_line_num = taint_path.sink.line
+        if 0 < sink_line_num <= len(lines):
+            code_snippet = lines[sink_line_num - 1].strip()
+        else:
+            code_snippet = ""
+
+        # Build description with taint flow information
+        flow_description = " → ".join(taint_path.path) if taint_path.path else "direct"
+        description = (
+            f"Path traversal vulnerability detected via semantic analysis. "
+            f"Tainted data from {taint_path.source.origin} (line {taint_path.source.line}) "
+            f"flows to {taint_path.sink.function_name}() (line {sink_line_num}). "
+            f"Flow: {flow_description}. "
+            f"User-controlled input can manipulate file paths, allowing access to files "
+            f"outside the intended directory."
+        )
+
+        # Adjust severity based on sink type and sanitization
+        if taint_path.sink.sink_type == SinkType.FILE_OPERATION:
+            # Direct file operations (open, read, write) are CRITICAL
+            severity = Severity.CRITICAL if not taint_path.sanitized else Severity.HIGH
+        elif taint_path.sink.sink_type == SinkType.PATH_OPERATION:
+            # Path joining/manipulation is HIGH (less severe than direct file ops)
+            severity = Severity.HIGH if not taint_path.sanitized else Severity.MEDIUM
+        else:
+            severity = Severity.HIGH
+
+        confidence = Confidence.HIGH if taint_path.confidence >= 0.8 else Confidence.MEDIUM
+
+        # Determine title based on sink function
+        if "join" in taint_path.sink.function_name.lower():
+            title = "Path Traversal: Unsafe Path Joining"
+        elif taint_path.sink.function_name in ["open", "readFile", "writeFile"]:
+            title = "Path Traversal: Multi-line Path Manipulation"
+        else:
+            title = "Path Traversal: Multi-line Path Manipulation"
+
+        return Vulnerability(
+            type=VulnerabilityType.PATH_TRAVERSAL,
+            title=title,
+            description=description,
+            severity=severity,
+            confidence=confidence,
+            file_path=str(file_path),
+            line_number=sink_line_num,
+            code_snippet=code_snippet,
+            cwe_id="CWE-22",
+            cvss_score=9.1 if not taint_path.sanitized else 7.5,
+            remediation=(
+                "1. Validate and sanitize all user input before using in file paths\n"
+                "2. Use allowlists of permitted files/directories\n"
+                "3. Use path.resolve() or realpath() to normalize paths\n"
+                "4. Verify resolved path stays within intended directory\n"
+                "5. Use os.path.basename() to extract only filename\n"
+                "6. Implement proper access controls"
+            ),
+            references=[
+                "https://owasp.org/www-community/attacks/Path_Traversal",
+                "https://cwe.mitre.org/data/definitions/22.html",
+            ],
+            detector=self.name,
+            engine="semantic",  # Mark as semantic engine detection
+            mitre_attack_ids=["T1083", "T1005"],
+            context={
+                "source": taint_path.source.origin,
+                "source_line": taint_path.source.line,
+                "sink": taint_path.sink.function_name,
+                "sink_line": sink_line_num,
+                "flow": flow_description,
+                "sanitized": taint_path.sanitized,
+                "sanitizers": taint_path.sanitizers,
+            },
+        )
+
+    def _deduplicate_vulnerabilities(
+        self, vulnerabilities: List[Vulnerability]
+    ) -> List[Vulnerability]:
+        """
+        Deduplicate vulnerabilities from pattern-based and semantic analysis.
+
+        Semantic analysis findings take precedence over pattern-based findings
+        for the same line, as they have more context.
+
+        Args:
+            vulnerabilities: List of all vulnerabilities
+
+        Returns:
+            Deduplicated list
+        """
+        # Group by (file_path, line_number)
+        vuln_map: Dict[Tuple[str, int], Vulnerability] = {}
+
+        for vuln in vulnerabilities:
+            key = (vuln.file_path, vuln.line_number)
+
+            if key in vuln_map:
+                existing = vuln_map[key]
+
+                # Prefer semantic engine results (more accurate)
+                if vuln.engine == "semantic" and existing.engine != "semantic":
+                    vuln_map[key] = vuln
+                # Keep higher severity
+                elif vuln.severity.value > existing.severity.value:
+                    vuln_map[key] = vuln
+                # Keep higher confidence
+                elif (
+                    vuln.severity == existing.severity
+                    and vuln.confidence.value > existing.confidence.value
+                ):
+                    vuln_map[key] = vuln
+            else:
+                vuln_map[key] = vuln
+
+        return list(vuln_map.values())
 
     def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
         """

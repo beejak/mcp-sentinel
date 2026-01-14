@@ -94,19 +94,19 @@ class HTMLGenerator:
         <div class="container">
             <h2>Executive Summary</h2>
             <div class="summary-grid">
-                <div class="summary-card">
+                <div class="summary-card metric-card">
                     <div class="summary-value">{result.statistics.total_files}</div>
                     <div class="summary-label">Total Files</div>
                 </div>
-                <div class="summary-card">
+                <div class="summary-card metric-card">
                     <div class="summary-value">{result.statistics.scanned_files}</div>
                     <div class="summary-label">Files Scanned</div>
                 </div>
-                <div class="summary-card">
+                <div class="summary-card metric-card">
                     <div class="summary-value">{result.statistics.total_vulnerabilities}</div>
-                    <div class="summary-label">Vulnerabilities Found</div>
+                    <div class="summary-label">Total Vulnerabilities</div>
                 </div>
-                <div class="summary-card">
+                <div class="summary-card metric-card">
                     <div class="summary-value">{result.statistics.scan_duration_seconds:.2f}s</div>
                     <div class="summary-label">Scan Duration</div>
                 </div>
@@ -127,7 +127,7 @@ class HTMLGenerator:
             return """
     <section class="severity-section">
         <div class="container">
-            <h2>Severity Breakdown</h2>
+            <h2>Vulnerabilities by Severity</h2>
             <div class="no-findings">
                 <span class="emoji">✅</span>
                 <p>No vulnerabilities found! Your code looks secure.</p>
@@ -163,7 +163,7 @@ class HTMLGenerator:
         return f"""
     <section class="severity-section">
         <div class="container">
-            <h2>Severity Breakdown</h2>
+            <h2>Vulnerabilities by Severity</h2>
             <div class="severity-breakdown">
                 {bars}
             </div>

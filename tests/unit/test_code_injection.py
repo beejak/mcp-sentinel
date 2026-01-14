@@ -102,7 +102,6 @@ def vulnerable():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires multi-line pattern matching: shell=True on different line (Phase 4.2)")
 async def test_detect_subprocess_popen_shell(detector):
     """Test detection of subprocess.Popen() with shell=True."""
     content = """
@@ -508,7 +507,6 @@ async def test_whitespace_only(detector):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires multi-line pattern matching: shell=True on different line (Phase 4.2)")
 async def test_multiline_detection(detector):
     """Test detection across multiple lines."""
     content = """

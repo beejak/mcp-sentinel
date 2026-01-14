@@ -29,6 +29,29 @@ class SARIFGenerator:
     SARIF_VERSION = "2.1.0"
     SCHEMA_URI = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 
+    def _make_relative_path(self, file_path: str, base_path: str) -> str:
+        """
+        Convert absolute path to relative path for GitHub Code Scanning compatibility.
+
+        Args:
+            file_path: Absolute file path
+            base_path: Base directory (scan target)
+
+        Returns:
+            Relative path from base_path
+        """
+        try:
+            file_p = Path(file_path)
+            base_p = Path(base_path)
+
+            # Try to make it relative
+            rel_path = file_p.relative_to(base_p)
+            # Use forward slashes for cross-platform compatibility
+            return str(rel_path).replace("\\", "/")
+        except (ValueError, TypeError):
+            # If can't make relative, just use the filename
+            return Path(file_path).name
+
     def generate(self, result: ScanResult) -> Dict[str, Any]:
         """
         Generate SARIF report from scan result.
@@ -76,7 +99,7 @@ class SARIFGenerator:
         return {
             "tool": self._create_tool(),
             "invocations": [self._create_invocation(result)],
-            "results": [self._create_result(vuln) for vuln in result.vulnerabilities],
+            "results": [self._create_result(vuln, result.target) for vuln in result.vulnerabilities],
             "columnKind": "utf16CodeUnits",
             "properties": {
                 "scanStatistics": {
@@ -195,8 +218,11 @@ class SARIFGenerator:
 
         return invocation
 
-    def _create_result(self, vuln: Vulnerability) -> Dict[str, Any]:
+    def _create_result(self, vuln: Vulnerability, base_path: str = "") -> Dict[str, Any]:
         """Create SARIF result object from vulnerability."""
+        # Convert absolute path to relative for GitHub Code Scanning compatibility
+        relative_path = self._make_relative_path(vuln.file_path, base_path) if base_path else vuln.file_path
+
         return {
             "ruleId": vuln.type.value.upper(),
             "level": self._severity_to_sarif_level(vuln.severity),
@@ -207,7 +233,7 @@ class SARIFGenerator:
                 {
                     "physicalLocation": {
                         "artifactLocation": {
-                            "uri": vuln.file_path,
+                            "uri": relative_path,
                             "uriBaseId": "%SRCROOT%",
                         },
                         "region": {

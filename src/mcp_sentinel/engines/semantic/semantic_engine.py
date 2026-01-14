@@ -12,7 +12,7 @@ from mcp_sentinel.engines.semantic.ast_parser import ASTParser
 from mcp_sentinel.engines.semantic.taint_tracker import TaintTracker
 from mcp_sentinel.engines.semantic.cfg_builder import SimpleCFGBuilder
 from mcp_sentinel.engines.semantic.models import (
-    Semantic Analysis Result,
+    SemanticAnalysisResult,
     TaintPath,
     UnifiedAST,
 )

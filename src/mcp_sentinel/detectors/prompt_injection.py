@@ -138,6 +138,10 @@ class PromptInjectionDetector(BaseDetector):
                     matches = pattern.finditer(line)
 
                     for match in matches:
+                        # Check for false positives
+                        if self._is_likely_false_positive(line, match.group(0), family_name):
+                            continue
+
                         vuln = self._create_vulnerability(
                             family_name=family_name,
                             pattern_text=pattern.pattern,
@@ -166,6 +170,73 @@ class PromptInjectionDetector(BaseDetector):
         # YAML comments
         if file_path.suffix in [".yaml", ".yml"]:
             return line.startswith("#")
+
+        return False
+
+    def _is_likely_false_positive(self, line: str, matched_text: str, family_name: str) -> bool:
+        """
+        Check if a match is likely a false positive.
+
+        Args:
+            line: The full line of code
+            matched_text: The matched text
+            family_name: The pattern family name
+
+        Returns:
+            True if likely false positive, False otherwise
+        """
+        line_lower = line.lower()
+
+        # For role_manipulation family, check for educational/documentation context
+        if family_name == "role_manipulation":
+            # Educational/tutorial indicators
+            educational_keywords = [
+                "tutorial", "teach", "learn", "example", "guide", "documentation",
+                "lesson", "course", "training", "instruction", "how to", "better"
+            ]
+            if any(keyword in line_lower for keyword in educational_keywords):
+                # Specific pattern checks for common false positives
+                if "become a" in matched_text.lower():
+                    # "become a better/good/great X" is likely legitimate
+                    if any(word in line_lower for word in ["better", "good", "great", "professional"]):
+                        return True
+
+                if "act as" in matched_text.lower():
+                    # "act as a responsible/professional X" is likely legitimate
+                    if any(word in line_lower for word in ["responsible", "professional", "ethical"]):
+                        return True
+
+        # For system_prompt family, check if match is inside a JSON string value
+        if family_name == "system_prompt":
+            # Check if the matched text is inside quotes (JSON string value)
+            # Find position of matched text in line
+            match_pos = line.find(matched_text)
+            if match_pos == -1:
+                return False
+
+            # Count quotes before the match
+            before_match = line[:match_pos]
+            # Count both single and double quotes
+            double_quotes_before = before_match.count('"')
+            single_quotes_before = before_match.count("'")
+
+            # If inside a quoted string (odd number of quotes before), it's likely a false positive
+            # We check for JSON pattern: "key": "value"
+            # If we see a colon before the match and quotes around it, it's a JSON value
+            if '":' in before_match or "': " in before_match or "':" in before_match:
+                # This looks like a JSON/dict value, likely false positive
+                return True
+
+            # Also check if the line contains "content": which is typical for JSON messages
+            if '"content"' in line or "'content'" in line:
+                # And the matched text appears after "content":
+                content_pos = max(
+                    line.find('"content"'),
+                    line.find("'content'")
+                )
+                if content_pos != -1 and content_pos < match_pos:
+                    # Matched text is after "content" key, likely the value
+                    return True
 
         return False
 
