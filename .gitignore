@@ -60,3 +60,6 @@ htmlcov/
 *.egg-info/
 dist/
 build/
+
+# Session documentation archive
+docs-archive/
