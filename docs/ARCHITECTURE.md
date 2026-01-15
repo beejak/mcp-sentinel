@@ -166,6 +166,49 @@ This document outlines the architecture and technical design decisions for MCP S
 └─────────────────────────────────────────────────────────────┘
 ```
 
+#### Visual Flow Diagram
+
+```mermaid
+graph TD
+    A[CLI: mcp-sentinel scan] --> B[MultiEngineScanner]
+    B --> C{Parse Configuration}
+    C --> D[Select Engines]
+
+    D -->|Parallel Execution| E1[Static Engine<br/>Pattern-based<br/>1-2s]
+    D -->|Parallel Execution| E2[SAST Engine<br/>Semgrep + Bandit<br/>5-10s]
+    D -->|Parallel Execution| E3[Semantic Engine<br/>AST + Taint<br/>10-30s]
+    D -->|Parallel Execution| E4[AI Engine<br/>Claude 3.5<br/>30-60s]
+
+    E1 --> F[Result Collector]
+    E2 --> F
+    E3 --> F
+    E4 --> F
+
+    F --> G{Deduplication<br/>& Merging}
+    G --> H[Fingerprint<br/>Generation]
+    H --> I[Group by<br/>Similarity]
+    I --> J[Select Best<br/>Confidence]
+    J --> K[Merge Engine<br/>Attribution]
+
+    K --> L{Report Generator}
+    L -->|terminal| M1[Rich Terminal<br/>Output]
+    L -->|json| M2[JSON File]
+    L -->|sarif| M3[SARIF 2.1.0<br/>GitHub Compatible]
+    L -->|html| M4[Interactive<br/>Dashboard]
+
+    M1 --> N[Display Results]
+    M2 --> N
+    M3 --> N
+    M4 --> N
+
+    style E1 fill:#e1f5ff
+    style E2 fill:#fff3e1
+    style E3 fill:#e8f5e9
+    style E4 fill:#f3e5f5
+    style G fill:#fff9c4
+    style L fill:#ffebee
+```
+
 ### Engine Characteristics
 
 | Engine | Speed | Accuracy | Coverage | Cost | Best For |
@@ -197,6 +240,41 @@ Many detectors use a two-phase approach:
 - Merge Phase 1 + Phase 2 results
 - Remove duplicates
 - Keep best confidence match
+
+#### Detection Pipeline Visualization
+
+```mermaid
+sequenceDiagram
+    participant F as File
+    participant D as Detector
+    participant P1 as Phase 1: Pattern
+    participant P2 as Phase 2: Semantic
+    participant M as Merge & Dedupe
+
+    F->>D: Read file content
+    D->>P1: Run pattern matching
+
+    Note over P1: Fast regex scanning<br/>Line-by-line analysis<br/>~100ms per file
+
+    P1-->>D: Baseline vulnerabilities
+
+    D->>P2: Parse with AST
+
+    Note over P2: Build syntax tree<br/>Taint tracking<br/>Control flow<br/>~500ms per file
+
+    P2->>P2: Track data flow
+    P2->>P2: Analyze guards
+    P2->>P2: Multi-line detection
+
+    P2-->>D: Semantic vulnerabilities
+
+    D->>M: Merge results
+
+    Note over M: Generate fingerprints<br/>Group by similarity<br/>Select best confidence<br/>Remove duplicates
+
+    M-->>D: Final vulnerability list
+    D-->>F: Report findings
+```
 
 ---
 
@@ -515,6 +593,78 @@ if not is_valid_filename(filename):    # GUARD detected
 │  │  • Return findings                               │ │
 │  └──────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────┘
+```
+
+#### AI Engine Flow Diagram
+
+```mermaid
+graph LR
+    A[Code File] --> B{Check API Keys}
+
+    B -->|ANTHROPIC_API_KEY| C1[Anthropic<br/>Claude 3.5 Sonnet]
+    B -->|OPENAI_API_KEY| C2[OpenAI<br/>GPT-4]
+    B -->|GOOGLE_API_KEY| C3[Google<br/>Gemini Pro]
+    B -->|No keys| C4[Ollama<br/>Local LLM]
+
+    C1 --> D[Build Prompt]
+    C2 --> D
+    C3 --> D
+    C4 --> D
+
+    D --> E[Send to AI<br/>+ Code Context<br/>+ Language<br/>+ File Path]
+
+    E --> F{Cost Check}
+    F -->|Under Budget| G[AI Analysis]
+    F -->|Over Budget| H[Skip & Warn]
+
+    G --> I[Parse JSON<br/>Response]
+    I --> J[Extract<br/>Vulnerabilities]
+
+    J --> K{Validate Findings}
+    K -->|Valid| L[Create<br/>Vulnerability<br/>Objects]
+    K -->|Invalid| M[Log & Skip]
+
+    L --> N[Track Cost]
+    H --> N
+    M --> N
+
+    N --> O[Return Results<br/>+ Total Cost]
+
+    style C1 fill:#e6f2ff
+    style C2 fill:#e6ffe6
+    style C3 fill:#ffe6e6
+    style C4 fill:#f3e5f5
+    style G fill:#fff9c4
+    style F fill:#ffebee
+```
+
+#### AI Provider Comparison
+
+```mermaid
+graph TD
+    subgraph "Provider Selection Strategy"
+        A[Start Scan] --> B{Check Available Providers}
+
+        B --> C1{Anthropic?}
+        C1 -->|Yes| D1[Use Claude 3.5<br/>- Best accuracy<br/>- 200k context<br/>- $0.10-0.50/scan]
+        C1 -->|No| C2{OpenAI?}
+
+        C2 -->|Yes| D2[Use GPT-4<br/>- Great accuracy<br/>- 128k context<br/>- $0.15-0.60/scan]
+        C2 -->|No| C3{Google?}
+
+        C3 -->|Yes| D3[Use Gemini Pro<br/>- Good accuracy<br/>- 1M context<br/>- $0.05-0.25/scan]
+        C3 -->|No| D4[Use Ollama<br/>- Local model<br/>- No cost<br/>- Slower<br/>- Lower accuracy]
+
+        D1 --> E[Run Analysis]
+        D2 --> E
+        D3 --> E
+        D4 --> E
+    end
+
+    style D1 fill:#4caf50
+    style D2 fill:#8bc34a
+    style D3 fill:#cddc39
+    style D4 fill:#ffc107
 ```
 
 **What AI Can Detect (vs Traditional Tools)**:

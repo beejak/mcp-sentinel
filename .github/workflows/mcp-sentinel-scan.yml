@@ -1,0 +1,247 @@
+# MCP Sentinel Security Scan
+# This workflow runs MCP Sentinel security scans on pull requests and pushes to main
+#
+# What this workflow does:
+# 1. Checks out your code
+# 2. Installs MCP Sentinel with dependencies
+# 3. Runs security scan with multiple engines
+# 4. Uploads SARIF results to GitHub Security tab
+# 5. Posts summary comment on pull requests
+# 6. Fails the build if critical vulnerabilities are found
+#
+# Setup Instructions:
+# 1. Copy this file to your repository at .github/workflows/security-scan.yml
+# 2. Commit and push to your repository
+# 3. The workflow will run automatically on PRs and pushes to main
+# 4. View results in the "Security" tab -> "Code scanning alerts"
+#
+# Optional: Enable AI-powered scanning
+# - Add ANTHROPIC_API_KEY to repository secrets (Settings -> Secrets and variables -> Actions)
+# - Uncomment the AI engine in the scan command below
+
+name: MCP Sentinel Security Scan
+
+on:
+  # Run on pull requests
+  pull_request:
+    branches: [main, master, develop]
+
+  # Run on pushes to main branch
+  push:
+    branches: [main, master]
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+  # Run weekly security scans (optional - comment out if not needed)
+  schedule:
+    - cron: '0 0 * * 0'  # Every Sunday at midnight UTC
+
+# Cancel previous runs if a new one is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Required for uploading SARIF results
+      security-events: write
+      # Required for reading repository contents
+      contents: read
+      # Required for commenting on pull requests (optional)
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install MCP Sentinel
+        run: |
+          pip install --upgrade pip
+          pip install mcp-sentinel
+          # Optional: Install SAST tools for comprehensive scanning
+          pip install semgrep bandit
+
+      - name: Run MCP Sentinel Scan
+        id: scan
+        # Continue even if vulnerabilities are found (we'll handle in next step)
+        continue-on-error: true
+        run: |
+          # Run scan with multiple engines (static + SAST)
+          # For AI-powered scanning, add: --engines all
+          # and ensure ANTHROPIC_API_KEY secret is set
+          mcp-sentinel scan . \
+            --engines static,sast \
+            --output sarif \
+            --json-file results.sarif \
+            --no-progress
+
+          # Capture exit code for later
+          echo "scan_exit_code=$?" >> $GITHUB_OUTPUT
+        env:
+          # Uncomment to enable AI-powered scanning
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PYTHONUNBUFFERED: 1
+
+      - name: Upload SARIF results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          category: mcp-sentinel
+
+      - name: Generate scan summary for PR
+        if: github.event_name == 'pull_request' && always()
+        run: |
+          # Parse SARIF and create markdown summary
+          python3 << 'EOF'
+          import json
+          from pathlib import Path
+
+          sarif_file = Path("results.sarif")
+          if not sarif_file.exists():
+              print("No SARIF file found")
+              exit(0)
+
+          with open(sarif_file) as f:
+              sarif = json.load(f)
+
+          results = sarif.get("runs", [{}])[0].get("results", [])
+
+          # Count by severity
+          critical = sum(1 for r in results if r.get("level") == "error" and "critical" in str(r).lower())
+          high = sum(1 for r in results if r.get("level") == "error")
+          warnings = sum(1 for r in results if r.get("level") == "warning")
+          notes = sum(1 for r in results if r.get("level") == "note")
+
+          total = len(results)
+
+          # Create summary
+          summary = f"""## 🔒 MCP Sentinel Security Scan Results
+
+          **Total Issues Found:** {total}
+
+          | Severity | Count |
+          |----------|-------|
+          | 🔴 Critical | {critical} |
+          | 🟠 High | {high - critical} |
+          | 🟡 Medium | {warnings} |
+          | 🔵 Low | {notes} |
+
+          ### Details
+          """
+
+          if total == 0:
+              summary += "\n✅ **No security vulnerabilities detected!** Great job!\n"
+          else:
+              summary += f"\n⚠️  Found {total} potential security issues. "
+              summary += "Review the detailed findings in the Security tab.\n"
+
+              if critical > 0:
+                  summary += f"\n⛔ **{critical} CRITICAL issues require immediate attention!**\n"
+
+          summary += f"""
+          ### What's Next?
+
+          1. **Review Findings**: Check the [Security tab](../../security/code-scanning) for detailed results
+          2. **Fix Issues**: Address critical and high severity vulnerabilities
+          3. **Re-scan**: Push fixes to trigger a new scan
+
+          *Scanned with MCP Sentinel 4.3 - Multi-Engine Security Scanner*
+          """
+
+          with open("scan-summary.md", "w") as f:
+              f.write(summary)
+          EOF
+
+      - name: Comment PR with scan results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('scan-summary.md', 'utf8');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+      - name: Fail build if critical vulnerabilities found
+        if: steps.scan.outputs.scan_exit_code != '0'
+        run: |
+          echo "❌ Security scan found critical vulnerabilities!"
+          echo "Review the Security tab for details and fix critical issues."
+          exit 1
+
+  # Optional: Generate HTML report as artifact
+  html-report:
+    name: Generate HTML Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install MCP Sentinel
+        run: |
+          pip install mcp-sentinel
+          pip install semgrep bandit
+
+      - name: Generate HTML report
+        run: |
+          mcp-sentinel scan . \
+            --engines static,sast \
+            --output html \
+            --json-file security-report.html \
+            --no-progress || true
+
+      - name: Upload HTML report as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report-${{ github.sha }}
+          path: security-report.html
+          retention-days: 30
+
+# Advanced Configuration Examples:
+#
+# 1. AI-Powered Scanning:
+#    - Add ANTHROPIC_API_KEY to repository secrets
+#    - Change scan command to: --engines all
+#    - Provides best accuracy but costs ~$0.10-0.50 per scan
+#
+# 2. Severity Filtering:
+#    - Add: --severity critical --severity high
+#    - Only fails build on critical/high issues
+#
+# 3. Custom Configuration:
+#    - Create .mcp-sentinel.yaml in your repository
+#    - MCP Sentinel will automatically use it
+#
+# 4. Matrix Strategy (multiple Python versions):
+#    strategy:
+#      matrix:
+#        python-version: ['3.9', '3.10', '3.11', '3.12']
+#    Add to set up Python step: python-version: ${{ matrix.python-version }}
+#
+# 5. Slack/Email Notifications:
+#    Add notification steps using appropriate actions
+#    Example: actions/slack or dawidd6/action-send-mail

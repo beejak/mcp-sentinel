@@ -1,3 +1,23 @@
+# MCP Sentinel - Full Production Docker Compose
+# Complete infrastructure with API server, database, workers, and monitoring
+#
+# For simple CLI scanning, use: docker-compose-cli.yml instead
+#
+# This setup includes:
+# - PostgreSQL database
+# - Redis cache & message broker
+# - FastAPI server
+# - Celery workers (scan & report queues)
+# - Flower monitoring dashboard
+# - MinIO S3-compatible storage
+#
+# Quick Start:
+#   1. Copy .env.example to .env and configure
+#   2. docker-compose up -d
+#   3. Access API at http://localhost:8000/docs
+#   4. Access Flower at http://localhost:5555
+#   5. Access MinIO at http://localhost:9001
+
 version: '3.8'
 
 services:
