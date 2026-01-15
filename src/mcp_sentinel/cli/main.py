@@ -397,7 +397,7 @@ def _print_json_results(result: ScanResult, output_file: str | None = None):
     json_output = result.model_dump_json(indent=2)
 
     if output_file:
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(json_output)
         console.print(f"[green]Results saved to {output_file}[/green]")
     else:

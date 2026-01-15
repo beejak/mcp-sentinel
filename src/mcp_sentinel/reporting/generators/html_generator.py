@@ -208,8 +208,8 @@ class HTMLGenerator:
                 <span><strong>File:</strong> {escape(vuln.file_path)}:{vuln.line_number}</span>
                 <span><strong>Engine:</strong> {escape(vuln.engine)}</span>
                 <span><strong>Detector:</strong> {escape(vuln.detector)}</span>
-                <span><strong>CWE:</strong> {escape(vuln.cwe_id)}</span>
-                <span><strong>CVSS:</strong> {vuln.cvss_score}</span>
+                <span><strong>CWE:</strong> {escape(vuln.cwe_id) if vuln.cwe_id else 'N/A'}</span>
+                <span><strong>CVSS:</strong> {vuln.cvss_score if vuln.cvss_score else 'N/A'}</span>
             </div>
             <div class="finding-description">
                 <p>{escape(vuln.description)}</p>
