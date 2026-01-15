@@ -25,23 +25,29 @@ console = Console()
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
 def cli():
     """
-    MCP Sentinel - Enterprise Security Scanner for MCP Servers
+    MCP Sentinel - Multi-Engine Security Scanner for MCP Servers
 
-    Comprehensive security scanning with 8 specialized detectors covering:
-    • Hardcoded Secrets (AWS, API keys, tokens)
-    • Code Injection (SQL, command, eval)
-    • Prompt Injection & AI attacks
-    • XSS vulnerabilities (DOM, event handlers, frameworks)
-    • Configuration security issues
-    • Path traversal & directory attacks
-    • Tool poisoning & Unicode manipulation
-    • Supply chain security risks
+    4 Analysis Engines (Phase 4.3):
+    - Static Analysis: Pattern-based detection (8 specialized detectors)
+    - SAST: Semgrep + Bandit industry-standard tools
+    - Semantic Analysis: AST-based taint tracking & control flow
+    - AI Analysis: Claude 3.5 Sonnet for complex vulnerabilities
 
-    Professional reporting in 4 formats:
-    • Terminal - Rich colored output
-    • JSON - Structured data for automation
-    • SARIF 2.1.0 - GitHub Code Scanning compatible
-    • HTML - Interactive executive dashboards
+    Comprehensive Detection Coverage:
+    - Hardcoded Secrets (AWS, API keys, passwords, tokens)
+    - Code Injection (SQL, command, eval, template)
+    - Prompt Injection & AI manipulation attacks
+    - XSS vulnerabilities (DOM, stored, reflected)
+    - Configuration security & misconfigurations
+    - Path traversal & directory access attacks
+    - Tool poisoning & invisible Unicode manipulation
+    - Supply chain risks (typosquatting, malicious packages)
+
+    Professional Reporting (4 formats):
+    - Terminal: Rich colored output with progress tracking
+    - JSON: Structured data for CI/CD integration
+    - SARIF 2.1.0: GitHub Code Scanning compatible
+    - HTML: Interactive dashboards with risk scoring
 
     Documentation: https://github.com/beejak/mcp-sentinel
     """
@@ -61,7 +67,7 @@ def cli():
     "--engines",
     type=str,
     default="static,sast",
-    help="Comma-separated list of engines to use (static, sast, semantic, ai, all). Default: static,sast. Phase 4.1: SAST engine available (Semgrep + Bandit)",
+    help="Comma-separated list of engines to use: 'static' (pattern-based), 'sast' (Semgrep/Bandit), 'semantic' (AST analysis), 'ai' (Claude 3.5), or 'all' (all 4 engines). Default: static,sast. Phase 4.3: All 4 engines available!",
 )
 @click.option(
     "--severity",
@@ -90,8 +96,16 @@ def scan(
     Examples:
 
         \b
-        # Scan current directory with terminal output (default)
+        # Quick scan with default engines (static + SAST)
         mcp-sentinel scan .
+
+        \b
+        # Full multi-engine scan with all 4 engines
+        mcp-sentinel scan . --engines all
+
+        \b
+        # AI-powered deep analysis (requires ANTHROPIC_API_KEY)
+        mcp-sentinel scan . --engines static,semantic,ai
 
         \b
         # Generate beautiful HTML report
@@ -102,16 +116,16 @@ def scan(
         mcp-sentinel scan . --output sarif --json-file results.sarif
 
         \b
-        # Generate JSON structured output
-        mcp-sentinel scan /path/to/project --output json --json-file scan.json
-
-        \b
         # Filter critical and high severity only
-        mcp-sentinel scan . --severity critical --severity high --output html --json-file critical-issues.html
+        mcp-sentinel scan . --severity critical --severity high
 
         \b
-        # Scan with multiple engines (Phase 4+)
-        mcp-sentinel scan . --engines static,sast --output html --json-file report.html
+        # Production scan: all engines + HTML report + critical/high only
+        mcp-sentinel scan . --engines all --severity critical --severity high --output html --json-file production-scan.html
+
+        \b
+        # Fast CI scan: static + SAST only
+        mcp-sentinel scan . --engines static,sast --output sarif --json-file ci-results.sarif
     """
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
@@ -476,22 +490,24 @@ def init():
     Creates a .mcp-sentinel.yaml configuration file in the current directory
     with default settings.
     """
-    config_content = """# MCP Sentinel Configuration
+    config_content = """# MCP Sentinel Configuration (Phase 4.3)
 
-# Analysis engines to enable (Phase 3: static only, Phase 4+: all engines)
+# Analysis engines to enable - All 4 engines available!
 engines:
-  static: true           # ✅ Available now - Pattern-based detection
-  semantic: false        # 🚧 Phase 4 - Tree-sitter AST analysis
-  sast: false            # 🚧 Phase 4 - Semgrep + Bandit integration
-  ai: false              # 🚧 Phase 4 - AI-powered analysis (requires API keys)
+  static: true           # Pattern-based detection (8 specialized detectors)
+  sast: true             # Industry-standard SAST (Semgrep + Bandit)
+  semantic: true         # AST-based taint tracking & control flow analysis
+  ai: false              # AI-powered analysis (requires API keys - see below)
 
-# AI provider configuration (Phase 4+)
+# AI provider configuration (Phase 4.3)
 ai:
   provider: anthropic    # Options: openai, anthropic, google, ollama
-  model: claude-3-5-sonnet-20241022
-  # api_key: ${ANTHROPIC_API_KEY}  # Use environment variable
+  model: claude-3-5-sonnet-20241022  # Recommended: Best code understanding
+  # api_key: ${ANTHROPIC_API_KEY}  # Set via environment variable
+  max_cost_per_scan: 1.0             # Cost limit in USD
+  use_rag: true                      # Enhanced detection with RAG
 
-# Report generation (Phase 3 ✅)
+# Report generation
 reporting:
   formats: [terminal, html, sarif]  # Available: terminal, json, sarif, html
   output_dir: ./reports
@@ -500,12 +516,14 @@ reporting:
   terminal:
     colored: true
     show_code_snippets: true
+    show_progress: true
 
   # HTML report settings
   html:
     include_executive_summary: true
     show_risk_score: true
     animated_charts: true
+    multi_engine_comparison: true
 
   # SARIF settings
   sarif:
