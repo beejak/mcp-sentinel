@@ -8,21 +8,21 @@ Recommended provider for code security analysis due to:
 - Cost-effective ($3/1M input, $15/1M output)
 """
 
-import os
 import json
-from typing import List, Dict, Optional, Any
+import os
+from typing import Any
 
 try:
-    from anthropic import Anthropic, AsyncAnthropic
+    from anthropic import AsyncAnthropic
+
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
 
 from mcp_sentinel.engines.ai.providers.base import (
-    BaseAIProvider,
-    AIResponse,
     AIProviderConfig,
-    AIProviderType,
+    AIResponse,
+    BaseAIProvider,
 )
 
 
@@ -50,8 +50,7 @@ class AnthropicProvider(BaseAIProvider):
 
         if not ANTHROPIC_AVAILABLE:
             raise ImportError(
-                "anthropic package not installed. "
-                "Install with: pip install anthropic"
+                "anthropic package not installed. " "Install with: pip install anthropic"
             )
 
         # Get API key from config or environment
@@ -66,11 +65,7 @@ class AnthropicProvider(BaseAIProvider):
         self.model = config.model or self.DEFAULT_MODEL
 
     async def analyze_code(
-        self,
-        code: str,
-        file_path: str,
-        language: str,
-        context: Optional[Dict[str, Any]] = None
+        self, code: str, file_path: str, language: str, context: dict[str, Any] | None = None
     ) -> AIResponse:
         """
         Analyze code using Claude for security vulnerabilities.
@@ -95,9 +90,7 @@ class AnthropicProvider(BaseAIProvider):
                 max_tokens=self.config.max_tokens,
                 temperature=self.config.temperature,
                 system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_prompt}
-                ]
+                messages=[{"role": "user", "content": user_prompt}],
             )
 
             # Extract response
@@ -107,10 +100,9 @@ class AnthropicProvider(BaseAIProvider):
             total_tokens = input_tokens + output_tokens
 
             # Calculate cost
-            cost = (
-                (input_tokens / 1_000_000) * self.INPUT_COST_PER_1M +
-                (output_tokens / 1_000_000) * self.OUTPUT_COST_PER_1M
-            )
+            cost = (input_tokens / 1_000_000) * self.INPUT_COST_PER_1M + (
+                output_tokens / 1_000_000
+            ) * self.OUTPUT_COST_PER_1M
 
             # Parse JSON response
             vulnerabilities = self._parse_response(content)
@@ -148,13 +140,14 @@ class AnthropicProvider(BaseAIProvider):
             Estimated cost in USD
         """
         # Rough estimate: prompt + code + expected response
-        input_tokens = self._count_tokens(self._build_system_prompt()) + self._count_tokens(code) + 500
+        input_tokens = (
+            self._count_tokens(self._build_system_prompt()) + self._count_tokens(code) + 500
+        )
         output_tokens = 1000  # Estimated response size
 
-        cost = (
-            (input_tokens / 1_000_000) * self.INPUT_COST_PER_1M +
-            (output_tokens / 1_000_000) * self.OUTPUT_COST_PER_1M
-        )
+        cost = (input_tokens / 1_000_000) * self.INPUT_COST_PER_1M + (
+            output_tokens / 1_000_000
+        ) * self.OUTPUT_COST_PER_1M
         return cost
 
     def is_available(self) -> bool:
@@ -165,8 +158,7 @@ class AnthropicProvider(BaseAIProvider):
             True if API key is configured
         """
         return ANTHROPIC_AVAILABLE and (
-            self.config.api_key is not None or
-            os.getenv("ANTHROPIC_API_KEY") is not None
+            self.config.api_key is not None or os.getenv("ANTHROPIC_API_KEY") is not None
         )
 
     def get_model_name(self) -> str:
@@ -216,11 +208,7 @@ Example format:
 Only report real vulnerabilities with high confidence. Avoid false positives."""
 
     def _build_user_prompt(
-        self,
-        code: str,
-        file_path: str,
-        language: str,
-        context: Optional[Dict[str, Any]]
+        self, code: str, file_path: str, language: str, context: dict[str, Any] | None
     ) -> str:
         """Build user prompt with code to analyze."""
         prompt = f"""Analyze this {language} code for security vulnerabilities:
@@ -239,7 +227,7 @@ Return JSON array of vulnerabilities found."""
 
         return prompt
 
-    def _parse_response(self, response: str) -> List[Dict[str, Any]]:
+    def _parse_response(self, response: str) -> list[dict[str, Any]]:
         """
         Parse Claude's JSON response.
 

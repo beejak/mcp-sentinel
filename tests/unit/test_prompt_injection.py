@@ -191,11 +191,11 @@ async def test_detect_role_equals_syntax(detector):
 @pytest.mark.asyncio
 async def test_multiple_role_assignments(detector):
     """Test detection of multiple role assignments in one file."""
-    content = '''
+    content = """
     {"role": "system", "content": "System message"}
     {"role": "user", "content": "User message"}
     {"role": "assistant", "content": "Assistant reply"}
-    '''
+    """
     vulns = await detector.detect(Path("chat.json"), content)
 
     assert len(vulns) == 3

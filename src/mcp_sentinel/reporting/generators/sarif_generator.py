@@ -8,14 +8,13 @@ Generates SARIF 2.1.0 format reports compatible with:
 - VS Code SARIF Viewer
 """
 
-from typing import Dict, List, Any
-from datetime import datetime
-from pathlib import Path
 import json
+from pathlib import Path
+from typing import Any
 
-from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.models.vulnerability import Vulnerability, Severity
 from mcp_sentinel import __version__
+from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 
 class SARIFGenerator:
@@ -52,7 +51,7 @@ class SARIFGenerator:
             # If can't make relative, just use the filename
             return Path(file_path).name
 
-    def generate(self, result: ScanResult) -> Dict[str, Any]:
+    def generate(self, result: ScanResult) -> dict[str, Any]:
         """
         Generate SARIF report from scan result.
 
@@ -94,12 +93,14 @@ class SARIFGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(sarif_json, encoding="utf-8")
 
-    def _create_run(self, result: ScanResult) -> Dict[str, Any]:
+    def _create_run(self, result: ScanResult) -> dict[str, Any]:
         """Create SARIF run object."""
         return {
             "tool": self._create_tool(),
             "invocations": [self._create_invocation(result)],
-            "results": [self._create_result(vuln, result.target) for vuln in result.vulnerabilities],
+            "results": [
+                self._create_result(vuln, result.target) for vuln in result.vulnerabilities
+            ],
             "columnKind": "utf16CodeUnits",
             "properties": {
                 "scanStatistics": {
@@ -117,7 +118,7 @@ class SARIFGenerator:
             },
         }
 
-    def _create_tool(self) -> Dict[str, Any]:
+    def _create_tool(self) -> dict[str, Any]:
         """Create SARIF tool object."""
         return {
             "driver": {
@@ -126,9 +127,7 @@ class SARIFGenerator:
                 "informationUri": "https://github.com/beejak/mcp-sentinel",
                 "semanticVersion": __version__,
                 "organization": "MCP Sentinel Contributors",
-                "shortDescription": {
-                    "text": "Enterprise Security Scanner for MCP Servers"
-                },
+                "shortDescription": {"text": "Enterprise Security Scanner for MCP Servers"},
                 "fullDescription": {
                     "text": (
                         "MCP Sentinel is a comprehensive security scanner that detects "
@@ -140,7 +139,7 @@ class SARIFGenerator:
             }
         }
 
-    def _create_rules(self) -> List[Dict[str, Any]]:
+    def _create_rules(self) -> list[dict[str, Any]]:
         """Create SARIF rules for all detectors."""
         # Define rules for each vulnerability type
         # In production, this should be dynamically generated from detectors
@@ -198,7 +197,7 @@ class SARIFGenerator:
         ]
         return rules
 
-    def _create_invocation(self, result: ScanResult) -> Dict[str, Any]:
+    def _create_invocation(self, result: ScanResult) -> dict[str, Any]:
         """Create SARIF invocation object."""
         invocation = {
             "executionSuccessful": result.status == "completed",
@@ -218,10 +217,12 @@ class SARIFGenerator:
 
         return invocation
 
-    def _create_result(self, vuln: Vulnerability, base_path: str = "") -> Dict[str, Any]:
+    def _create_result(self, vuln: Vulnerability, base_path: str = "") -> dict[str, Any]:
         """Create SARIF result object from vulnerability."""
         # Convert absolute path to relative for GitHub Code Scanning compatibility
-        relative_path = self._make_relative_path(vuln.file_path, base_path) if base_path else vuln.file_path
+        relative_path = (
+            self._make_relative_path(vuln.file_path, base_path) if base_path else vuln.file_path
+        )
 
         return {
             "ruleId": vuln.type.value.upper(),
@@ -248,20 +249,30 @@ class SARIFGenerator:
             "properties": {
                 "vulnerability_id": vuln.id,
                 "title": vuln.title,
-                "confidence": vuln.confidence.value if hasattr(vuln.confidence, "value") else str(vuln.confidence),
+                "confidence": (
+                    vuln.confidence.value
+                    if hasattr(vuln.confidence, "value")
+                    else str(vuln.confidence)
+                ),
                 "cwe_id": vuln.cwe_id,
                 "cvss_score": vuln.cvss_score,
                 "detector": vuln.detector,
                 "engine": vuln.engine,
                 "mitre_attack_ids": vuln.mitre_attack_ids,
             },
-            "fixes": [
-                {
-                    "description": {
-                        "text": vuln.remediation if vuln.remediation else "No remediation provided"
+            "fixes": (
+                [
+                    {
+                        "description": {
+                            "text": (
+                                vuln.remediation if vuln.remediation else "No remediation provided"
+                            )
+                        }
                     }
-                }
-            ] if vuln.remediation else [],
+                ]
+                if vuln.remediation
+                else []
+            ),
         }
 
     def _severity_to_sarif_level(self, severity: Severity) -> str:

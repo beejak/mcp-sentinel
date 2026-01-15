@@ -9,14 +9,13 @@ Generates beautiful, self-contained HTML reports with:
 - Engine attribution
 """
 
-from typing import List
 from datetime import datetime
-from pathlib import Path
 from html import escape
+from pathlib import Path
 
-from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.models.vulnerability import Vulnerability, Severity
 from mcp_sentinel import __version__
+from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.models.vulnerability import Vulnerability
 
 
 class HTMLGenerator:

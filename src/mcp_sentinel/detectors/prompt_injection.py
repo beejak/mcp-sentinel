@@ -9,15 +9,15 @@ Detects:
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -35,9 +35,9 @@ class PromptInjectionDetector(BaseDetector):
     def __init__(self):
         """Initialize the prompt injection detector."""
         super().__init__(name="PromptInjectionDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for prompt injection detection."""
         return {
             # Family 1: Role Manipulation
@@ -50,7 +50,6 @@ class PromptInjectionDetector(BaseDetector):
                 re.compile(r"\byou\s+will\s+be\b", re.IGNORECASE),
                 re.compile(r"\bbecome\s+a\b", re.IGNORECASE),
             ],
-
             # Family 2: System Prompt Indicators
             "system_prompt": [
                 re.compile(r"\bsystem\s+prompt\b", re.IGNORECASE),
@@ -59,7 +58,6 @@ class PromptInjectionDetector(BaseDetector):
                 re.compile(r"\bassistant\s+prompt\b", re.IGNORECASE),
                 re.compile(r"\bprompt\s+template\b", re.IGNORECASE),
             ],
-
             # Family 3: Role Assignment (in configs/code)
             "role_assignment": [
                 re.compile(r"[\"']role[\"']\s*:\s*[\"']system[\"']", re.IGNORECASE),
@@ -67,7 +65,6 @@ class PromptInjectionDetector(BaseDetector):
                 re.compile(r"[\"']role[\"']\s*:\s*[\"']user[\"']", re.IGNORECASE),
                 re.compile(r"\brole\s*=\s*[\"']system[\"']", re.IGNORECASE),
             ],
-
             # Family 4: Jailbreak Keywords
             "jailbreak": [
                 re.compile(r"\bjailbreak\b", re.IGNORECASE),
@@ -82,7 +79,7 @@ class PromptInjectionDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -96,22 +93,38 @@ class PromptInjectionDetector(BaseDetector):
         if file_type:
             # Apply to most file types that could contain prompts
             return file_type in [
-                "python", "javascript", "typescript", "json", "yaml",
-                "markdown", "text", "config"
+                "python",
+                "javascript",
+                "typescript",
+                "json",
+                "yaml",
+                "markdown",
+                "text",
+                "config",
             ]
 
         # Check file extension
         applicable_extensions = [
-            ".py", ".js", ".jsx", ".ts", ".tsx",
-            ".json", ".yaml", ".yml",
-            ".txt", ".md", ".prompt",
-            ".cfg", ".conf", ".config",
+            ".py",
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".txt",
+            ".md",
+            ".prompt",
+            ".cfg",
+            ".conf",
+            ".config",
         ]
         return file_path.suffix.lower() in applicable_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect prompt injection vulnerabilities in file content.
 
@@ -123,7 +136,7 @@ class PromptInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         # Scan for each pattern family
@@ -191,19 +204,33 @@ class PromptInjectionDetector(BaseDetector):
         if family_name == "role_manipulation":
             # Educational/tutorial indicators
             educational_keywords = [
-                "tutorial", "teach", "learn", "example", "guide", "documentation",
-                "lesson", "course", "training", "instruction", "how to", "better"
+                "tutorial",
+                "teach",
+                "learn",
+                "example",
+                "guide",
+                "documentation",
+                "lesson",
+                "course",
+                "training",
+                "instruction",
+                "how to",
+                "better",
             ]
             if any(keyword in line_lower for keyword in educational_keywords):
                 # Specific pattern checks for common false positives
                 if "become a" in matched_text.lower():
                     # "become a better/good/great X" is likely legitimate
-                    if any(word in line_lower for word in ["better", "good", "great", "professional"]):
+                    if any(
+                        word in line_lower for word in ["better", "good", "great", "professional"]
+                    ):
                         return True
 
                 if "act as" in matched_text.lower():
                     # "act as a responsible/professional X" is likely legitimate
-                    if any(word in line_lower for word in ["responsible", "professional", "ethical"]):
+                    if any(
+                        word in line_lower for word in ["responsible", "professional", "ethical"]
+                    ):
                         return True
 
         # For system_prompt family, check if match is inside a JSON string value
@@ -214,14 +241,8 @@ class PromptInjectionDetector(BaseDetector):
             if match_pos == -1:
                 return False
 
-            # Count quotes before the match
+            # Check for JSON pattern: "key": "value"
             before_match = line[:match_pos]
-            # Count both single and double quotes
-            double_quotes_before = before_match.count('"')
-            single_quotes_before = before_match.count("'")
-
-            # If inside a quoted string (odd number of quotes before), it's likely a false positive
-            # We check for JSON pattern: "key": "value"
             # If we see a colon before the match and quotes around it, it's a JSON value
             if '":' in before_match or "': " in before_match or "':" in before_match:
                 # This looks like a JSON/dict value, likely false positive
@@ -230,10 +251,7 @@ class PromptInjectionDetector(BaseDetector):
             # Also check if the line contains "content": which is typical for JSON messages
             if '"content"' in line or "'content'" in line:
                 # And the matched text appears after "content":
-                content_pos = max(
-                    line.find('"content"'),
-                    line.find("'content'")
-                )
+                content_pos = max(line.find('"content"'), line.find("'content'"))
                 if content_pos != -1 and content_pos < match_pos:
                     # Matched text is after "content" key, likely the value
                     return True

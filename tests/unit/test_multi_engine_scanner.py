@@ -19,7 +19,8 @@ def temp_project():
 
     # Create a Python file with multiple vulnerabilities
     py_file = temp_dir / "app.py"
-    py_file.write_text('''
+    py_file.write_text(
+        """
 import os
 import subprocess
 
@@ -31,17 +32,20 @@ def run_command(user_input):
     # Command injection
     subprocess.call(f"cat {user_input}", shell=True)
     os.system(user_input)
-''')
+"""
+    )
 
     # Create a JavaScript file
     js_file = temp_dir / "app.js"
-    js_file.write_text('''
+    js_file.write_text(
+        """
 const apiKey = "sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv";
 
 function displayName(name) {
     document.getElementById("user").innerHTML = name;
 }
-''')
+"""
+    )
 
     yield temp_dir
     shutil.rmtree(temp_dir)
@@ -98,7 +102,7 @@ async def test_multi_engine_scan_file(temp_project):
 
     # Should find at least AWS key and command injection
     assert len(vulns) >= 2
-    assert all(hasattr(v, 'engine') for v in vulns)
+    assert all(hasattr(v, "engine") for v in vulns)
 
 
 @pytest.mark.asyncio
@@ -139,7 +143,9 @@ async def test_multi_engine_deduplication(temp_project):
     vuln_keys = set()
     for vuln in result.vulnerabilities:
         key = (vuln.file_path, vuln.line_number, vuln.type.value, vuln.title)
-        assert key not in vuln_keys, f"Duplicate vulnerability found: {vuln.title} at {vuln.file_path}:{vuln.line_number}"
+        assert (
+            key not in vuln_keys
+        ), f"Duplicate vulnerability found: {vuln.title} at {vuln.file_path}:{vuln.line_number}"
         vuln_keys.add(key)
 
 
@@ -198,15 +204,11 @@ async def test_multi_engine_file_with_content():
     """Test scanning file with provided content."""
     scanner = MultiEngineScanner()
 
-    content = '''
+    content = """
 AWS_KEY = "AKIA1A2B3C4D5E6F7G8H"
-'''
+"""
 
-    vulns = await scanner.scan_file(
-        Path("test.py"),
-        content=content,
-        file_type="python"
-    )
+    vulns = await scanner.scan_file(Path("test.py"), content=content, file_type="python")
 
     # Should find AWS key
     assert len(vulns) >= 1

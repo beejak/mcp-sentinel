@@ -22,7 +22,8 @@ def temp_project():
 
     # Create a Python file with vulnerabilities
     py_file = temp_dir / "app.py"
-    py_file.write_text('''
+    py_file.write_text(
+        """
 import os
 import subprocess
 
@@ -33,17 +34,20 @@ def run_command(user_input):
     # Command injection vulnerability
     subprocess.call(f"cat {user_input}", shell=True)
     os.system(user_input)
-''')
+"""
+    )
 
     # Create a JavaScript file with XSS vulnerability
     js_file = temp_dir / "app.js"
-    js_file.write_text('''
+    js_file.write_text(
+        """
 const apiKey = "sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyz";
 
 function displayUser(name) {
     document.getElementById("user").innerHTML = name;  // XSS vulnerability
 }
-''')
+"""
+    )
 
     yield temp_dir
     shutil.rmtree(temp_dir)
@@ -215,7 +219,7 @@ async def test_html_generator_self_contained(temp_project):
     assert "<link" not in html_content or "stylesheet" not in html_content
 
     # Verify no external script sources
-    assert '<script src=' not in html_content
+    assert "<script src=" not in html_content
 
     # Verify CSS is inline
     assert "<style>" in html_content
@@ -266,9 +270,7 @@ async def test_report_generators_with_severity_filtering(temp_project):
     assert original_count >= 3
 
     # Filter to only critical vulnerabilities
-    result.vulnerabilities = [
-        v for v in result.vulnerabilities if v.severity.value == "critical"
-    ]
+    result.vulnerabilities = [v for v in result.vulnerabilities if v.severity.value == "critical"]
     result.statistics.total_vulnerabilities = len(result.vulnerabilities)
 
     # Generate reports with filtered results

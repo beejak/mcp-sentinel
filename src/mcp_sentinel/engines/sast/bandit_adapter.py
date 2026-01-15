@@ -4,9 +4,9 @@ import asyncio
 import json
 import shutil
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any
 
-from mcp_sentinel.models.vulnerability import Vulnerability, Severity, VulnerabilityType, Confidence
+from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
 
 
 class BanditAdapter:
@@ -33,7 +33,7 @@ class BanditAdapter:
     async def scan_directory(
         self,
         target_path: Path,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Scan directory with Bandit (Python files only).
 
@@ -62,7 +62,7 @@ class BanditAdapter:
                     process.communicate(),
                     timeout=self.timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 print(f"[WARN] Bandit timeout after {self.timeout}s")
                 return []
@@ -82,7 +82,7 @@ class BanditAdapter:
     async def scan_file(
         self,
         file_path: Path,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Scan single Python file with Bandit.
 
@@ -115,7 +115,7 @@ class BanditAdapter:
                     process.communicate(),
                     timeout=self.timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 process.kill()
                 print(f"[WARN] Bandit timeout for {file_path}")
                 return []
@@ -129,7 +129,7 @@ class BanditAdapter:
             print(f"[ERROR] Bandit file scan error: {e}")
             return []
 
-    def _build_command(self, target_path: Path) -> List[str]:
+    def _build_command(self, target_path: Path) -> list[str]:
         """
         Build Bandit command.
 
@@ -142,7 +142,8 @@ class BanditAdapter:
         return [
             "bandit",
             "-r",  # Recursive
-            "-f", "json",  # JSON format
+            "-f",
+            "json",  # JSON format
             str(target_path),
         ]
 
@@ -150,7 +151,7 @@ class BanditAdapter:
         self,
         output: str,
         target_path: Path,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Parse Bandit JSON output.
 
@@ -161,7 +162,7 @@ class BanditAdapter:
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             data = json.loads(output)
@@ -181,9 +182,9 @@ class BanditAdapter:
 
     def _convert_to_vulnerability(
         self,
-        result: Dict[str, Any],
+        result: dict[str, Any],
         target_path: Path,
-    ) -> Optional[Vulnerability]:
+    ) -> Vulnerability | None:
         """
         Convert Bandit result to Vulnerability.
 
@@ -290,18 +291,15 @@ class BanditAdapter:
             "B609": VulnerabilityType.CODE_INJECTION,  # wildcard injection
             "B610": VulnerabilityType.CODE_INJECTION,  # SQL string format
             "B611": VulnerabilityType.CODE_INJECTION,  # SQL concat
-
             # Weak crypto
             "B303": VulnerabilityType.WEAK_CRYPTO,  # MD5
             "B304": VulnerabilityType.WEAK_CRYPTO,  # insecure ciphers
             "B305": VulnerabilityType.WEAK_CRYPTO,  # insecure cipher modes
             "B505": VulnerabilityType.WEAK_CRYPTO,  # weak crypto key
-
             # Insecure deserialization
             "B301": VulnerabilityType.INSECURE_DESERIALIZATION,  # pickle
             "B302": VulnerabilityType.INSECURE_DESERIALIZATION,  # marshal
             "B506": VulnerabilityType.INSECURE_DESERIALIZATION,  # YAML load
-
             # Config security
             "B201": VulnerabilityType.CONFIG_SECURITY,  # Flask debug
             "B306": VulnerabilityType.CONFIG_SECURITY,  # mktemp
@@ -309,15 +307,12 @@ class BanditAdapter:
             "B502": VulnerabilityType.CONFIG_SECURITY,  # SSL version
             "B503": VulnerabilityType.CONFIG_SECURITY,  # SSL cipher
             "B504": VulnerabilityType.CONFIG_SECURITY,  # SSL no validation
-
             # XSS
             "B701": VulnerabilityType.XSS,  # Jinja2 autoescape
             "B702": VulnerabilityType.XSS,  # Mako templates
             "B703": VulnerabilityType.XSS,  # Django mark_safe
-
             # Path traversal
             "B310": VulnerabilityType.PATH_TRAVERSAL,  # urllib.urlopen
-
             # Supply chain
             "B311": VulnerabilityType.SUPPLY_CHAIN,  # random
             "B313": VulnerabilityType.SUPPLY_CHAIN,  # XML parsing
@@ -372,7 +367,7 @@ class BanditAdapter:
         else:  # LOW
             return Severity.LOW
 
-    def _extract_cwe(self, result: Dict[str, Any]) -> Optional[str]:
+    def _extract_cwe(self, result: dict[str, Any]) -> str | None:
         """
         Extract CWE ID from Bandit result.
 
@@ -394,31 +389,31 @@ class BanditAdapter:
             "B304": "CWE-327",  # Insecure ciphers
             "B305": "CWE-327",  # Insecure cipher modes
             "B306": "CWE-327",  # mktemp usage
-            "B307": "CWE-78",   # eval usage
-            "B308": "CWE-22",   # mark_safe usage
+            "B307": "CWE-78",  # eval usage
+            "B308": "CWE-22",  # mark_safe usage
             "B310": "CWE-918",  # urllib.urlopen
             "B311": "CWE-330",  # Random usage
             "B312": "CWE-327",  # telnetlib usage
             "B313": "CWE-776",  # XML parsing
             "B320": "CWE-776",  # XML parsing vulnerabilities
-            "B401": "CWE-78",   # import of subprocess
+            "B401": "CWE-78",  # import of subprocess
             "B501": "CWE-295",  # SSL certificate verification
             "B502": "CWE-295",  # SSL/TLS insecure version
             "B503": "CWE-295",  # SSL/TLS weak cipher
             "B504": "CWE-295",  # SSL/TLS no certificate validation
             "B505": "CWE-327",  # Weak cryptographic key
-            "B506": "CWE-20",   # YAML load
-            "B601": "CWE-78",   # Shell injection
-            "B602": "CWE-78",   # Shell=True
-            "B603": "CWE-78",   # Subprocess without shell
-            "B604": "CWE-78",   # Shell=True variants
-            "B605": "CWE-78",   # Starting process with shell
-            "B606": "CWE-78",   # Starting process without shell
-            "B607": "CWE-78",   # Partial path in subprocess
-            "B608": "CWE-89",   # SQL injection
-            "B609": "CWE-78",   # Wildcard injection
-            "B610": "CWE-89",   # SQL string format
-            "B611": "CWE-89",   # SQL string concat
+            "B506": "CWE-20",  # YAML load
+            "B601": "CWE-78",  # Shell injection
+            "B602": "CWE-78",  # Shell=True
+            "B603": "CWE-78",  # Subprocess without shell
+            "B604": "CWE-78",  # Shell=True variants
+            "B605": "CWE-78",  # Starting process with shell
+            "B606": "CWE-78",  # Starting process without shell
+            "B607": "CWE-78",  # Partial path in subprocess
+            "B608": "CWE-89",  # SQL injection
+            "B609": "CWE-78",  # Wildcard injection
+            "B610": "CWE-89",  # SQL string format
+            "B611": "CWE-89",  # SQL string concat
             "B701": "CWE-502",  # Jinja2 autoescape
             "B702": "CWE-502",  # Mako templates
             "B703": "CWE-502",  # Django mark_safe

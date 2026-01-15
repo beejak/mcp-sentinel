@@ -2,23 +2,21 @@
 Main scanner orchestrator for MCP Sentinel.
 """
 
-import asyncio
-from typing import List, Optional
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-from mcp_sentinel.models.vulnerability import Vulnerability
-from mcp_sentinel.models.scan_result import ScanResult, ScanStatistics
+from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.detectors.base import BaseDetector
-from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
-from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
-from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
-from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
-from mcp_sentinel.detectors.xss import XSSDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
-from mcp_sentinel.core.exceptions import ScanError
+from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
+from mcp_sentinel.detectors.secrets import SecretsDetector
+from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
+from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
+from mcp_sentinel.detectors.xss import XSSDetector
+from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.models.vulnerability import Vulnerability
 
 
 class Scanner:
@@ -28,7 +26,7 @@ class Scanner:
     This is the primary entry point for scanning operations.
     """
 
-    def __init__(self, detectors: Optional[List[BaseDetector]] = None):
+    def __init__(self, detectors: list[BaseDetector] | None = None):
         """
         Initialize the scanner.
 
@@ -37,7 +35,7 @@ class Scanner:
         """
         self.detectors = detectors or self._get_default_detectors()
 
-    def _get_default_detectors(self) -> List[BaseDetector]:
+    def _get_default_detectors(self) -> list[BaseDetector]:
         """Get the default set of detectors (all 8 Phase 3 detectors)."""
         return [
             SecretsDetector(),
@@ -53,7 +51,7 @@ class Scanner:
     async def scan_directory(
         self,
         target_path: str | Path,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: list[str] | None = None,
     ) -> ScanResult:
         """
         Scan a directory for vulnerabilities.
@@ -115,7 +113,7 @@ class Scanner:
 
         return scan_result
 
-    async def scan_file(self, file_path: Path) -> List[Vulnerability]:
+    async def scan_file(self, file_path: Path) -> list[Vulnerability]:
         """
         Scan a single file for vulnerabilities.
 
@@ -125,11 +123,11 @@ class Scanner:
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             # Read file content
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            with open(file_path, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             # Determine file type
@@ -156,8 +154,8 @@ class Scanner:
         return vulnerabilities
 
     def _discover_files(
-        self, target_path: Path, file_patterns: Optional[List[str]] = None
-    ) -> List[Path]:
+        self, target_path: Path, file_patterns: list[str] | None = None
+    ) -> list[Path]:
         """
         Discover all files to scan in the target directory.
 
@@ -168,7 +166,7 @@ class Scanner:
         Returns:
             List of file paths to scan
         """
-        files: List[Path] = []
+        files: list[Path] = []
 
         # Default patterns if none provided
         if not file_patterns:
@@ -217,7 +215,7 @@ class Scanner:
 
         return list(set(files))  # Remove duplicates
 
-    def _determine_file_type(self, file_path: Path) -> Optional[str]:
+    def _determine_file_type(self, file_path: Path) -> str | None:
         """
         Determine the programming language/file type.
 

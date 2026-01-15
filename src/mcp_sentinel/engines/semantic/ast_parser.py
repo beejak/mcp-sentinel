@@ -7,15 +7,13 @@ Supports Python, JavaScript, and Java.
 
 import ast
 import re
-from typing import List, Optional, Set
-from pathlib import Path
 
 from mcp_sentinel.engines.semantic.models import (
-    UnifiedAST,
-    TaintSource,
-    TaintSink,
-    TaintType,
     SinkType,
+    TaintSink,
+    TaintSource,
+    TaintType,
+    UnifiedAST,
 )
 
 
@@ -56,7 +54,7 @@ class ASTParser:
         """Initialize AST parser."""
         pass
 
-    def parse(self, code: str, language: str) -> Optional[UnifiedAST]:
+    def parse(self, code: str, language: str) -> UnifiedAST | None:
         """
         Parse code into unified AST.
 
@@ -76,7 +74,7 @@ class ASTParser:
         else:
             return None
 
-    def _parse_python(self, code: str) -> Optional[UnifiedAST]:
+    def _parse_python(self, code: str) -> UnifiedAST | None:
         """Parse Python code using built-in ast module."""
         try:
             tree = ast.parse(code)
@@ -92,11 +90,11 @@ class ASTParser:
             unified_ast.functions = visitor.functions
 
             return unified_ast
-        except SyntaxError as e:
+        except SyntaxError:
             # Invalid Python syntax
             return None
 
-    def _parse_javascript(self, code: str) -> Optional[UnifiedAST]:
+    def _parse_javascript(self, code: str) -> UnifiedAST | None:
         """Parse JavaScript code (stub for now - requires esprima)."""
         # TODO: Implement JavaScript parsing using esprima
         # For now, return a basic UnifiedAST with regex-based extraction
@@ -105,7 +103,7 @@ class ASTParser:
         unified_ast.sinks = self._extract_sinks_regex(code, "javascript")
         return unified_ast
 
-    def _parse_java(self, code: str) -> Optional[UnifiedAST]:
+    def _parse_java(self, code: str) -> UnifiedAST | None:
         """Parse Java code (stub for now - requires javalang)."""
         # TODO: Implement Java parsing using javalang
         unified_ast = UnifiedAST(language="java", raw_ast=None)
@@ -113,7 +111,7 @@ class ASTParser:
         unified_ast.sinks = self._extract_sinks_regex(code, "java")
         return unified_ast
 
-    def _extract_sources_regex(self, code: str, language: str) -> List[TaintSource]:
+    def _extract_sources_regex(self, code: str, language: str) -> list[TaintSource]:
         """Fallback: Extract taint sources using regex (for non-Python)."""
         sources = []
         lines = code.split("\n")
@@ -124,20 +122,22 @@ class ASTParser:
                     matches = re.finditer(pattern, line, re.IGNORECASE)
                     for match in matches:
                         # Try to extract variable name
-                        var_match = re.search(r'(\w+)\s*=\s*' + pattern, line)
+                        var_match = re.search(r"(\w+)\s*=\s*" + pattern, line)
                         var_name = var_match.group(1) if var_match else "unknown"
 
-                        sources.append(TaintSource(
-                            name=var_name,
-                            line=line_num,
-                            column=match.start(),
-                            taint_type=TaintType(taint_type),
-                            origin=match.group(0),
-                            confidence=0.7  # Lower confidence for regex
-                        ))
+                        sources.append(
+                            TaintSource(
+                                name=var_name,
+                                line=line_num,
+                                column=match.start(),
+                                taint_type=TaintType(taint_type),
+                                origin=match.group(0),
+                                confidence=0.7,  # Lower confidence for regex
+                            )
+                        )
         return sources
 
-    def _extract_sinks_regex(self, code: str, language: str) -> List[TaintSink]:
+    def _extract_sinks_regex(self, code: str, language: str) -> list[TaintSink]:
         """Fallback: Extract sinks using regex (for non-Python)."""
         sinks = []
         lines = code.split("\n")
@@ -157,14 +157,16 @@ class ASTParser:
                         else:
                             arguments = []
 
-                        sinks.append(TaintSink(
-                            function_name=func,
-                            line=line_num,
-                            column=match.start(),
-                            sink_type=sink_type,
-                            arguments=arguments,
-                            confidence=0.7  # Lower confidence for regex
-                        ))
+                        sinks.append(
+                            TaintSink(
+                                function_name=func,
+                                line=line_num,
+                                column=match.start(),
+                                sink_type=sink_type,
+                                arguments=arguments,
+                                confidence=0.7,  # Lower confidence for regex
+                            )
+                        )
         return sinks
 
 
@@ -172,10 +174,10 @@ class PythonTaintVisitor(ast.NodeVisitor):
     """AST visitor to extract taint sources and sinks from Python code."""
 
     def __init__(self):
-        self.sources: List[TaintSource] = []
-        self.sinks: List[TaintSink] = []
+        self.sources: list[TaintSource] = []
+        self.sinks: list[TaintSink] = []
         self.variables: dict = {}  # Track variable assignments
-        self.functions: List[dict] = []  # Track function definitions
+        self.functions: list[dict] = []  # Track function definitions
         self.current_line = 0
 
     def visit_Assign(self, node: ast.Assign):
@@ -199,7 +201,7 @@ class PythonTaintVisitor(ast.NodeVisitor):
                     self.variables[target] = {
                         "tainted": True,
                         "line": node.lineno,
-                        "source": source.origin
+                        "source": source.origin,
                     }
         elif isinstance(node.value, ast.Attribute):
             source = self._check_attribute_source(node.value)
@@ -210,7 +212,7 @@ class PythonTaintVisitor(ast.NodeVisitor):
                     self.variables[target] = {
                         "tainted": True,
                         "line": node.lineno,
-                        "source": source.origin
+                        "source": source.origin,
                     }
 
         self.generic_visit(node)
@@ -228,14 +230,16 @@ class PythonTaintVisitor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         """Track function definitions."""
-        self.functions.append({
-            "name": node.name,
-            "line": node.lineno,
-            "args": [arg.arg for arg in node.args.args],
-        })
+        self.functions.append(
+            {
+                "name": node.name,
+                "line": node.lineno,
+                "args": [arg.arg for arg in node.args.args],
+            }
+        )
         self.generic_visit(node)
 
-    def _check_taint_source(self, node: ast.Call) -> Optional[TaintSource]:
+    def _check_taint_source(self, node: ast.Call) -> TaintSource | None:
         """Check if a function call is a taint source."""
         # Check for request.args.get(), request.form.get(), os.environ.get(), etc.
         if isinstance(node.func, ast.Attribute):
@@ -251,12 +255,12 @@ class PythonTaintVisitor(ast.NodeVisitor):
                             column=node.col_offset,
                             taint_type=TaintType(taint_type_str),
                             origin=origin,
-                            confidence=1.0
+                            confidence=1.0,
                         )
 
         return None
 
-    def _check_attribute_source(self, node: ast.Attribute) -> Optional[TaintSource]:
+    def _check_attribute_source(self, node: ast.Attribute) -> TaintSource | None:
         """Check if an attribute access is a taint source."""
         origin = self._get_attribute_chain(node)
 
@@ -269,7 +273,7 @@ class PythonTaintVisitor(ast.NodeVisitor):
                     column=node.col_offset,
                     taint_type=TaintType.USER_INPUT,
                     origin=origin,
-                    confidence=1.0
+                    confidence=1.0,
                 )
 
         # Check environment variables
@@ -280,12 +284,12 @@ class PythonTaintVisitor(ast.NodeVisitor):
                 column=node.col_offset,
                 taint_type=TaintType.ENVIRONMENT,
                 origin=origin,
-                confidence=1.0
+                confidence=1.0,
             )
 
         return None
 
-    def _check_dangerous_sink(self, node: ast.Call) -> Optional[TaintSink]:
+    def _check_dangerous_sink(self, node: ast.Call) -> TaintSink | None:
         """Check if a function call is a dangerous sink."""
         func_name = None
 
@@ -318,7 +322,7 @@ class PythonTaintVisitor(ast.NodeVisitor):
                     column=node.col_offset,
                     sink_type=sink_type,
                     arguments=arguments,
-                    confidence=1.0
+                    confidence=1.0,
                 )
 
         return None

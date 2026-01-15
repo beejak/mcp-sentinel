@@ -2,7 +2,7 @@
 Configuration management for MCP Sentinel.
 """
 
-from typing import List, Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,19 +23,17 @@ class RedisSettings(BaseSettings):
     """Redis configuration."""
 
     url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
-    password: Optional[str] = Field(default=None, alias="REDIS_PASSWORD")
+    password: str | None = Field(default=None, alias="REDIS_PASSWORD")
 
 
 class CelerySettings(BaseSettings):
     """Celery configuration."""
 
     broker_url: str = Field(default="redis://localhost:6379/1", alias="CELERY_BROKER_URL")
-    result_backend: str = Field(
-        default="redis://localhost:6379/2", alias="CELERY_RESULT_BACKEND"
-    )
+    result_backend: str = Field(default="redis://localhost:6379/2", alias="CELERY_RESULT_BACKEND")
     task_serializer: str = "json"
     result_serializer: str = "json"
-    accept_content: List[str] = ["json"]
+    accept_content: list[str] = ["json"]
     timezone: str = "UTC"
     enable_utc: bool = True
 
@@ -43,28 +41,21 @@ class CelerySettings(BaseSettings):
 class SecuritySettings(BaseSettings):
     """Security configuration."""
 
-    secret_key: str = Field(
-        default="dev-secret-key-change-in-production",
-        alias="SECRET_KEY"
-    )
+    secret_key: str = Field(default="dev-secret-key-change-in-production", alias="SECRET_KEY")
     algorithm: str = Field(default="HS256", alias="ALGORITHM")
-    access_token_expire_minutes: int = Field(
-        default=30, alias="ACCESS_TOKEN_EXPIRE_MINUTES"
-    )
+    access_token_expire_minutes: int = Field(default=30, alias="ACCESS_TOKEN_EXPIRE_MINUTES")
 
 
 class AISettings(BaseSettings):
     """AI provider configuration."""
 
-    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4-turbo-preview", alias="OPENAI_MODEL")
 
-    anthropic_api_key: Optional[str] = Field(default=None, alias="ANTHROPIC_API_KEY")
-    anthropic_model: str = Field(
-        default="claude-3-5-sonnet-20241022", alias="ANTHROPIC_MODEL"
-    )
+    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    anthropic_model: str = Field(default="claude-3-5-sonnet-20241022", alias="ANTHROPIC_MODEL")
 
-    google_api_key: Optional[str] = Field(default=None, alias="GOOGLE_API_KEY")
+    google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
     google_model: str = Field(default="gemini-pro", alias="GOOGLE_MODEL")
 
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
@@ -114,7 +105,7 @@ class Settings(BaseSettings):
     parallel_execution: bool = Field(default=True, alias="PARALLEL_EXECUTION")
 
     # CORS
-    cors_allowed_origins: List[str] = Field(
+    cors_allowed_origins: list[str] = Field(
         default=["http://localhost:3000"], alias="CORS_ALLOWED_ORIGINS"
     )
 

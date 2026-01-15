@@ -7,21 +7,21 @@ allow attackers to access files outside intended directories.
 Critical for MCP servers that handle file operations or serve files.
 """
 
-import re
 import ast
-from typing import List, Dict, Pattern, Optional, Set, Tuple
+import re
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
+from mcp_sentinel.engines.semantic import SemanticEngine, get_semantic_engine
+from mcp_sentinel.engines.semantic.cfg_builder import SimpleCFGBuilder
+from mcp_sentinel.engines.semantic.models import SinkType, TaintPath
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
-from mcp_sentinel.engines.semantic import get_semantic_engine, SemanticEngine
-from mcp_sentinel.engines.semantic.models import TaintPath, SinkType
-from mcp_sentinel.engines.semantic.cfg_builder import SimpleCFGBuilder
 
 
 class PathTraversalDetector(BaseDetector):
@@ -44,39 +44,41 @@ class PathTraversalDetector(BaseDetector):
             enable_semantic_analysis: Enable semantic analysis for multi-line detection (default: True)
         """
         super().__init__(name="PathTraversalDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
         self.enable_semantic_analysis = enable_semantic_analysis
-        self.semantic_engine: Optional[SemanticEngine] = None
+        self.semantic_engine: SemanticEngine | None = None
         self.cfg_builder = SimpleCFGBuilder()  # For guard detection
 
         # Initialize semantic engine if enabled
         if self.enable_semantic_analysis:
             try:
                 self.semantic_engine = get_semantic_engine()
-            except Exception as e:
+            except Exception:
                 # Graceful degradation if semantic engine fails to load
                 self.enable_semantic_analysis = False
                 self.semantic_engine = None
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for path traversal detection."""
         return {
             # Pattern 1: Direct path manipulation
             "path_manipulation": [
-                re.compile(r"open\s*\([^)]*(?:request|params|query|input|user)[^)]*\)", re.IGNORECASE),
+                re.compile(
+                    r"open\s*\([^)]*(?:request|params|query|input|user)[^)]*\)", re.IGNORECASE
+                ),
                 re.compile(r"readFile\s*\([^)]*(?:req|params|query|input)[^)]*\)", re.IGNORECASE),
                 re.compile(r"writeFile\s*\([^)]*(?:req|params|query|input)[^)]*\)", re.IGNORECASE),
                 re.compile(r"Path\s*\([^)]*(?:request|params|query|user)[^)]*\)", re.IGNORECASE),
             ],
-
             # Pattern 2: Unsafe file operations
             "unsafe_file_ops": [
                 re.compile(r"open\s*\([^)]*\+\s*[^)]*\)", re.IGNORECASE),  # Concatenation in open()
                 re.compile(r"\.read\s*\(\s*[^)]*(?:input|user|request)[^)]*\)", re.IGNORECASE),
-                re.compile(r"file_get_contents\s*\([^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE),  # PHP
+                re.compile(
+                    r"file_get_contents\s*\([^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE
+                ),  # PHP
                 re.compile(r"fopen\s*\([^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE),  # PHP
             ],
-
             # Pattern 3: Directory traversal sequences
             "traversal_sequences": [
                 re.compile(r"['\"]\.\.\/", re.IGNORECASE),  # Literal "../" in strings
@@ -85,26 +87,31 @@ class PathTraversalDetector(BaseDetector):
                 re.compile(r"\%2e\%2e\%2f", re.IGNORECASE),  # URL-encoded "../"
                 re.compile(r"\%2e\%2e\/", re.IGNORECASE),  # Partially encoded
             ],
-
             # Pattern 4: Archive extraction (Zip Slip)
             "zip_slip": [
                 re.compile(r"\.extract\s*\([^)]*\)", re.IGNORECASE),  # Python zipfile.extract()
-                re.compile(r"\.extractall\s*\([^)]*\)", re.IGNORECASE),  # Python zipfile.extractall()
+                re.compile(
+                    r"\.extractall\s*\([^)]*\)", re.IGNORECASE
+                ),  # Python zipfile.extractall()
                 re.compile(r"ZipFile.*extract", re.IGNORECASE),
                 re.compile(r"tarfile\.extract", re.IGNORECASE),
                 re.compile(r"unzip\s+.*\$", re.IGNORECASE),  # Shell unzip with variable
             ],
-
             # Pattern 5: Path joining without sanitization
             "unsafe_path_join": [
-                re.compile(r"os\.path\.join\s*\([^)]*(?:request|params|query|input|user)[^)]*\)", re.IGNORECASE),
+                re.compile(
+                    r"os\.path\.join\s*\([^)]*(?:request|params|query|input|user)[^)]*\)",
+                    re.IGNORECASE,
+                ),
                 re.compile(r"path\.join\s*\([^)]*(?:req|params|query)[^)]*\)", re.IGNORECASE),
-                re.compile(r"File\s*\([^)]*,\s*[^)]*(?:request|params|input)", re.IGNORECASE),  # Java
+                re.compile(
+                    r"File\s*\([^)]*,\s*[^)]*(?:request|params|input)", re.IGNORECASE
+                ),  # Java
                 re.compile(r"Paths\.get\s*\([^)]*(?:request|params|query)", re.IGNORECASE),  # Java
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -117,26 +124,41 @@ class PathTraversalDetector(BaseDetector):
         """
         if file_type:
             return file_type in [
-                "python", "javascript", "typescript", "java", "php",
-                "ruby", "go", "rust", "csharp"
+                "python",
+                "javascript",
+                "typescript",
+                "java",
+                "php",
+                "ruby",
+                "go",
+                "rust",
+                "csharp",
             ]
 
         # Check file extensions
         code_extensions = [
-            ".py", ".js", ".ts", ".jsx", ".tsx",  # Python, JavaScript/TypeScript
-            ".java", ".kt",  # Java, Kotlin
-            ".php", ".php5",  # PHP
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",  # Python, JavaScript/TypeScript
+            ".java",
+            ".kt",  # Java, Kotlin
+            ".php",
+            ".php5",  # PHP
             ".rb",  # Ruby
             ".go",  # Go
             ".rs",  # Rust
             ".cs",  # C#
-            ".cpp", ".c", ".h",  # C/C++
+            ".cpp",
+            ".c",
+            ".h",  # C/C++
         ]
         return file_path.suffix.lower() in code_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect path traversal vulnerabilities in file content.
 
@@ -152,7 +174,7 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of detected path traversal vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Phase 1: Pattern-based detection (fast)
         pattern_vulns = self._pattern_based_detection(file_path, content, file_type)
@@ -167,8 +189,8 @@ class PathTraversalDetector(BaseDetector):
         return self._deduplicate_vulnerabilities(vulnerabilities)
 
     def _pattern_based_detection(
-        self, file_path: Path, content: str, file_type: Optional[str]
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None
+    ) -> list[Vulnerability]:
         """
         Pattern-based detection (Phase 1 - fast baseline).
 
@@ -180,7 +202,7 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of vulnerabilities found by pattern matching
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         # Build CFG for guard detection (if Python code)
@@ -222,9 +244,7 @@ class PathTraversalDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _should_use_semantic_analysis(
-        self, file_path: Path, file_type: Optional[str]
-    ) -> bool:
+    def _should_use_semantic_analysis(self, file_path: Path, file_type: str | None) -> bool:
         """
         Check if semantic analysis should be used.
 
@@ -247,8 +267,8 @@ class PathTraversalDetector(BaseDetector):
         return file_path.suffix.lower() in supported_extensions
 
     def _semantic_analysis_detection(
-        self, file_path: Path, content: str, file_type: Optional[str]
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None
+    ) -> list[Vulnerability]:
         """
         Semantic analysis detection (Phase 2 - accurate, multi-line).
 
@@ -270,7 +290,7 @@ class PathTraversalDetector(BaseDetector):
         if not self.semantic_engine:
             return []
 
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             # Run semantic analysis
@@ -298,12 +318,10 @@ class PathTraversalDetector(BaseDetector):
                         # Path is validated - skip this vulnerability
                         continue
 
-                    vuln = self._convert_taint_path_to_vulnerability(
-                        taint_path, file_path, content
-                    )
+                    vuln = self._convert_taint_path_to_vulnerability(taint_path, file_path, content)
                     vulnerabilities.append(vuln)
 
-        except Exception as e:
+        except Exception:
             # Graceful degradation - log error but don't crash
             # In production, this would log to a proper logger
             pass
@@ -327,7 +345,7 @@ class PathTraversalDetector(BaseDetector):
         # Try to extract variable name from source
         # This is a simplified approach - Phase 4.3 will have better variable tracking
         var_name = None
-        if hasattr(taint_path.source, 'name'):
+        if hasattr(taint_path.source, "name"):
             var_name = taint_path.source.name
         elif taint_path.path:
             # Try to get first variable in the flow
@@ -467,8 +485,8 @@ class PathTraversalDetector(BaseDetector):
         )
 
     def _deduplicate_vulnerabilities(
-        self, vulnerabilities: List[Vulnerability]
-    ) -> List[Vulnerability]:
+        self, vulnerabilities: list[Vulnerability]
+    ) -> list[Vulnerability]:
         """
         Deduplicate vulnerabilities from pattern-based and semantic analysis.
 
@@ -482,7 +500,7 @@ class PathTraversalDetector(BaseDetector):
             Deduplicated list
         """
         # Group by (file_path, line_number)
-        vuln_map: Dict[Tuple[str, int], Vulnerability] = {}
+        vuln_map: dict[tuple[str, int], Vulnerability] = {}
 
         for vuln in vulnerabilities:
             key = (vuln.file_path, vuln.line_number)
@@ -507,7 +525,7 @@ class PathTraversalDetector(BaseDetector):
 
         return list(vuln_map.values())
 
-    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
+    def _is_comment(self, line: str, file_type: str | None) -> bool:
         """
         Check if line is a comment.
 
@@ -548,15 +566,15 @@ class PathTraversalDetector(BaseDetector):
         """
         # Check for path sanitization functions
         sanitization_patterns = [
-            r"\.resolve\s*\(",           # path.resolve()
-            r"realpath\s*\(",            # realpath()
-            r"abspath\s*\(",             # os.path.abspath()
-            r"normpath\s*\(",            # os.path.normpath()
-            r"canonical",                # getCanonicalPath()
-            r"sanitize",                 # sanitize_path()
-            r"validate",                 # validate_path()
-            r"is_safe_path",             # is_safe_path()
-            r"\.normalize\s*\(",         # path.normalize()
+            r"\.resolve\s*\(",  # path.resolve()
+            r"realpath\s*\(",  # realpath()
+            r"abspath\s*\(",  # os.path.abspath()
+            r"normpath\s*\(",  # os.path.normpath()
+            r"canonical",  # getCanonicalPath()
+            r"sanitize",  # sanitize_path()
+            r"validate",  # validate_path()
+            r"is_safe_path",  # is_safe_path()
+            r"\.normalize\s*\(",  # path.normalize()
         ]
 
         for pattern in sanitization_patterns:
@@ -577,7 +595,9 @@ class PathTraversalDetector(BaseDetector):
 
         # For zip extraction, allow if checking member names
         if category == "zip_slip":
-            if "member" in line_lower and any(check in line_lower for check in ["startswith", "in", "if"]):
+            if "member" in line_lower and any(
+                check in line_lower for check in ["startswith", "in", "if"]
+            ):
                 return True
 
         return False
@@ -661,12 +681,12 @@ class PathTraversalDetector(BaseDetector):
                 "cvss_score": 8.6,
                 "description": (
                     f"Detected directory traversal sequence: '{matched_text}'. "
-                    "Hardcoded or dynamically constructed paths containing '../' or '..\' sequences "
+                    "Hardcoded or dynamically constructed paths containing '../' or '..' sequences "
                     "can allow attackers to navigate outside intended directories. This includes "
                     "URL-encoded variants like %2e%2e%2f used to bypass simple filters."
                 ),
                 "remediation": (
-                    "1. Block or sanitize '../', '..\', and encoded variants\n"
+                    "1. Block or sanitize '../', '..', and encoded variants\n"
                     "2. Use canonical path resolution\n"
                     "3. Validate resolved paths stay within allowed directory\n"
                     "4. Implement strict input validation\n"

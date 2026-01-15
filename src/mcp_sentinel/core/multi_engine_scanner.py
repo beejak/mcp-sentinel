@@ -6,17 +6,17 @@ and aggregates their results.
 """
 
 import asyncio
-from typing import List, Optional, Set, Callable
-from pathlib import Path
-from datetime import datetime
 from collections import defaultdict
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
 
-from mcp_sentinel.models.vulnerability import Vulnerability
-from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
-from mcp_sentinel.engines.static import StaticAnalysisEngine
-from mcp_sentinel.engines.sast import SASTEngine
 from mcp_sentinel.core.exceptions import ScanError
+from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
+from mcp_sentinel.engines.sast import SASTEngine
+from mcp_sentinel.engines.static import StaticAnalysisEngine
+from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.models.vulnerability import Vulnerability
 
 
 class MultiEngineScanner:
@@ -29,9 +29,9 @@ class MultiEngineScanner:
 
     def __init__(
         self,
-        engines: Optional[List[BaseEngine]] = None,
-        enabled_engines: Optional[Set[EngineType]] = None,
-        progress_callback: Optional[Callable[[str, ScanProgress], None]] = None,
+        engines: list[BaseEngine] | None = None,
+        enabled_engines: set[EngineType] | None = None,
+        progress_callback: Callable[[str, ScanProgress], None] | None = None,
     ):
         """
         Initialize the multi-engine scanner.
@@ -47,7 +47,8 @@ class MultiEngineScanner:
 
         # Filter engines based on enabled_engines
         self.active_engines = [
-            engine for engine in self.engines
+            engine
+            for engine in self.engines
             if engine.engine_type in self.enabled_engines and engine.enabled
         ]
 
@@ -55,7 +56,7 @@ class MultiEngineScanner:
         for engine in self.active_engines:
             engine.set_progress_callback(self._create_progress_callback(engine))
 
-    def _get_default_engines(self) -> List[BaseEngine]:
+    def _get_default_engines(self) -> list[BaseEngine]:
         """
         Get default engines.
 
@@ -74,15 +75,17 @@ class MultiEngineScanner:
 
     def _create_progress_callback(self, engine: BaseEngine) -> Callable[[ScanProgress], None]:
         """Create a progress callback for a specific engine."""
+
         def callback(progress: ScanProgress):
             if self.progress_callback:
                 self.progress_callback(engine.name, progress)
+
         return callback
 
     async def scan_directory(
         self,
         target_path: str | Path,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: list[str] | None = None,
     ) -> ScanResult:
         """
         Scan a directory using all enabled engines.
@@ -115,15 +118,14 @@ class MultiEngineScanner:
         try:
             # Run all engines concurrently
             engine_tasks = [
-                engine.scan_directory(target_path, file_patterns)
-                for engine in self.active_engines
+                engine.scan_directory(target_path, file_patterns) for engine in self.active_engines
             ]
 
             # Gather results from all engines
             engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
             # Process results from each engine
-            all_vulnerabilities: List[Vulnerability] = []
+            all_vulnerabilities: list[Vulnerability] = []
 
             for idx, result in enumerate(engine_results):
                 engine = self.active_engines[idx]
@@ -166,9 +168,9 @@ class MultiEngineScanner:
     async def scan_file(
         self,
         file_path: Path,
-        content: Optional[str] = None,
-        file_type: Optional[str] = None,
-    ) -> List[Vulnerability]:
+        content: str | None = None,
+        file_type: str | None = None,
+    ) -> list[Vulnerability]:
         """
         Scan a single file using all enabled engines.
 
@@ -183,7 +185,7 @@ class MultiEngineScanner:
         # Read content if not provided
         if content is None:
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(file_path, encoding="utf-8", errors="ignore") as f:
                     content = f.read()
             except Exception as e:
                 print(f"Error reading {file_path}: {e}")
@@ -204,7 +206,7 @@ class MultiEngineScanner:
         engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
         # Aggregate vulnerabilities
-        all_vulnerabilities: List[Vulnerability] = []
+        all_vulnerabilities: list[Vulnerability] = []
         for result in engine_results:
             if isinstance(result, Exception):
                 continue
@@ -215,8 +217,8 @@ class MultiEngineScanner:
 
     def _deduplicate_vulnerabilities(
         self,
-        vulnerabilities: List[Vulnerability],
-    ) -> List[Vulnerability]:
+        vulnerabilities: list[Vulnerability],
+    ) -> list[Vulnerability]:
         """
         Deduplicate vulnerabilities from multiple engines.
 
@@ -249,15 +251,17 @@ class MultiEngineScanner:
             groups[key].append(vuln)
 
         # For each group, keep the best vulnerability
-        deduplicated: List[Vulnerability] = []
+        deduplicated: list[Vulnerability] = []
 
-        for key, group in groups.items():
+        for _key, group in groups.items():
             if len(group) == 1:
                 deduplicated.append(group[0])
             else:
                 # Multiple engines found same issue
                 # Keep the one with highest confidence
-                best = max(group, key=lambda v: v.confidence.value if hasattr(v.confidence, 'value') else 0)
+                best = max(
+                    group, key=lambda v: v.confidence.value if hasattr(v.confidence, "value") else 0
+                )
 
                 # Merge engine information
                 engines = {vuln.engine for vuln in group}
@@ -270,19 +274,37 @@ class MultiEngineScanner:
     def _count_files(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: list[str] | None = None,
     ) -> int:
         """Count files that would be scanned."""
         if not file_patterns:
             file_patterns = [
-                "**/*.py", "**/*.js", "**/*.ts", "**/*.tsx", "**/*.jsx",
-                "**/*.go", "**/*.java", "**/*.yaml", "**/*.yml",
-                "**/*.json", "**/*.toml", "**/*.sh", "**/*.bash",
+                "**/*.py",
+                "**/*.js",
+                "**/*.ts",
+                "**/*.tsx",
+                "**/*.jsx",
+                "**/*.go",
+                "**/*.java",
+                "**/*.yaml",
+                "**/*.yml",
+                "**/*.json",
+                "**/*.toml",
+                "**/*.sh",
+                "**/*.bash",
             ]
 
         ignore_dirs = {
-            ".git", ".venv", "venv", "node_modules", "__pycache__",
-            ".pytest_cache", "dist", "build", ".tox", ".mypy_cache",
+            ".git",
+            ".venv",
+            "venv",
+            "node_modules",
+            "__pycache__",
+            ".pytest_cache",
+            "dist",
+            "build",
+            ".tox",
+            ".mypy_cache",
         }
 
         files = set()
@@ -295,7 +317,7 @@ class MultiEngineScanner:
 
         return len(files)
 
-    def _determine_file_type(self, file_path: Path) -> Optional[str]:
+    def _determine_file_type(self, file_path: Path) -> str | None:
         """Determine the programming language/file type."""
         extension_map = {
             ".py": "python",
@@ -314,10 +336,10 @@ class MultiEngineScanner:
         }
         return extension_map.get(file_path.suffix.lower())
 
-    def get_active_engines(self) -> List[str]:
+    def get_active_engines(self) -> list[str]:
         """Get names of all active engines."""
         return [engine.name for engine in self.active_engines]
 
-    def get_engine_types(self) -> List[EngineType]:
+    def get_engine_types(self) -> list[EngineType]:
         """Get types of all active engines."""
         return [engine.engine_type for engine in self.active_engines]

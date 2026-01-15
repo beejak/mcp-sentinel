@@ -72,9 +72,11 @@ async def test_detect_multiple_invisible_chars(detector):
     unicode_vulns = [v for v in vulns if "Invisible Unicode" in v.title]
     assert len(unicode_vulns) >= 1
     # Should detect multiple types in description
-    assert "U+200B" in unicode_vulns[0].description or \
-           "U+200C" in unicode_vulns[0].description or \
-           "U+200D" in unicode_vulns[0].description
+    assert (
+        "U+200B" in unicode_vulns[0].description
+        or "U+200C" in unicode_vulns[0].description
+        or "U+200D" in unicode_vulns[0].description
+    )
 
 
 @pytest.mark.asyncio

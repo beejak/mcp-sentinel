@@ -6,21 +6,21 @@ complex vulnerabilities that pattern-based tools might miss.
 """
 
 import os
-from typing import List, Optional, Dict, Any
 from pathlib import Path
+from typing import Any
 
-from mcp_sentinel.engines.base import BaseEngine, EngineType, EngineStatus
-from mcp_sentinel.models.vulnerability import (
-    Vulnerability,
-    VulnerabilityType,
-    Severity,
-    Confidence,
-)
 from mcp_sentinel.engines.ai.providers.base import (
-    BaseAIProvider,
     AIProviderConfig,
     AIProviderType,
     AIResponse,
+    BaseAIProvider,
+)
+from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType
+from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
+    Vulnerability,
+    VulnerabilityType,
 )
 
 
@@ -38,9 +38,9 @@ class AIEngine(BaseEngine):
 
     def __init__(
         self,
-        provider_type: Optional[AIProviderType] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
+        provider_type: AIProviderType | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
         max_cost_per_scan: float = 1.0,
         enabled: bool = True,
     ):
@@ -62,28 +62,21 @@ class AIEngine(BaseEngine):
 
         self.max_cost_per_scan = max_cost_per_scan
         self.total_cost = 0.0
-        self.provider: Optional[BaseAIProvider] = None
+        self.provider: BaseAIProvider | None = None
 
         # Auto-detect provider if not specified
         if provider_type is None:
             provider_type = self._detect_available_provider()
 
         if provider_type:
-            self.provider = self._create_provider(
-                provider_type, api_key, model
-            )
+            self.provider = self._create_provider(provider_type, api_key, model)
 
         if self.provider and self.provider.is_available():
             self.status = EngineStatus.READY
         else:
             self.status = EngineStatus.NOT_AVAILABLE
 
-    async def scan_file(
-        self,
-        file_path: Path,
-        content: str,
-        language: str
-    ) -> List[Vulnerability]:
+    async def scan_file(self, file_path: Path, content: str, language: str) -> list[Vulnerability]:
         """
         Scan a file using AI analysis.
 
@@ -106,10 +99,7 @@ class AIEngine(BaseEngine):
         try:
             # Analyze code with AI
             response: AIResponse = await self.provider.analyze_code(
-                code=content,
-                file_path=str(file_path),
-                language=language,
-                context=None
+                code=content, file_path=str(file_path), language=language, context=None
             )
 
             # Track cost
@@ -130,7 +120,7 @@ class AIEngine(BaseEngine):
 
             return vulnerabilities
 
-        except Exception as e:
+        except Exception:
             # Log error but don't fail the scan
             return []
 
@@ -146,7 +136,7 @@ class AIEngine(BaseEngine):
         """Cleanup resources."""
         self.provider = None
 
-    def _detect_available_provider(self) -> Optional[AIProviderType]:
+    def _detect_available_provider(self) -> AIProviderType | None:
         """
         Auto-detect available AI provider based on API keys.
 
@@ -169,11 +159,8 @@ class AIEngine(BaseEngine):
         return AIProviderType.OLLAMA
 
     def _create_provider(
-        self,
-        provider_type: AIProviderType,
-        api_key: Optional[str],
-        model: Optional[str]
-    ) -> Optional[BaseAIProvider]:
+        self, provider_type: AIProviderType, api_key: str | None, model: str | None
+    ) -> BaseAIProvider | None:
         """
         Create AI provider instance.
 
@@ -196,6 +183,7 @@ class AIEngine(BaseEngine):
         try:
             if provider_type == AIProviderType.ANTHROPIC:
                 from mcp_sentinel.engines.ai.providers.anthropic_provider import AnthropicProvider
+
                 return AnthropicProvider(config)
             elif provider_type == AIProviderType.OPENAI:
                 # TODO: Implement OpenAI provider
@@ -213,12 +201,12 @@ class AIEngine(BaseEngine):
 
     def _convert_ai_response(
         self,
-        vuln_dict: Dict[str, Any],
+        vuln_dict: dict[str, Any],
         file_path: Path,
         content: str,
         provider: str,
         model: str,
-    ) -> Optional[Vulnerability]:
+    ) -> Vulnerability | None:
         """
         Convert AI response dictionary to Vulnerability object.
 
@@ -241,8 +229,7 @@ class AIEngine(BaseEngine):
                 "LOW": Severity.LOW,
             }
             severity = severity_map.get(
-                vuln_dict.get("severity", "MEDIUM").upper(),
-                Severity.MEDIUM
+                vuln_dict.get("severity", "MEDIUM").upper(), Severity.MEDIUM
             )
 
             # Map AI confidence to our Confidence enum
@@ -252,8 +239,7 @@ class AIEngine(BaseEngine):
                 "LOW": Confidence.LOW,
             }
             confidence = confidence_map.get(
-                vuln_dict.get("confidence", "MEDIUM").upper(),
-                Confidence.MEDIUM
+                vuln_dict.get("confidence", "MEDIUM").upper(), Confidence.MEDIUM
             )
 
             # Map vulnerability type
@@ -269,8 +255,7 @@ class AIEngine(BaseEngine):
                 "CONFIG_SECURITY": VulnerabilityType.CONFIG_SECURITY,
             }
             vuln_type = vuln_type_map.get(
-                vuln_dict.get("type", "").upper(),
-                VulnerabilityType.CODE_INJECTION
+                vuln_dict.get("type", "").upper(), VulnerabilityType.CODE_INJECTION
             )
 
             # Get line number and code snippet

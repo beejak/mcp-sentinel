@@ -5,12 +5,13 @@ Defines core structures for taint tracking, control flow, and AST representation
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Set, Any, Dict
 from enum import Enum
+from typing import Any
 
 
 class TaintType(Enum):
     """Types of taint sources."""
+
     USER_INPUT = "user_input"  # request.*, params.*, query.*
     FILE_SYSTEM = "file_system"  # file paths, file contents
     NETWORK = "network"  # network requests, sockets
@@ -20,6 +21,7 @@ class TaintType(Enum):
 
 class SinkType(Enum):
     """Types of dangerous sinks."""
+
     FILE_OPERATION = "file_operation"  # open(), readFile(), etc.
     COMMAND_EXECUTION = "command_execution"  # exec(), system(), etc.
     CODE_EVALUATION = "code_evaluation"  # eval(), Function(), etc.
@@ -45,9 +47,7 @@ class TaintSource:
     def __eq__(self, other):
         if not isinstance(other, TaintSource):
             return False
-        return (self.name == other.name and
-                self.line == other.line and
-                self.column == other.column)
+        return self.name == other.name and self.line == other.line and self.column == other.column
 
 
 @dataclass
@@ -58,8 +58,8 @@ class TaintSink:
     line: int  # Line number
     column: int  # Column number
     sink_type: SinkType  # Type of sink
-    arguments: List[str]  # Argument expressions
-    tainted_args: List[int] = field(default_factory=list)  # Indices of tainted args
+    arguments: list[str]  # Argument expressions
+    tainted_args: list[int] = field(default_factory=list)  # Indices of tainted args
     confidence: float = 1.0  # Confidence level
 
     def __hash__(self):
@@ -68,9 +68,11 @@ class TaintSink:
     def __eq__(self, other):
         if not isinstance(other, TaintSink):
             return False
-        return (self.function_name == other.function_name and
-                self.line == other.line and
-                self.column == other.column)
+        return (
+            self.function_name == other.function_name
+            and self.line == other.line
+            and self.column == other.column
+        )
 
 
 @dataclass
@@ -79,14 +81,16 @@ class TaintPath:
 
     source: TaintSource  # Taint source
     sink: TaintSink  # Dangerous sink
-    path: List[str]  # Intermediate steps (variable names, assignments)
+    path: list[str]  # Intermediate steps (variable names, assignments)
     sanitized: bool = False  # Whether taint was sanitized
-    sanitizers: List[str] = field(default_factory=list)  # Sanitization functions
+    sanitizers: list[str] = field(default_factory=list)  # Sanitization functions
     confidence: float = 1.0  # Overall confidence
 
     def __repr__(self):
-        return (f"TaintPath({self.source.name}@L{self.source.line} -> "
-                f"{self.sink.function_name}@L{self.sink.line})")
+        return (
+            f"TaintPath({self.source.name}@L{self.source.line} -> "
+            f"{self.sink.function_name}@L{self.sink.line})"
+        )
 
 
 @dataclass
@@ -96,7 +100,7 @@ class Guard:
     condition: str  # Guard condition expression
     line: int  # Line number
     guard_type: str  # Type: "validation", "sanitization", "bounds_check"
-    variables: Set[str] = field(default_factory=set)  # Variables involved
+    variables: set[str] = field(default_factory=set)  # Variables involved
     is_exit: bool = False  # Does this guard exit (return, throw)?
 
     def __repr__(self):
@@ -111,9 +115,9 @@ class CFGNode:
     node_type: str  # "statement", "branch", "loop", "return", "merge"
     line: int  # Line number
     content: str  # Node content (code)
-    successors: List[int] = field(default_factory=list)  # Next nodes
-    predecessors: List[int] = field(default_factory=list)  # Previous nodes
-    guards: List[Guard] = field(default_factory=list)  # Guards on this path
+    successors: list[int] = field(default_factory=list)  # Next nodes
+    predecessors: list[int] = field(default_factory=list)  # Previous nodes
+    guards: list[Guard] = field(default_factory=list)  # Guards on this path
 
     def __repr__(self):
         return f"CFGNode({self.node_type}@L{self.line}: {self.content[:30]})"
@@ -123,9 +127,9 @@ class CFGNode:
 class ControlFlowGraph:
     """Control flow graph for a function or code block."""
 
-    nodes: Dict[int, CFGNode]  # node_id -> CFGNode
+    nodes: dict[int, CFGNode]  # node_id -> CFGNode
     entry_node: int  # Entry point node ID
-    exit_nodes: List[int]  # Exit point node IDs
+    exit_nodes: list[int]  # Exit point node IDs
 
     def add_edge(self, from_id: int, to_id: int):
         """Add edge from one node to another."""
@@ -133,12 +137,12 @@ class ControlFlowGraph:
             self.nodes[from_id].successors.append(to_id)
             self.nodes[to_id].predecessors.append(from_id)
 
-    def get_all_paths(self, from_id: int, to_id: int) -> List[List[int]]:
+    def get_all_paths(self, from_id: int, to_id: int) -> list[list[int]]:
         """Get all paths from one node to another."""
         paths = []
         visited = set()
 
-        def dfs(current: int, path: List[int]):
+        def dfs(current: int, path: list[int]):
             if current == to_id:
                 paths.append(path[:])
                 return
@@ -161,14 +165,15 @@ class UnifiedAST:
 
     language: str  # "python", "javascript", "java"
     raw_ast: Any  # Language-specific AST object
-    sources: List[TaintSource] = field(default_factory=list)  # Extracted sources
-    sinks: List[TaintSink] = field(default_factory=list)  # Extracted sinks
-    variables: Dict[str, Any] = field(default_factory=dict)  # Variable tracking
-    functions: List[Dict] = field(default_factory=list)  # Function definitions
+    sources: list[TaintSource] = field(default_factory=list)  # Extracted sources
+    sinks: list[TaintSink] = field(default_factory=list)  # Extracted sinks
+    variables: dict[str, Any] = field(default_factory=dict)  # Variable tracking
+    functions: list[dict] = field(default_factory=list)  # Function definitions
 
     def __repr__(self):
-        return (f"UnifiedAST({self.language}, "
-                f"{len(self.sources)} sources, {len(self.sinks)} sinks)")
+        return (
+            f"UnifiedAST({self.language}, " f"{len(self.sources)} sources, {len(self.sinks)} sinks)"
+        )
 
 
 @dataclass
@@ -177,11 +182,12 @@ class SemanticAnalysisResult:
 
     file_path: str  # File being analyzed
     language: str  # Programming language
-    taint_paths: List[TaintPath]  # Vulnerability paths found
-    cfg: Optional[ControlFlowGraph] = None  # Control flow graph
+    taint_paths: list[TaintPath]  # Vulnerability paths found
+    cfg: ControlFlowGraph | None = None  # Control flow graph
     analysis_time_ms: float = 0.0  # Analysis duration
-    errors: List[str] = field(default_factory=list)  # Analysis errors
+    errors: list[str] = field(default_factory=list)  # Analysis errors
 
     def __repr__(self):
-        return (f"SemanticAnalysisResult({self.file_path}, "
-                f"{len(self.taint_paths)} vulnerabilities)")
+        return (
+            f"SemanticAnalysisResult({self.file_path}, " f"{len(self.taint_paths)} vulnerabilities)"
+        )

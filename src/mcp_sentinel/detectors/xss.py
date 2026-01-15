@@ -8,15 +8,15 @@ Critical for MCP servers that serve web UIs or handle HTML/JavaScript generation
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -36,9 +36,9 @@ class XSSDetector(BaseDetector):
     def __init__(self):
         """Initialize the XSS detector."""
         super().__init__(name="XSSDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for XSS detection."""
         return {
             # Pattern 1: DOM-based XSS (innerHTML manipulation)
@@ -46,42 +46,41 @@ class XSSDetector(BaseDetector):
                 re.compile(r"\.innerHTML\s*=\s*[^;]+", re.IGNORECASE),
                 re.compile(r"\.outerHTML\s*=\s*[^;]+", re.IGNORECASE),
                 re.compile(r"\.insertAdjacentHTML\s*\(", re.IGNORECASE),
-                re.compile(r"\.write\s*\(\s*[^)]*\+", re.IGNORECASE),  # document.write with concatenation
+                re.compile(
+                    r"\.write\s*\(\s*[^)]*\+", re.IGNORECASE
+                ),  # document.write with concatenation
                 re.compile(r"\.writeln\s*\(\s*[^)]*\+", re.IGNORECASE),
             ],
-
             # Pattern 2: Event handler injection
             "event_handler_xss": [
-                re.compile(r"on(?:click|load|error|mouseover|focus|blur)\s*=\s*[\"']?\s*(?!null|false)", re.IGNORECASE),
+                re.compile(
+                    r"on(?:click|load|error|mouseover|focus|blur)\s*=\s*[\"']?\s*(?!null|false)",
+                    re.IGNORECASE,
+                ),
                 re.compile(r"<\w+[^>]*\son\w+\s*=", re.IGNORECASE),  # HTML with event handlers
                 re.compile(r"setAttribute\s*\(\s*[\"']on\w+[\"']", re.IGNORECASE),
             ],
-
             # Pattern 3: JavaScript URL schemes
             "javascript_protocol": [
                 re.compile(r"javascript:\s*", re.IGNORECASE),
                 re.compile(r"data:text/html", re.IGNORECASE),
                 re.compile(r"vbscript:", re.IGNORECASE),
             ],
-
             # Pattern 4: Dangerous HTML insertion (React/Vue)
             "dangerous_html": [
                 re.compile(r"dangerouslySetInnerHTML\s*=\s*\{\{", re.IGNORECASE),
                 re.compile(r"v-html\s*=", re.IGNORECASE),  # Vue.js
                 re.compile(r"\[innerHTML\]\s*=", re.IGNORECASE),  # Angular
             ],
-
             # Pattern 5: Unescaped template rendering
             "template_xss": [
                 # Python (Jinja2, Django) - match templates with |safe or |mark_safe filters
                 re.compile(r"\{\{[^}]*\|\s*safe[^}]*\}\}", re.IGNORECASE),
                 re.compile(r"\{\{[^}]*\|\s*mark_safe[^}]*\}\}", re.IGNORECASE),
                 re.compile(r"\bsafe\s*\(\s*[^)]*\)"),  # Django safe() function
-
                 # JavaScript template literals with user input
                 re.compile(r"`[^`]*\$\{[^}]*(?:params|query|input|user|request)[^}]*\}[^`]*`"),
             ],
-
             # Pattern 6: jQuery XSS (legacy but still common)
             "jquery_xss": [
                 re.compile(r"\$\([^)]*\)\.html\s*\(", re.IGNORECASE),
@@ -90,7 +89,7 @@ class XSSDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -103,23 +102,42 @@ class XSSDetector(BaseDetector):
         """
         if file_type:
             return file_type in [
-                "javascript", "typescript", "html", "python", "jsx", "tsx",
-                "vue", "svelte", "template"
+                "javascript",
+                "typescript",
+                "html",
+                "python",
+                "jsx",
+                "tsx",
+                "vue",
+                "svelte",
+                "template",
             ]
 
         # Check file extensions
         web_extensions = [
-            ".html", ".htm", ".xhtml",  # HTML files
-            ".js", ".jsx", ".ts", ".tsx",  # JavaScript/TypeScript
-            ".py", ".jinja", ".jinja2", ".j2",  # Python templates
-            ".vue", ".svelte",  # Modern frameworks
-            ".php", ".asp", ".aspx", ".jsp",  # Server-side templates
+            ".html",
+            ".htm",
+            ".xhtml",  # HTML files
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",  # JavaScript/TypeScript
+            ".py",
+            ".jinja",
+            ".jinja2",
+            ".j2",  # Python templates
+            ".vue",
+            ".svelte",  # Modern frameworks
+            ".php",
+            ".asp",
+            ".aspx",
+            ".jsp",  # Server-side templates
         ]
         return file_path.suffix.lower() in web_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect XSS vulnerabilities in file content.
 
@@ -131,12 +149,12 @@ class XSSDetector(BaseDetector):
         Returns:
             List of detected XSS vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
         # Track detected matches per line to avoid duplicates
         # For event handlers: track by (category, handler_name) e.g., ('event_handler_xss', 'onclick')
         # For other patterns: track by (category, position)
-        detected_per_line: Dict[int, set] = {}
+        detected_per_line: dict[int, set] = {}
 
         for line_num, line in enumerate(lines, start=1):
             # Skip comments
@@ -158,8 +176,11 @@ class XSSDetector(BaseDetector):
                         # to avoid reporting the same handler twice from different patterns
                         if category == "event_handler_xss":
                             # Extract event handler name (e.g., "onclick", "onerror")
-                            handler_match = re.search(r'\bon(click|load|error|mouseover|focus|blur|[a-z]+)',
-                                                     match.group(0), re.IGNORECASE)
+                            handler_match = re.search(
+                                r"\bon(click|load|error|mouseover|focus|blur|[a-z]+)",
+                                match.group(0),
+                                re.IGNORECASE,
+                            )
                             if handler_match:
                                 handler_name = handler_match.group(0).lower()
                                 match_key = (category, handler_name)
@@ -189,7 +210,7 @@ class XSSDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
+    def _is_comment(self, line: str, file_type: str | None) -> bool:
         """
         Check if line is a comment.
 
@@ -240,15 +261,15 @@ class XSSDetector(BaseDetector):
         """
         # Check for sanitization functions (must be function calls, not just strings)
         sanitization_patterns = [
-            r"\.escape\s*\(",           # .escape(
-            r"\bsanitize\s*\(",         # sanitize(
-            r"\bclean\s*\(",            # clean(
-            r"\bfilter\s*\(",           # filter(
-            r"\.encode\s*\(",           # .encode(
-            r"\bhtmlspecialchars\s*\(", # htmlspecialchars(
-            r"\bhtmlentities\s*\(",     # htmlentities(
-            r"DOMPurify\.",             # DOMPurify.sanitize or DOMPurify.clean
-            r"xssFilter\.",             # xssFilter.clean
+            r"\.escape\s*\(",  # .escape(
+            r"\bsanitize\s*\(",  # sanitize(
+            r"\bclean\s*\(",  # clean(
+            r"\bfilter\s*\(",  # filter(
+            r"\.encode\s*\(",  # .encode(
+            r"\bhtmlspecialchars\s*\(",  # htmlspecialchars(
+            r"\bhtmlentities\s*\(",  # htmlentities(
+            r"DOMPurify\.",  # DOMPurify.sanitize or DOMPurify.clean
+            r"xssFilter\.",  # xssFilter.clean
         ]
 
         for pattern in sanitization_patterns:
@@ -258,7 +279,11 @@ class XSSDetector(BaseDetector):
         # For DOM XSS, check if setting to static string
         if category == "dom_xss":
             # If innerHTML = "static string", it's safe
-            if re.search(r'innerHTML\s*=\s*["\'][^"\']*["\']', line) and '+' not in line and '${' not in line:
+            if (
+                re.search(r'innerHTML\s*=\s*["\'][^"\']*["\']', line)
+                and "+" not in line
+                and "${" not in line
+            ):
                 return True
 
         # For event handlers, check if set to null or false (check full line)
@@ -271,13 +296,13 @@ class XSSDetector(BaseDetector):
             if "test" in str(line).lower() or "example" in str(line).lower():
                 return True
             # Check if "safe()" is actually a function definition, not a call
-            if re.search(r'\b(def|function)\s+safe\s*\(', line, re.IGNORECASE):
+            if re.search(r"\b(def|function)\s+safe\s*\(", line, re.IGNORECASE):
                 return True
             # Check if "safe()" is a class method definition
-            if re.search(r'\bclass\s+\w+.*safe\s*\(', line, re.IGNORECASE):
+            if re.search(r"\bclass\s+\w+.*safe\s*\(", line, re.IGNORECASE):
                 return True
             # Check if "safe()" is an arrow function or method
-            if re.search(r'\bconst\s+safe\s*=|let\s+safe\s*=|var\s+safe\s*=', line, re.IGNORECASE):
+            if re.search(r"\bconst\s+safe\s*=|let\s+safe\s*=|var\s+safe\s*=", line, re.IGNORECASE):
                 return True
 
         return False
@@ -400,5 +425,8 @@ class XSSDetector(BaseDetector):
             ],
             detector=self.name,
             engine="static",
-            mitre_attack_ids=["T1189", "T1203"],  # Drive-by Compromise, Exploitation for Client Execution
+            mitre_attack_ids=[
+                "T1189",
+                "T1203",
+            ],  # Drive-by Compromise, Exploitation for Client Execution
         )

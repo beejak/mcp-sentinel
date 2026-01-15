@@ -2,22 +2,21 @@
 CLI entry point for MCP Sentinel.
 """
 
-import click
 import asyncio
 from pathlib import Path
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
+
+import click
 from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 from mcp_sentinel import __version__
-from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
+from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.models.vulnerability import Severity
-from mcp_sentinel.reporting.generators import SARIFGenerator, HTMLGenerator
-
+from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
 
 console = Console()
 
@@ -44,9 +43,8 @@ def cli():
     • SARIF 2.1.0 - GitHub Code Scanning compatible
     • HTML - Interactive executive dashboards
 
-    Version: {version}
     Documentation: https://github.com/beejak/mcp-sentinel
-    """.format(version=__version__)
+    """
     pass
 
 
@@ -81,7 +79,9 @@ def cli():
     is_flag=True,
     help="Disable progress output",
 )
-def scan(target: str, output: str, engines: str, severity: tuple, json_file: str, no_progress: bool):
+def scan(
+    target: str, output: str, engines: str, severity: tuple, json_file: str, no_progress: bool
+):
     """
     Scan a directory or file for security vulnerabilities.
 
@@ -218,7 +218,7 @@ async def _run_scan_multi_engine(
     Returns:
         ScanResult with findings from all enabled engines
     """
-    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
     # Track progress from all engines
     engine_progress = {}
@@ -284,7 +284,9 @@ def _print_terminal_results(result: ScanResult):
 
     summary_table.add_row("Target", result.target)
     summary_table.add_row("Status", result.status.upper())
-    summary_table.add_row("Files Scanned", f"{result.statistics.scanned_files}/{result.statistics.total_files}")
+    summary_table.add_row(
+        "Files Scanned", f"{result.statistics.scanned_files}/{result.statistics.total_files}"
+    )
     summary_table.add_row("Duration", f"{result.statistics.scan_duration_seconds:.2f}s")
     summary_table.add_row("Total Vulnerabilities", str(result.statistics.total_vulnerabilities))
 
@@ -377,7 +379,6 @@ def _print_terminal_results(result: ScanResult):
 
 def _print_json_results(result: ScanResult, output_file: str | None = None):
     """Print results as JSON."""
-    import json
 
     json_output = result.model_dump_json(indent=2)
 

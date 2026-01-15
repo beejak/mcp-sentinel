@@ -26,7 +26,7 @@ def temp_dir():
 def sample_python_file(temp_dir):
     """Create a sample Python file with a hardcoded secret."""
     file_path = temp_dir / "test.py"
-    content = '''
+    content = """
 import os
 
 # This is a test file with hardcoded credentials (FAKE - for testing only!)
@@ -38,7 +38,7 @@ def get_database_url():
 
 # OpenAI API Key
 OPENAI_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
-'''
+"""
     file_path.write_text(content)
     return file_path
 
@@ -47,12 +47,12 @@ OPENAI_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
 def sample_javascript_file(temp_dir):
     """Create a sample JavaScript file."""
     file_path = temp_dir / "test.js"
-    content = '''
+    content = """
 const API_KEY = "sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv";
 
 function main() {
     console.log("Hello World");
 }
-'''
+"""
     file_path.write_text(content)
     return file_path

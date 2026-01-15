@@ -2,11 +2,12 @@
 Scan result model for aggregating vulnerability findings.
 """
 
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
 
-from mcp_sentinel.models.vulnerability import Vulnerability, Severity
+from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 
 class ScanStatistics(BaseModel):
@@ -21,7 +22,7 @@ class ScanStatistics(BaseModel):
     low_count: int = 0
     info_count: int = 0
     scan_duration_seconds: float = 0.0
-    engines_used: List[str] = Field(default_factory=list)
+    engines_used: list[str] = Field(default_factory=list)
 
 
 class ScanResult(BaseModel):
@@ -42,14 +43,14 @@ class ScanResult(BaseModel):
 
     scan_id: str = Field(default_factory=lambda: f"scan-{datetime.utcnow().timestamp()}")
     target: str
-    vulnerabilities: List[Vulnerability] = Field(default_factory=list)
+    vulnerabilities: list[Vulnerability] = Field(default_factory=list)
     statistics: ScanStatistics = Field(default_factory=ScanStatistics)
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
 
     started_at: datetime = Field(default_factory=datetime.utcnow)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     status: str = "pending"  # pending, running, completed, failed
-    error: Optional[str] = None
+    error: str | None = None
 
     def add_vulnerability(self, vuln: Vulnerability) -> None:
         """Add a vulnerability to the result."""
@@ -68,11 +69,11 @@ class ScanResult(BaseModel):
         else:
             self.statistics.info_count += 1
 
-    def get_by_severity(self, severity: Severity) -> List[Vulnerability]:
+    def get_by_severity(self, severity: Severity) -> list[Vulnerability]:
         """Get all vulnerabilities of a specific severity."""
         return [v for v in self.vulnerabilities if v.severity == severity]
 
-    def get_by_file(self, file_path: str) -> List[Vulnerability]:
+    def get_by_file(self, file_path: str) -> list[Vulnerability]:
         """Get all vulnerabilities in a specific file."""
         return [v for v in self.vulnerabilities if v.file_path == file_path]
 
@@ -129,8 +130,8 @@ class ScanResult(BaseModel):
                     "low_count": 2,
                     "info_count": 0,
                     "scan_duration_seconds": 7.8,
-                    "engines_used": ["static", "semantic", "ai"]
+                    "engines_used": ["static", "semantic", "ai"],
                 },
-                "status": "completed"
+                "status": "completed",
             }
         }

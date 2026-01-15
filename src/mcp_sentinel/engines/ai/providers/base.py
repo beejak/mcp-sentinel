@@ -5,13 +5,14 @@ All AI providers (OpenAI, Anthropic, Google, Ollama) must implement this interfa
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class AIProviderType(Enum):
     """Supported AI provider types."""
+
     ANTHROPIC = "anthropic"
     OPENAI = "openai"
     GOOGLE = "google"
@@ -21,7 +22,8 @@ class AIProviderType(Enum):
 @dataclass
 class AIResponse:
     """Standardized AI response containing vulnerability analysis."""
-    vulnerabilities: List[Dict[str, Any]]
+
+    vulnerabilities: list[dict[str, Any]]
     raw_response: str
     confidence: float
     tokens_used: int
@@ -33,9 +35,10 @@ class AIResponse:
 @dataclass
 class AIProviderConfig:
     """Configuration for AI providers."""
+
     provider_type: AIProviderType
-    api_key: Optional[str] = None
-    model: Optional[str] = None
+    api_key: str | None = None
+    model: str | None = None
     temperature: float = 0.0  # Deterministic for security analysis
     max_tokens: int = 4096
     timeout: int = 60
@@ -64,11 +67,7 @@ class BaseAIProvider(ABC):
 
     @abstractmethod
     async def analyze_code(
-        self,
-        code: str,
-        file_path: str,
-        language: str,
-        context: Optional[Dict[str, Any]] = None
+        self, code: str, file_path: str, language: str, context: dict[str, Any] | None = None
     ) -> AIResponse:
         """
         Analyze code for security vulnerabilities using AI.

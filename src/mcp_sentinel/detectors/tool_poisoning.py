@@ -9,15 +9,15 @@ Critical for MCP servers where tool metadata influences LLM decision-making.
 
 import re
 import unicodedata
-from typing import List, Dict, Pattern, Optional, Set
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -36,31 +36,31 @@ class ToolPoisoningDetector(BaseDetector):
 
     # Dangerous Unicode characters for tool poisoning
     INVISIBLE_CHARS = {
-        '\u200b',  # Zero Width Space
-        '\u200c',  # Zero Width Non-Joiner
-        '\u200d',  # Zero Width Joiner
-        '\u200e',  # Left-To-Right Mark
-        '\u200f',  # Right-To-Left Mark
-        '\u202a',  # Left-To-Right Embedding
-        '\u202b',  # Right-To-Left Embedding
-        '\u202c',  # Pop Directional Formatting
-        '\u202d',  # Left-To-Right Override
-        '\u202e',  # Right-To-Left Override
-        '\u2060',  # Word Joiner
-        '\u2061',  # Function Application
-        '\u2062',  # Invisible Times
-        '\u2063',  # Invisible Separator
-        '\u2064',  # Invisible Plus
-        '\ufeff',  # Zero Width No-Break Space (BOM)
-        '\u180e',  # Mongolian Vowel Separator
+        "\u200b",  # Zero Width Space
+        "\u200c",  # Zero Width Non-Joiner
+        "\u200d",  # Zero Width Joiner
+        "\u200e",  # Left-To-Right Mark
+        "\u200f",  # Right-To-Left Mark
+        "\u202a",  # Left-To-Right Embedding
+        "\u202b",  # Right-To-Left Embedding
+        "\u202c",  # Pop Directional Formatting
+        "\u202d",  # Left-To-Right Override
+        "\u202e",  # Right-To-Left Override
+        "\u2060",  # Word Joiner
+        "\u2061",  # Function Application
+        "\u2062",  # Invisible Times
+        "\u2063",  # Invisible Separator
+        "\u2064",  # Invisible Plus
+        "\ufeff",  # Zero Width No-Break Space (BOM)
+        "\u180e",  # Mongolian Vowel Separator
     }
 
     def __init__(self):
         """Initialize the tool poisoning detector."""
         super().__init__(name="ToolPoisoningDetector", enabled=True)
-        self.text_patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.text_patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for tool poisoning detection."""
         return {
             # Pattern 1: Ignore/Disregard commands
@@ -70,7 +70,6 @@ class ToolPoisoningDetector(BaseDetector):
                 re.compile(r"\bforget\s+(?:previous|prior|above|this)\b", re.IGNORECASE),
                 re.compile(r"\bskip\s+(?:previous|prior|above|this)\b", re.IGNORECASE),
             ],
-
             # Pattern 2: Override instructions
             "override_commands": [
                 re.compile(r"\boverride\s+(?:previous|instructions|rules|safety)\b", re.IGNORECASE),
@@ -78,7 +77,6 @@ class ToolPoisoningDetector(BaseDetector):
                 re.compile(r"\bnew\s+instructions?\s*:\s*", re.IGNORECASE),
                 re.compile(r"\bactual\s+instructions?\s*:\s*", re.IGNORECASE),
             ],
-
             # Pattern 3: Behavior manipulation
             "behavior_manipulation": [
                 re.compile(r"\balways\s+(?:respond|say|return|output)\b", re.IGNORECASE),
@@ -87,7 +85,6 @@ class ToolPoisoningDetector(BaseDetector):
                 re.compile(r"\bact\s+like\b", re.IGNORECASE),
                 re.compile(r"\byou\s+(?:must|should)\s+(?:always|never)\b", re.IGNORECASE),
             ],
-
             # Pattern 4: Hidden instruction markers
             "hidden_markers": [
                 re.compile(r"<!--.*?(?:ignore|override|hidden).*?-->", re.IGNORECASE | re.DOTALL),
@@ -97,7 +94,7 @@ class ToolPoisoningDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -110,22 +107,38 @@ class ToolPoisoningDetector(BaseDetector):
         """
         if file_type:
             return file_type in [
-                "python", "javascript", "typescript", "json", "yaml",
-                "markdown", "text", "config"
+                "python",
+                "javascript",
+                "typescript",
+                "json",
+                "yaml",
+                "markdown",
+                "text",
+                "config",
             ]
 
         # MCP config files, tool definitions, and code
         applicable_extensions = [
-            ".json", ".yaml", ".yml",  # Config files
-            ".py", ".js", ".jsx", ".ts", ".tsx",  # Code files
-            ".md", ".txt",  # Documentation
-            ".toml", ".cfg", ".conf", ".ini",  # Other configs
+            ".json",
+            ".yaml",
+            ".yml",  # Config files
+            ".py",
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",  # Code files
+            ".md",
+            ".txt",  # Documentation
+            ".toml",
+            ".cfg",
+            ".conf",
+            ".ini",  # Other configs
         ]
         return file_path.suffix.lower() in applicable_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect tool poisoning vulnerabilities in file content.
 
@@ -137,7 +150,7 @@ class ToolPoisoningDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Check for invisible Unicode characters (highest priority)
         unicode_vulns = self._detect_invisible_unicode(file_path, content)
@@ -163,21 +176,19 @@ class ToolPoisoningDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _detect_invisible_unicode(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    def _detect_invisible_unicode(self, file_path: Path, content: str) -> list[Vulnerability]:
         """
         Detect invisible Unicode characters in content.
 
         These can be used to hide malicious instructions from human review
         while still being processed by LLMs.
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
             # Find all invisible characters in this line
-            found_chars: Set[str] = set()
+            found_chars: set[str] = set()
 
             for char in line:
                 if char in self.INVISIBLE_CHARS:
@@ -186,8 +197,7 @@ class ToolPoisoningDetector(BaseDetector):
             if found_chars:
                 # Create vulnerability for invisible characters
                 char_names = [
-                    f"U+{ord(c):04X} ({unicodedata.name(c, 'UNKNOWN')})"
-                    for c in found_chars
+                    f"U+{ord(c):04X} ({unicodedata.name(c, 'UNKNOWN')})" for c in found_chars
                 ]
 
                 vuln = Vulnerability(
@@ -220,7 +230,9 @@ class ToolPoisoningDetector(BaseDetector):
                     ],
                     detector=self.name,
                     engine="static",
-                    mitre_attack_ids=["T1027.010"],  # Obfuscated Files or Information: Unicode Obfuscation
+                    mitre_attack_ids=[
+                        "T1027.010"
+                    ],  # Obfuscated Files or Information: Unicode Obfuscation
                 )
                 vulnerabilities.append(vuln)
 

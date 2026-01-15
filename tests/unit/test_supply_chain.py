@@ -44,13 +44,13 @@ def malicious_requirements_path():
 @pytest.mark.asyncio
 async def test_detect_known_malicious_npm_package(detector):
     """Test detection of known malicious npm package."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "bitcoin-miner": "1.0.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     malicious = [v for v in vulns if "Known Malicious Package" in v.title]
@@ -78,13 +78,13 @@ async def test_detect_known_malicious_python_package(detector):
 @pytest.mark.asyncio
 async def test_detect_requests_typosquatting(detector):
     """Test detection of 'requestes' typosquatting 'requests'."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "requestes": "2.28.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     typo = [v for v in vulns if "Typosquatting" in v.title]
@@ -108,13 +108,13 @@ async def test_detect_urllib3_typosquatting(detector):
 @pytest.mark.asyncio
 async def test_detect_express_typosquatting(detector):
     """Test detection of 'expres' typosquatting 'express'."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "expres": "4.18.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     typo = [v for v in vulns if "Typosquatting" in v.title]
@@ -124,13 +124,13 @@ async def test_detect_express_typosquatting(detector):
 @pytest.mark.asyncio
 async def test_detect_lodash_typosquatting(detector):
     """Test detection of 'loadsh' typosquatting 'lodash'."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "loadsh": "4.17.21"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     typo = [v for v in vulns if "Typosquatting" in v.title]
@@ -157,13 +157,13 @@ async def test_detect_suspicious_miner_package(detector):
 @pytest.mark.asyncio
 async def test_detect_suspicious_backdoor_package(detector):
     """Test detection of suspicious 'backdoor' keyword."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "express-backdoor": "1.0.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     suspicious = [v for v in vulns if "Suspicious Package Name" in v.title]
@@ -188,13 +188,13 @@ async def test_detect_suspicious_keylogger_package(detector):
 @pytest.mark.asyncio
 async def test_detect_wildcard_asterisk(detector):
     """Test detection of asterisk wildcard version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "express": "*"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     wildcard = [v for v in vulns if "Wildcard Version" in v.title]
@@ -205,13 +205,13 @@ async def test_detect_wildcard_asterisk(detector):
 @pytest.mark.asyncio
 async def test_detect_wildcard_latest(detector):
     """Test detection of 'latest' version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "react": "latest"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     wildcard = [v for v in vulns if "Wildcard Version" in v.title]
@@ -221,13 +221,13 @@ async def test_detect_wildcard_latest(detector):
 @pytest.mark.asyncio
 async def test_detect_wildcard_caret(detector):
     """Test detection of caret (^) version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "vue": "^3.2.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     wildcard = [v for v in vulns if "Wildcard Version" in v.title]
@@ -237,13 +237,13 @@ async def test_detect_wildcard_caret(detector):
 @pytest.mark.asyncio
 async def test_detect_wildcard_tilde(detector):
     """Test detection of tilde (~) version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "axios": "~1.3.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     wildcard = [v for v in vulns if "Wildcard Version" in v.title]
@@ -258,13 +258,13 @@ async def test_detect_wildcard_tilde(detector):
 @pytest.mark.asyncio
 async def test_detect_alpha_version(detector):
     """Test detection of alpha version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "next": "13.0.0-alpha.1"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     prerelease = [v for v in vulns if "Pre-release Version" in v.title]
@@ -275,13 +275,13 @@ async def test_detect_alpha_version(detector):
 @pytest.mark.asyncio
 async def test_detect_beta_version(detector):
     """Test detection of beta version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "typescript": "5.0.0-beta"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     prerelease = [v for v in vulns if "Pre-release Version" in v.title]
@@ -291,13 +291,13 @@ async def test_detect_beta_version(detector):
 @pytest.mark.asyncio
 async def test_detect_rc_version(detector):
     """Test detection of release candidate version."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "webpack": "5.75.0-rc.1"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     prerelease = [v for v in vulns if "Pre-release Version" in v.title]
@@ -312,13 +312,13 @@ async def test_detect_rc_version(detector):
 @pytest.mark.asyncio
 async def test_detect_http_package_source(detector):
     """Test detection of HTTP (non-HTTPS) package source."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "custom-package": "http://example.com/package.tar.gz"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     http = [v for v in vulns if "HTTP Package Source" in v.title or "Insecure HTTP" in v.title]
@@ -334,13 +334,13 @@ async def test_detect_http_package_source(detector):
 @pytest.mark.asyncio
 async def test_detect_untrusted_git_source(detector):
     """Test detection of Git dependency from untrusted source."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "suspicious-package": "git://unknown-server.com/package.git"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     git = [v for v in vulns if "Untrusted Git" in v.title or "Git Dependency Source" in v.title]
@@ -351,13 +351,13 @@ async def test_detect_untrusted_git_source(detector):
 @pytest.mark.asyncio
 async def test_allow_github_git_source(detector):
     """Test that GitHub sources are not flagged."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "package": "git+https://github.com/user/repo.git"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     # Should NOT flag GitHub
@@ -433,14 +433,14 @@ async def test_malicious_requirements_fixture(detector, malicious_requirements_p
 @pytest.mark.asyncio
 async def test_clean_package_json(detector):
     """Test that clean package.json has no issues."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "express": "4.18.2",
         "axios": "1.3.4"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     # Clean packages should have no vulnerabilities
@@ -515,13 +515,13 @@ def test_detector_enabled_by_default(detector):
 @pytest.mark.asyncio
 async def test_vulnerability_metadata_complete(detector):
     """Test that vulnerabilities have complete metadata."""
-    content = '''
+    content = """
     {
       "dependencies": {
         "bitcoin-miner": "1.0.0"
       }
     }
-    '''
+    """
     vulns = await detector.detect(Path("package.json"), content)
 
     assert len(vulns) >= 1

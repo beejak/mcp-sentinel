@@ -251,7 +251,7 @@ def read_file(request):
         assert len(paths) >= 1
         path = paths[0]
         assert path.source.line == 3  # filename = ...
-        assert path.sink.line == 4    # open(filename)
+        assert path.sink.line == 4  # open(filename)
         assert path.source.name == "filename"
         assert path.sink.function_name == "open"
 

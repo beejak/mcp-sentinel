@@ -129,7 +129,7 @@ class TestSemgrepAdapter:
                             "severity": "ERROR",
                             "metadata": {"cwe": [89]},
                             "lines": "cursor.execute(query)",
-                        }
+                        },
                     }
                 ]
             }
@@ -146,7 +146,9 @@ class TestSemgrepAdapter:
 
                 assert len(result) == 1
                 vuln = result[0]
-                assert vuln.type == VulnerabilityType.CODE_INJECTION  # SQL injection maps to CODE_INJECTION
+                assert (
+                    vuln.type == VulnerabilityType.CODE_INJECTION
+                )  # SQL injection maps to CODE_INJECTION
                 assert vuln.severity == Severity.HIGH
                 assert vuln.line_number == 10
                 assert vuln.cwe_id == "CWE-89"
@@ -257,7 +259,7 @@ class TestBanditAdapter:
                         "issue_severity": "HIGH",
                         "issue_confidence": "HIGH",
                         "code": "cursor.execute(query)",
-                        "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b608.html"
+                        "more_info": "https://bandit.readthedocs.io/en/latest/plugins/b608.html",
                     }
                 ]
             }
@@ -357,31 +359,35 @@ class TestSASTEngine:
             engine = SASTEngine(enabled=True)
 
             # Mock adapters
-            engine.semgrep.scan_directory = AsyncMock(return_value=[
-                Vulnerability(
-                    type=VulnerabilityType.CODE_INJECTION,
-                    severity=Severity.HIGH,
-                    title="Semgrep Test",
-                    description="Test vuln",
-                    file_path=str(temp_dir / "test.py"),
-                    line_number=10,
-                    detector="SemgrepAdapter",
-                    engine="sast"
-                )
-            ])
+            engine.semgrep.scan_directory = AsyncMock(
+                return_value=[
+                    Vulnerability(
+                        type=VulnerabilityType.CODE_INJECTION,
+                        severity=Severity.HIGH,
+                        title="Semgrep Test",
+                        description="Test vuln",
+                        file_path=str(temp_dir / "test.py"),
+                        line_number=10,
+                        detector="SemgrepAdapter",
+                        engine="sast",
+                    )
+                ]
+            )
 
-            engine.bandit.scan_directory = AsyncMock(return_value=[
-                Vulnerability(
-                    type=VulnerabilityType.WEAK_CRYPTO,
-                    severity=Severity.MEDIUM,
-                    title="Bandit Test",
-                    description="Test vuln",
-                    file_path=str(temp_dir / "test.py"),
-                    line_number=20,
-                    detector="BanditAdapter",
-                    engine="sast"
-                )
-            ])
+            engine.bandit.scan_directory = AsyncMock(
+                return_value=[
+                    Vulnerability(
+                        type=VulnerabilityType.WEAK_CRYPTO,
+                        severity=Severity.MEDIUM,
+                        title="Bandit Test",
+                        description="Test vuln",
+                        file_path=str(temp_dir / "test.py"),
+                        line_number=20,
+                        detector="BanditAdapter",
+                        engine="sast",
+                    )
+                ]
+            )
 
             result = await engine.scan_directory(temp_dir)
 
@@ -399,18 +405,20 @@ class TestSASTEngine:
             engine = SASTEngine(enabled=True)
 
             # Semgrep succeeds
-            engine.semgrep.scan_directory = AsyncMock(return_value=[
-                Vulnerability(
-                    type=VulnerabilityType.CODE_INJECTION,
-                    severity=Severity.HIGH,
-                    title="Test",
-                    description="Test",
-                    file_path=str(temp_dir / "test.py"),
-                    line_number=10,
-                    detector="SemgrepAdapter",
-                    engine="sast"
-                )
-            ])
+            engine.semgrep.scan_directory = AsyncMock(
+                return_value=[
+                    Vulnerability(
+                        type=VulnerabilityType.CODE_INJECTION,
+                        severity=Severity.HIGH,
+                        title="Test",
+                        description="Test",
+                        file_path=str(temp_dir / "test.py"),
+                        line_number=10,
+                        detector="SemgrepAdapter",
+                        engine="sast",
+                    )
+                ]
+            )
 
             # Bandit fails
             engine.bandit.scan_directory = AsyncMock(side_effect=Exception("Bandit error"))

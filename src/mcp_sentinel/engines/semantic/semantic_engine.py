@@ -4,18 +4,15 @@ Semantic Analysis Engine - Main Entry Point.
 Combines AST parsing, taint tracking, and CFG analysis into a unified engine.
 """
 
-from typing import List, Optional
-from pathlib import Path
 import time
 
 from mcp_sentinel.engines.semantic.ast_parser import ASTParser
-from mcp_sentinel.engines.semantic.taint_tracker import TaintTracker
 from mcp_sentinel.engines.semantic.cfg_builder import SimpleCFGBuilder
 from mcp_sentinel.engines.semantic.models import (
     SemanticAnalysisResult,
     TaintPath,
-    UnifiedAST,
 )
+from mcp_sentinel.engines.semantic.taint_tracker import TaintTracker
 
 
 class SemanticEngine:
@@ -36,12 +33,7 @@ class SemanticEngine:
         self.enable_cfg = enable_cfg
         self.cfg_builder = SimpleCFGBuilder() if enable_cfg else None
 
-    def analyze(
-        self,
-        code: str,
-        file_path: str,
-        language: str
-    ) -> SemanticAnalysisResult:
+    def analyze(self, code: str, file_path: str, language: str) -> SemanticAnalysisResult:
         """
         Perform semantic analysis on code.
 
@@ -64,7 +56,7 @@ class SemanticEngine:
                     file_path=file_path,
                     language=language,
                     taint_paths=[],
-                    errors=["Failed to parse code"]
+                    errors=["Failed to parse code"],
                 )
 
             # Step 2: Track taint flow
@@ -94,7 +86,7 @@ class SemanticEngine:
                 taint_paths=taint_paths,
                 cfg=cfg,
                 analysis_time_ms=analysis_time,
-                errors=errors
+                errors=errors,
             )
 
         except Exception as e:
@@ -102,7 +94,7 @@ class SemanticEngine:
                 file_path=file_path,
                 language=language,
                 taint_paths=[],
-                errors=[f"Analysis failed: {str(e)}"]
+                errors=[f"Analysis failed: {str(e)}"],
             )
 
     def _is_false_positive(self, path: TaintPath, cfg) -> bool:
@@ -123,10 +115,7 @@ class SemanticEngine:
 
         # Check if there are validation guards between source and sink
         is_safe = self.cfg_builder.is_path_safe(
-            cfg,
-            path.source.line,
-            path.sink.line,
-            path.source.name
+            cfg, path.source.line, path.sink.line, path.source.name
         )
 
         return is_safe

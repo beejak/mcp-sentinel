@@ -6,19 +6,20 @@ Detects:
 - JavaScript/TypeScript: child_process.exec(), eval(), Function() constructor
 """
 
+import ast
 import re
-from typing import List, Dict, Pattern, Optional, Tuple
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
+from mcp_sentinel.engines.semantic import SemanticEngine, get_semantic_engine
+from mcp_sentinel.engines.semantic.models import SinkType, TaintPath
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
-from mcp_sentinel.engines.semantic import get_semantic_engine, SemanticEngine
-from mcp_sentinel.engines.semantic.models import TaintPath, SinkType
 
 
 class CodeInjectionDetector(BaseDetector):
@@ -40,67 +41,53 @@ class CodeInjectionDetector(BaseDetector):
             enable_semantic_analysis: Enable semantic analysis for multi-line detection (default: True)
         """
         super().__init__(name="CodeInjectionDetector", enabled=True)
-        self.python_patterns: Dict[str, Pattern] = self._compile_python_patterns()
-        self.javascript_patterns: Dict[str, Pattern] = self._compile_javascript_patterns()
+        self.python_patterns: dict[str, Pattern] = self._compile_python_patterns()
+        self.javascript_patterns: dict[str, Pattern] = self._compile_javascript_patterns()
         self.enable_semantic_analysis = enable_semantic_analysis
-        self.semantic_engine: Optional[SemanticEngine] = None
+        self.semantic_engine: SemanticEngine | None = None
 
         # Initialize semantic engine if enabled
         if self.enable_semantic_analysis:
             try:
                 self.semantic_engine = get_semantic_engine()
-            except Exception as e:
+            except Exception:
                 # Graceful degradation if semantic engine fails to load
                 self.enable_semantic_analysis = False
                 self.semantic_engine = None
 
-    def _compile_python_patterns(self) -> Dict[str, Pattern]:
+    def _compile_python_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for Python code injection detection."""
         return {
             # os.system() - Direct command execution
             "os_system": re.compile(r"os\.system\s*\("),
-
             # subprocess.call() with shell=True
-            "subprocess_call_shell": re.compile(
-                r"subprocess\.call\s*\([^)]*shell\s*=\s*True"
-            ),
-
+            "subprocess_call_shell": re.compile(r"subprocess\.call\s*\([^)]*shell\s*=\s*True"),
             # subprocess.run() with shell=True
-            "subprocess_run_shell": re.compile(
-                r"subprocess\.run\s*\([^)]*shell\s*=\s*True"
-            ),
-
+            "subprocess_run_shell": re.compile(r"subprocess\.run\s*\([^)]*shell\s*=\s*True"),
             # subprocess.Popen() with shell=True
-            "subprocess_popen_shell": re.compile(
-                r"subprocess\.Popen\s*\([^)]*shell\s*=\s*True"
-            ),
-
+            "subprocess_popen_shell": re.compile(r"subprocess\.Popen\s*\([^)]*shell\s*=\s*True"),
             # eval() - Code execution
             "eval_usage": re.compile(r"\beval\s*\("),
-
             # exec() - Code execution
             "exec_usage": re.compile(r"\bexec\s*\("),
         }
 
-    def _compile_javascript_patterns(self) -> Dict[str, Pattern]:
+    def _compile_javascript_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for JavaScript/TypeScript code injection detection."""
         return {
             # child_process.exec() - Command execution
             "child_process_exec": re.compile(
                 r"(child_process|require\s*\(\s*['\"]child_process['\"]\s*\))\.exec\s*\("
             ),
-
             # Standalone exec() - From destructured import: const { exec } = require('child_process')
             "exec_standalone": re.compile(r"\bexec\s*\("),
-
             # eval() - Code execution
             "eval_usage": re.compile(r"\beval\s*\("),
-
             # Function() constructor - Dynamic code execution
             "function_constructor": re.compile(r"\bnew\s+Function\s*\("),
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -118,8 +105,8 @@ class CodeInjectionDetector(BaseDetector):
         return file_path.suffix.lower() in [".py", ".js", ".jsx", ".ts", ".tsx"]
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect code injection vulnerabilities in file content.
 
@@ -135,7 +122,7 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Determine which patterns to use based on file type
         if not file_type:
@@ -143,13 +130,9 @@ class CodeInjectionDetector(BaseDetector):
 
         # Phase 1: Pattern-based detection (fast)
         if file_type == "python":
-            vulnerabilities.extend(
-                self._detect_python_injection(file_path, content)
-            )
+            vulnerabilities.extend(self._detect_python_injection(file_path, content))
         elif file_type in ["javascript", "typescript"]:
-            vulnerabilities.extend(
-                self._detect_javascript_injection(file_path, content)
-            )
+            vulnerabilities.extend(self._detect_javascript_injection(file_path, content))
 
         # Phase 2: Semantic analysis (accurate, multi-line)
         if self._should_use_semantic_analysis(file_path, file_type):
@@ -159,9 +142,7 @@ class CodeInjectionDetector(BaseDetector):
         # Phase 3: Deduplication
         return self._deduplicate_vulnerabilities(vulnerabilities)
 
-    def _detect_python_injection(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    def _detect_python_injection(self, file_path: Path, content: str) -> list[Vulnerability]:
         """
         Detect Python code injection vulnerabilities.
 
@@ -172,7 +153,7 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for pattern_name, pattern in self.python_patterns.items():
@@ -183,7 +164,7 @@ class CodeInjectionDetector(BaseDetector):
 
                 matches = pattern.finditer(line)
 
-                for match in matches:
+                for _match in matches:
                     vuln = self._create_python_vulnerability(
                         pattern_name=pattern_name,
                         file_path=file_path,
@@ -194,7 +175,7 @@ class CodeInjectionDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _strip_javascript_comments(self, content: str) -> Tuple[str, Dict[int, bool]]:
+    def _strip_javascript_comments(self, content: str) -> tuple[str, dict[int, bool]]:
         """
         Strip JavaScript/TypeScript comments and track which lines were inside comments.
 
@@ -244,9 +225,7 @@ class CodeInjectionDetector(BaseDetector):
 
         return "\n".join(result_lines), line_in_comment
 
-    def _detect_javascript_injection(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    def _detect_javascript_injection(self, file_path: Path, content: str) -> list[Vulnerability]:
         """
         Detect JavaScript/TypeScript code injection vulnerabilities.
 
@@ -257,7 +236,7 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Strip comments and get mapping of lines inside comments
         cleaned_content, line_in_comment = self._strip_javascript_comments(content)
@@ -275,7 +254,7 @@ class CodeInjectionDetector(BaseDetector):
 
                 matches = pattern.finditer(line)
 
-                for match in matches:
+                for _match in matches:
                     vuln = self._create_javascript_vulnerability(
                         pattern_name=pattern_name,
                         file_path=file_path,
@@ -486,7 +465,7 @@ class CodeInjectionDetector(BaseDetector):
             mitre_attack_ids=["T1059.007"],  # Command and Scripting Interpreter: JavaScript
         )
 
-    def _guess_file_type(self, file_path: Path) -> Optional[str]:
+    def _guess_file_type(self, file_path: Path) -> str | None:
         """Guess file type from extension."""
         extension_map = {
             ".py": "python",
@@ -497,9 +476,7 @@ class CodeInjectionDetector(BaseDetector):
         }
         return extension_map.get(file_path.suffix.lower())
 
-    def _should_use_semantic_analysis(
-        self, file_path: Path, file_type: Optional[str]
-    ) -> bool:
+    def _should_use_semantic_analysis(self, file_path: Path, file_type: str | None) -> bool:
         """
         Check if semantic analysis should be used.
 
@@ -520,8 +497,8 @@ class CodeInjectionDetector(BaseDetector):
         return file_path.suffix.lower() == ".py"
 
     def _semantic_analysis_detection(
-        self, file_path: Path, content: str, file_type: Optional[str]
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None
+    ) -> list[Vulnerability]:
         """
         Semantic analysis detection (Phase 2 - accurate, multi-line).
 
@@ -540,7 +517,7 @@ class CodeInjectionDetector(BaseDetector):
         if not self.semantic_engine:
             return []
 
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             # Run semantic analysis
@@ -554,13 +531,12 @@ class CodeInjectionDetector(BaseDetector):
                     SinkType.COMMAND_EXECUTION,
                     SinkType.CODE_EVALUATION,
                 ]:
-                    vuln = self._convert_taint_path_to_vulnerability(
-                        taint_path, file_path, content
-                    )
+                    vuln = self._convert_taint_path_to_vulnerability(taint_path, file_path, content)
                     vulnerabilities.append(vuln)
 
             # Also check for shell=True in subprocess calls (even without taint tracking)
             import ast
+
             try:
                 tree = ast.parse(content, filename=str(file_path))
                 shell_true_vulns = self._detect_shell_true_with_ast(tree, file_path, content)
@@ -568,7 +544,7 @@ class CodeInjectionDetector(BaseDetector):
             except SyntaxError:
                 pass
 
-        except Exception as e:
+        except Exception:
             # Graceful degradation - log error but don't crash
             pass
 
@@ -576,7 +552,7 @@ class CodeInjectionDetector(BaseDetector):
 
     def _detect_shell_true_with_ast(
         self, tree: "ast.AST", file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect subprocess calls with shell=True using AST analysis.
 
@@ -592,7 +568,8 @@ class CodeInjectionDetector(BaseDetector):
             List of vulnerabilities
         """
         import ast
-        vulnerabilities: List[Vulnerability] = []
+
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         class ShellTrueVisitor(ast.NodeVisitor):
@@ -618,7 +595,11 @@ class CodeInjectionDetector(BaseDetector):
                             has_shell_true = True
                             break
 
-                if func_name and has_shell_true and any(x in func_name for x in ["Popen", "run", "call"]):
+                if (
+                    func_name
+                    and has_shell_true
+                    and any(x in func_name for x in ["Popen", "run", "call"])
+                ):
                     self.shell_true_calls.append((func_name, node.lineno))
 
                 self.generic_visit(node)
@@ -637,8 +618,8 @@ class CodeInjectionDetector(BaseDetector):
                 type=VulnerabilityType.CODE_INJECTION,
                 title=f"Code Injection: {func_name} with shell=True",
                 description=f"Detected {func_name} with shell=True parameter. "
-                           f"This allows shell command injection if user input is passed to the command. "
-                           f"Use shell=False and pass arguments as a list instead.",
+                f"This allows shell command injection if user input is passed to the command. "
+                f"Use shell=False and pass arguments as a list instead.",
                 severity=Severity.CRITICAL,
                 confidence=Confidence.HIGH,
                 file_path=str(file_path),
@@ -688,7 +669,7 @@ class CodeInjectionDetector(BaseDetector):
 
         # Build description with taint flow information
         flow_description = " → ".join(taint_path.path) if taint_path.path else "direct"
-        
+
         # Determine vulnerability type based on sink type
         if taint_path.sink.sink_type == SinkType.COMMAND_EXECUTION:
             vuln_type_name = "Command Injection"
@@ -775,8 +756,8 @@ class CodeInjectionDetector(BaseDetector):
         )
 
     def _deduplicate_vulnerabilities(
-        self, vulnerabilities: List[Vulnerability]
-    ) -> List[Vulnerability]:
+        self, vulnerabilities: list[Vulnerability]
+    ) -> list[Vulnerability]:
         """
         Deduplicate vulnerabilities from pattern-based and semantic analysis.
 
@@ -790,7 +771,7 @@ class CodeInjectionDetector(BaseDetector):
             Deduplicated list
         """
         # Group by (file_path, line_number)
-        vuln_map: Dict[Tuple[str, int], Vulnerability] = {}
+        vuln_map: dict[tuple[str, int], Vulnerability] = {}
 
         for vuln in vulnerabilities:
             key = (vuln.file_path, vuln.line_number)

@@ -8,17 +8,17 @@ and other dependency files.
 Critical for preventing supply chain compromises in MCP servers.
 """
 
-import re
 import json
-from typing import List, Dict, Pattern, Optional, Set
+import re
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -43,21 +43,39 @@ class SupplyChainDetector(BaseDetector):
     # Known malicious packages (typosquatting, malware)
     KNOWN_MALICIOUS_PACKAGES = {
         # Python typosquatting
-        "requestes", "reqeusts", "request", "beautifulsoup", "urlib3", "urllib",
-        "python-mysql", "python-sqlite", "python-mongo",
-        "pip-install", "setup-tools", "easy-install",
-
+        "requestes",
+        "reqeusts",
+        "request",
+        "beautifulsoup",
+        "urlib3",
+        "urllib",
+        "python-mysql",
+        "python-sqlite",
+        "python-mongo",
+        "pip-install",
+        "setup-tools",
+        "easy-install",
         # JavaScript typosquatting
-        "expres", "express-js", "reacct", "reactt", "vuue", "angualr",
-        "loadsh", "lodsh", "underscore-js",
-        "axios-http", "axios-client",
-        "crossenv", "cross-env.js",
+        "expres",
+        "express-js",
+        "reacct",
+        "reactt",
+        "vuue",
+        "angualr",
+        "loadsh",
+        "lodsh",
+        "underscore-js",
+        "axios-http",
+        "axios-client",
+        "crossenv",
+        "cross-env.js",
         "event-stream-malicious",
         "eslint-scope-malicious",
         "bootstrap-css",
-
         # Known malware packages
-        "bitcoin-miner", "cryptominer", "coinhive",
+        "bitcoin-miner",
+        "cryptominer",
+        "coinhive",
     }
 
     # Legitimate packages often typosquatted
@@ -77,46 +95,50 @@ class SupplyChainDetector(BaseDetector):
 
     # Suspicious keywords in package names
     SUSPICIOUS_KEYWORDS = [
-        "miner", "mining", "crypto-miner", "coinhive",
-        "backdoor", "malware", "exploit",
-        "hack", "cracker", "stealer",
-        "keylogger", "trojan", "virus",
-        "test-", "sample-", "example-",  # Often used for testing malicious packages
+        "miner",
+        "mining",
+        "crypto-miner",
+        "coinhive",
+        "backdoor",
+        "malware",
+        "exploit",
+        "hack",
+        "cracker",
+        "stealer",
+        "keylogger",
+        "trojan",
+        "virus",
+        "test-",
+        "sample-",
+        "example-",  # Often used for testing malicious packages
     ]
 
     def __init__(self):
         """Initialize the supply chain detector."""
         super().__init__(name="SupplyChainDetector", enabled=True)
-        self.patterns: Dict[str, Pattern] = self._compile_patterns()
+        self.patterns: dict[str, Pattern] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, Pattern]:
+    def _compile_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for supply chain detection."""
         return {
             # Git dependencies from unknown sources
             "git_dependency": re.compile(
                 r'(?:"|\')(?:git\+)?(?:https?|git)://(?!github\.com|gitlab\.com)[^\s"\']+',
-                re.IGNORECASE
+                re.IGNORECASE,
             ),
-
             # HTTP (non-HTTPS) sources
-            "http_source": re.compile(
-                r'["\']http://[^"\'\s]+',
-                re.IGNORECASE
-            ),
-
+            "http_source": re.compile(r'["\']http://[^"\'\s]+', re.IGNORECASE),
             # Wildcard or loose version specs
             "wildcard_version": re.compile(
                 r'["\']\*["\']|["\']x["\']|["\']latest["\']|["\']~|[\'"]\^',
             ),
-
             # Pre-release versions in production
             "prerelease_version": re.compile(
-                r'["\'][0-9]+\.[0-9]+\.[0-9]+-(?:alpha|beta|rc|dev|preview)',
-                re.IGNORECASE
+                r'["\'][0-9]+\.[0-9]+\.[0-9]+-(?:alpha|beta|rc|dev|preview)', re.IGNORECASE
             ),
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -131,13 +153,21 @@ class SupplyChainDetector(BaseDetector):
 
         # Check for exact dependency file names
         dependency_files = {
-            "package.json", "package-lock.json",
-            "requirements.txt", "pipfile", "pipfile.lock",
-            "pyproject.toml", "poetry.lock",
-            "yarn.lock", "pnpm-lock.yaml",
-            "gemfile", "gemfile.lock",
-            "go.mod", "go.sum",
-            "cargo.toml", "cargo.lock",
+            "package.json",
+            "package-lock.json",
+            "requirements.txt",
+            "pipfile",
+            "pipfile.lock",
+            "pyproject.toml",
+            "poetry.lock",
+            "yarn.lock",
+            "pnpm-lock.yaml",
+            "gemfile",
+            "gemfile.lock",
+            "go.mod",
+            "go.sum",
+            "cargo.toml",
+            "cargo.lock",
         }
 
         if filename in dependency_files:
@@ -145,8 +175,13 @@ class SupplyChainDetector(BaseDetector):
 
         # Also match files containing these patterns (for test fixtures)
         dependency_patterns = [
-            "package.json", "requirements.txt", "pipfile",
-            "pyproject.toml", "gemfile", "cargo.toml", "go.mod"
+            "package.json",
+            "requirements.txt",
+            "pipfile",
+            "pyproject.toml",
+            "gemfile",
+            "cargo.toml",
+            "go.mod",
         ]
 
         for pattern in dependency_patterns:
@@ -156,8 +191,8 @@ class SupplyChainDetector(BaseDetector):
         return False
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect supply chain vulnerabilities in dependency files.
 
@@ -169,7 +204,7 @@ class SupplyChainDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         filename_lower = file_path.name.lower()
 
         # Detect based on file type
@@ -213,11 +248,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_npm_issues(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    async def _detect_npm_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
         """Detect issues in package.json files."""
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             data = json.loads(content)
@@ -238,9 +271,7 @@ class SupplyChainDetector(BaseDetector):
                     vulnerabilities.append(vuln)
 
                 # Check for typosquatting
-                typo_vuln = self._check_typosquatting(
-                    package_name, version, file_path, dep_type
-                )
+                typo_vuln = self._check_typosquatting(package_name, version, file_path, dep_type)
                 if typo_vuln:
                     vulnerabilities.append(typo_vuln)
 
@@ -259,19 +290,15 @@ class SupplyChainDetector(BaseDetector):
                     vulnerabilities.append(vuln)
 
                 # Check for pre-release versions
-                if re.search(r'-(?:alpha|beta|rc|dev|preview)', version, re.IGNORECASE):
-                    vuln = self._create_prerelease_vuln(
-                        package_name, version, file_path, dep_type
-                    )
+                if re.search(r"-(?:alpha|beta|rc|dev|preview)", version, re.IGNORECASE):
+                    vuln = self._create_prerelease_vuln(package_name, version, file_path, dep_type)
                     vulnerabilities.append(vuln)
 
         return vulnerabilities
 
-    async def _detect_python_issues(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    async def _detect_python_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
         """Detect issues in requirements.txt or Pipfile."""
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -281,7 +308,7 @@ class SupplyChainDetector(BaseDetector):
 
             # Parse package spec (handle various formats)
             # Examples: requests==2.28.0, flask>=1.0, numpy~=1.20
-            match = re.match(r'^([a-zA-Z0-9_-]+)([=><!~]+)?(.*)$', line)
+            match = re.match(r"^([a-zA-Z0-9_-]+)([=><!~]+)?(.*)$", line)
             if not match:
                 continue
 
@@ -311,11 +338,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_pyproject_issues(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    async def _detect_pyproject_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
         """Detect issues in pyproject.toml files."""
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Simple TOML parsing (for dependencies section)
         in_dependencies = False
@@ -324,7 +349,9 @@ class SupplyChainDetector(BaseDetector):
         for line_num, line in enumerate(lines, start=1):
             stripped = line.strip()
 
-            if stripped.startswith("[tool.poetry.dependencies]") or stripped.startswith("[project.dependencies]"):
+            if stripped.startswith("[tool.poetry.dependencies]") or stripped.startswith(
+                "[project.dependencies]"
+            ):
                 in_dependencies = True
                 continue
 
@@ -347,9 +374,8 @@ class SupplyChainDetector(BaseDetector):
         return vulnerabilities
 
     def _check_typosquatting(
-        self, package_name: str, version: str, file_path: Path,
-        dep_type: str, line_num: int = 0
-    ) -> Optional[Vulnerability]:
+        self, package_name: str, version: str, file_path: Path, dep_type: str, line_num: int = 0
+    ) -> Vulnerability | None:
         """Check if package name is a typosquatting attempt."""
         package_lower = package_name.lower()
 
@@ -385,7 +411,9 @@ class SupplyChainDetector(BaseDetector):
                     ],
                     detector=self.name,
                     engine="static",
-                    mitre_attack_ids=["T1195.002"],  # Supply Chain Compromise: Software Supply Chain
+                    mitre_attack_ids=[
+                        "T1195.002"
+                    ],  # Supply Chain Compromise: Software Supply Chain
                 )
 
         return None
@@ -396,8 +424,7 @@ class SupplyChainDetector(BaseDetector):
         return any(keyword in name_lower for keyword in self.SUSPICIOUS_KEYWORDS)
 
     def _create_malicious_package_vuln(
-        self, package_name: str, version: str, file_path: Path,
-        dep_type: str, line_num: int = 0
+        self, package_name: str, version: str, file_path: Path, dep_type: str, line_num: int = 0
     ) -> Vulnerability:
         """Create vulnerability for known malicious package."""
         return Vulnerability(
@@ -432,8 +459,7 @@ class SupplyChainDetector(BaseDetector):
         )
 
     def _create_suspicious_name_vuln(
-        self, package_name: str, version: str, file_path: Path,
-        dep_type: str, line_num: int = 0
+        self, package_name: str, version: str, file_path: Path, dep_type: str, line_num: int = 0
     ) -> Vulnerability:
         """Create vulnerability for suspicious package name."""
         return Vulnerability(
@@ -465,8 +491,7 @@ class SupplyChainDetector(BaseDetector):
         )
 
     def _create_wildcard_version_vuln(
-        self, package_name: str, version: str, file_path: Path,
-        dep_type: str, line_num: int = 0
+        self, package_name: str, version: str, file_path: Path, dep_type: str, line_num: int = 0
     ) -> Vulnerability:
         """Create vulnerability for wildcard version specification."""
         return Vulnerability(
@@ -498,8 +523,7 @@ class SupplyChainDetector(BaseDetector):
         )
 
     def _create_prerelease_vuln(
-        self, package_name: str, version: str, file_path: Path,
-        dep_type: str, line_num: int = 0
+        self, package_name: str, version: str, file_path: Path, dep_type: str, line_num: int = 0
     ) -> Vulnerability:
         """Create vulnerability for pre-release version."""
         return Vulnerability(

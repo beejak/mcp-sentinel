@@ -7,10 +7,10 @@ Full CFG implementation deferred to Phase 4.3.
 """
 
 import ast
-from typing import List, Optional, Set
+
 from mcp_sentinel.engines.semantic.models import (
-    ControlFlowGraph,
     CFGNode,
+    ControlFlowGraph,
     Guard,
 )
 
@@ -49,17 +49,14 @@ class SimpleCFGBuilder:
             node_type="entry",
             line=1,
             content="<entry>",
-            guards=visitor.guards
+            guards=visitor.guards,
         )
         cfg.nodes[entry.node_id] = entry
         cfg.entry_node = entry.node_id
 
         # Create exit node
         exit_node = CFGNode(
-            node_id=self._next_id(),
-            node_type="exit",
-            line=999999,
-            content="<exit>"
+            node_id=self._next_id(), node_type="exit", line=999999, content="<exit>"
         )
         cfg.nodes[exit_node.node_id] = exit_node
         cfg.exit_nodes = [exit_node.node_id]
@@ -69,7 +66,7 @@ class SimpleCFGBuilder:
 
         return cfg
 
-    def find_guards_before_line(self, cfg: ControlFlowGraph, line: int) -> List[Guard]:
+    def find_guards_before_line(self, cfg: ControlFlowGraph, line: int) -> list[Guard]:
         """
         Find all guards that execute before a given line.
 
@@ -86,7 +83,9 @@ class SimpleCFGBuilder:
             all_guards.extend([g for g in node.guards if g.line < line])
         return all_guards
 
-    def is_path_safe(self, cfg: ControlFlowGraph, source_line: int, sink_line: int, var_name: str) -> bool:
+    def is_path_safe(
+        self, cfg: ControlFlowGraph, source_line: int, sink_line: int, var_name: str
+    ) -> bool:
         """
         Check if all paths from source to sink have validation guards.
 
@@ -128,12 +127,12 @@ class GuardExtractor(ast.NodeVisitor):
     """
 
     def __init__(self):
-        self.guards: List[Guard] = []
+        self.guards: list[Guard] = []
 
     def visit_If(self, node: ast.If):
         """Visit if statements to extract guards."""
         # Extract condition as string
-        condition = ast.unparse(node.test) if hasattr(ast, 'unparse') else str(node.test)
+        condition = ast.unparse(node.test) if hasattr(ast, "unparse") else str(node.test)
 
         # Determine if this is a validation guard
         guard_type = self._classify_guard(condition)
@@ -150,13 +149,13 @@ class GuardExtractor(ast.NodeVisitor):
                 line=node.lineno,
                 guard_type=guard_type,
                 variables=variables,
-                is_exit=is_exit
+                is_exit=is_exit,
             )
             self.guards.append(guard)
 
         self.generic_visit(node)
 
-    def _classify_guard(self, condition: str) -> Optional[str]:
+    def _classify_guard(self, condition: str) -> str | None:
         """
         Classify guard type based on condition.
 
@@ -170,8 +169,18 @@ class GuardExtractor(ast.NodeVisitor):
 
         # Check for common validation patterns
         validation_patterns = [
-            "..", "startswith", "endswith", "in", "==", "!=",
-            "is", "not", "contains", "match", "validate", "check"
+            "..",
+            "startswith",
+            "endswith",
+            "in",
+            "==",
+            "!=",
+            "is",
+            "not",
+            "contains",
+            "match",
+            "validate",
+            "check",
         ]
 
         for pattern in validation_patterns:
@@ -188,7 +197,7 @@ class GuardExtractor(ast.NodeVisitor):
 
         return None
 
-    def _extract_variables(self, node: ast.expr) -> Set[str]:
+    def _extract_variables(self, node: ast.expr) -> set[str]:
         """Extract variable names from condition."""
         variables = set()
 

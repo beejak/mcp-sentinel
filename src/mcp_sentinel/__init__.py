@@ -10,8 +10,8 @@ __author__ = "MCP Sentinel Team"
 __license__ = "MIT"
 
 from mcp_sentinel.core.scanner import Scanner
-from mcp_sentinel.models.vulnerability import Vulnerability, Severity
 from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 __all__ = [
     "Scanner",
