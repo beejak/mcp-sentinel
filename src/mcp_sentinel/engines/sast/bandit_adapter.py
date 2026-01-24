@@ -4,7 +4,7 @@ import asyncio
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
 
@@ -33,7 +33,7 @@ class BanditAdapter:
     async def scan_directory(
         self,
         target_path: Path,
-    ) -> list[Vulnerability]:
+    ) -> List[Vulnerability]:
         """
         Scan directory with Bandit (Python files only).
 
@@ -82,7 +82,7 @@ class BanditAdapter:
     async def scan_file(
         self,
         file_path: Path,
-    ) -> list[Vulnerability]:
+    ) -> List[Vulnerability]:
         """
         Scan single Python file with Bandit.
 
@@ -129,7 +129,7 @@ class BanditAdapter:
             print(f"[ERROR] Bandit file scan error: {e}")
             return []
 
-    def _build_command(self, target_path: Path) -> list[str]:
+    def _build_command(self, target_path: Path) -> List[str]:
         """
         Build Bandit command.
 
@@ -151,7 +151,7 @@ class BanditAdapter:
         self,
         output: str,
         target_path: Path,
-    ) -> list[Vulnerability]:
+    ) -> List[Vulnerability]:
         """
         Parse Bandit JSON output.
 
@@ -162,7 +162,7 @@ class BanditAdapter:
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         try:
             data = json.loads(output)
@@ -182,9 +182,9 @@ class BanditAdapter:
 
     def _convert_to_vulnerability(
         self,
-        result: dict[str, Any],
+        result: Dict[str, Any],
         target_path: Path,
-    ) -> Vulnerability | None:
+    ) -> Optional[Vulnerability]:
         """
         Convert Bandit result to Vulnerability.
 
@@ -367,7 +367,7 @@ class BanditAdapter:
         else:  # LOW
             return Severity.LOW
 
-    def _extract_cwe(self, result: dict[str, Any]) -> str | None:
+    def _extract_cwe(self, result: Dict[str, Any]) -> Optional[str]:
         """
         Extract CWE ID from Bandit result.
 

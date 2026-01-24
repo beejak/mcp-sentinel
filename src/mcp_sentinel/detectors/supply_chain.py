@@ -8,6 +8,7 @@ and other dependency files.
 Critical for preventing supply chain compromises in MCP servers.
 """
 
+from typing import Any, Dict, List, Optional
 import json
 import re
 from pathlib import Path
@@ -116,9 +117,9 @@ class SupplyChainDetector(BaseDetector):
     def __init__(self):
         """Initialize the supply chain detector."""
         super().__init__(name="SupplyChainDetector", enabled=True)
-        self.patterns: dict[str, Pattern] = self._compile_patterns()
+        self.patterns: Dict[str, Pattern] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, Pattern]:
+    def _compile_patterns(self) -> Dict[str, Pattern]:
         """Compile regex patterns for supply chain detection."""
         return {
             # Git dependencies from unknown sources
@@ -138,7 +139,7 @@ class SupplyChainDetector(BaseDetector):
             ),
         }
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -191,8 +192,8 @@ class SupplyChainDetector(BaseDetector):
         return False
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect supply chain vulnerabilities in dependency files.
 
@@ -204,7 +205,7 @@ class SupplyChainDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         filename_lower = file_path.name.lower()
 
         # Detect based on file type
@@ -248,9 +249,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_npm_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
+    async def _detect_npm_issues(self, file_path: Path, content: str) -> List[Vulnerability]:
         """Detect issues in package.json files."""
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         try:
             data = json.loads(content)
@@ -296,9 +297,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_python_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
+    async def _detect_python_issues(self, file_path: Path, content: str) -> List[Vulnerability]:
         """Detect issues in requirements.txt or Pipfile."""
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -338,9 +339,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_pyproject_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
+    async def _detect_pyproject_issues(self, file_path: Path, content: str) -> List[Vulnerability]:
         """Detect issues in pyproject.toml files."""
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         # Simple TOML parsing (for dependencies section)
         in_dependencies = False
@@ -375,7 +376,7 @@ class SupplyChainDetector(BaseDetector):
 
     def _check_typosquatting(
         self, package_name: str, version: str, file_path: Path, dep_type: str, line_num: int = 0
-    ) -> Vulnerability | None:
+    ) -> Optional[Vulnerability]:
         """Check if package name is a typosquatting attempt."""
         package_lower = package_name.lower()
 

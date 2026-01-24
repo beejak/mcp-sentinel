@@ -13,6 +13,7 @@ This engine wraps the 8 pattern-based detectors from Phase 3:
 """
 
 from pathlib import Path
+from typing import List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
@@ -37,7 +38,7 @@ class StaticAnalysisEngine(BaseEngine):
 
     def __init__(
         self,
-        detectors: list[BaseDetector] | None = None,
+        detectors: Optional[List[BaseDetector]] = None,
         enabled: bool = True,
     ):
         """
@@ -54,7 +55,7 @@ class StaticAnalysisEngine(BaseEngine):
         )
         self.detectors = detectors or self._get_default_detectors()
 
-    def _get_default_detectors(self) -> list[BaseDetector]:
+    def _get_default_detectors(self) -> List[BaseDetector]:
         """Get all 8 Phase 3 detectors."""
         return [
             SecretsDetector(),
@@ -71,8 +72,8 @@ class StaticAnalysisEngine(BaseEngine):
         self,
         file_path: Path,
         content: str,
-        file_type: str | None = None,
-    ) -> list[Vulnerability]:
+        file_type: Optional[str] = None,
+    ) -> List[Vulnerability]:
         """
         Scan a single file using all applicable detectors.
 
@@ -84,7 +85,7 @@ class StaticAnalysisEngine(BaseEngine):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         # Determine file type if not provided
         if file_type is None:
@@ -111,8 +112,8 @@ class StaticAnalysisEngine(BaseEngine):
     async def scan_directory(
         self,
         target_path: Path,
-        file_patterns: list[str] | None = None,
-    ) -> list[Vulnerability]:
+        file_patterns: Optional[List[str]] = None,
+    ) -> List[Vulnerability]:
         """
         Scan a directory using all detectors.
 
@@ -124,7 +125,7 @@ class StaticAnalysisEngine(BaseEngine):
             List of all detected vulnerabilities
         """
         self.status = EngineStatus.RUNNING
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         try:
             # Discover files to scan
@@ -175,7 +176,7 @@ class StaticAnalysisEngine(BaseEngine):
     def is_applicable(
         self,
         file_path: Path,
-        file_type: str | None = None,
+        file_type: Optional[str] = None,
     ) -> bool:
         """
         Check if any detector can analyze this file.
@@ -195,7 +196,7 @@ class StaticAnalysisEngine(BaseEngine):
             for detector in self.detectors
         )
 
-    def get_supported_languages(self) -> list[str]:
+    def get_supported_languages(self) -> List[str]:
         """
         Get list of all languages supported by detectors.
 
@@ -226,8 +227,8 @@ class StaticAnalysisEngine(BaseEngine):
     def _discover_files(
         self,
         target_path: Path,
-        file_patterns: list[str] | None = None,
-    ) -> list[Path]:
+        file_patterns: Optional[List[str]] = None,
+    ) -> List[Path]:
         """
         Discover all files to scan in the target directory.
 
@@ -238,7 +239,7 @@ class StaticAnalysisEngine(BaseEngine):
         Returns:
             List of file paths to scan
         """
-        files: list[Path] = []
+        files: List[Path] = []
 
         # Default patterns if none provided
         if not file_patterns:
@@ -287,7 +288,7 @@ class StaticAnalysisEngine(BaseEngine):
 
         return list(set(files))  # Remove duplicates
 
-    def _determine_file_type(self, file_path: Path) -> str | None:
+    def _determine_file_type(self, file_path: Path) -> Optional[str]:
         """
         Determine the programming language/file type.
 

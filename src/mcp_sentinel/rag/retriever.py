@@ -205,7 +205,8 @@ class Retriever:
         code_snippet: Optional[str] = None,
         vulnerability_type: Optional[str] = None,
         framework: Optional[str] = None,
-        top_k: int = 5
+        top_k: int = 5,
+        min_similarity: float = 0.5
     ) -> str:
         """
         Augment AI prompt with relevant security knowledge.
@@ -216,6 +217,7 @@ class Retriever:
             vulnerability_type: Specific vulnerability type to focus on
             framework: Framework context (e.g., "Django", "React")
             top_k: Number of knowledge items to include
+            min_similarity: Minimum similarity threshold (default: 0.5)
 
         Returns:
             Augmented prompt with relevant security knowledge
@@ -243,7 +245,7 @@ class Retriever:
             query=query,
             collections=collections,
             top_k=top_k,
-            min_similarity=0.5  # Higher threshold for prompt augmentation
+            min_similarity=min_similarity
         )
 
         if not results:

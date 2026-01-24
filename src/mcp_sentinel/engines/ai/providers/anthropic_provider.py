@@ -10,7 +10,7 @@ Recommended provider for code security analysis due to:
 
 import json
 import os
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 try:
     from anthropic import AsyncAnthropic
@@ -65,7 +65,7 @@ class AnthropicProvider(BaseAIProvider):
         self.model = config.model or self.DEFAULT_MODEL
 
     async def analyze_code(
-        self, code: str, file_path: str, language: str, context: dict[str, Any] | None = None
+        self, code: str, file_path: str, language: str, context: Optional[Dict[str, Any]] = None
     ) -> AIResponse:
         """
         Analyze code using Claude for security vulnerabilities.
@@ -208,7 +208,7 @@ Example format:
 Only report real vulnerabilities with high confidence. Avoid false positives."""
 
     def _build_user_prompt(
-        self, code: str, file_path: str, language: str, context: dict[str, Any] | None
+        self, code: str, file_path: str, language: str, context: Optional[Dict[str, Any]]
     ) -> str:
         """Build user prompt with code to analyze."""
         prompt = f"""Analyze this {language} code for security vulnerabilities:
@@ -227,7 +227,7 @@ Return JSON array of vulnerabilities found."""
 
         return prompt
 
-    def _parse_response(self, response: str) -> list[dict[str, Any]]:
+    def _parse_response(self, response: str) -> List[Dict[str, Any]]:
         """
         Parse Claude's JSON response.
 

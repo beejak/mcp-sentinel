@@ -103,10 +103,14 @@ class TestSemgrepAdapter:
 
             # Mock asyncio.create_subprocess_exec to timeout
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+            # The communicate call itself should raise TimeoutError
+            mock_process.communicate.side_effect = asyncio.TimeoutError()
             mock_process.kill = Mock()
 
-            with patch("asyncio.create_subprocess_exec", return_value=mock_process):
+            # We need create_subprocess_exec to return our mock_process when awaited
+            with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_create:
+                mock_create.return_value = mock_process
+                
                 result = await adapter.scan_directory(Path("/test"))
                 assert result == []
                 mock_process.kill.assert_called_once()

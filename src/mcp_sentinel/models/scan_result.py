@@ -3,7 +3,7 @@ Scan result model for aggregating vulnerability findings.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ class ScanStatistics(BaseModel):
     low_count: int = 0
     info_count: int = 0
     scan_duration_seconds: float = 0.0
-    engines_used: list[str] = Field(default_factory=list)
+    engines_used: List[str] = Field(default_factory=list)
 
 
 class ScanResult(BaseModel):
@@ -43,14 +43,14 @@ class ScanResult(BaseModel):
 
     scan_id: str = Field(default_factory=lambda: f"scan-{datetime.utcnow().timestamp()}")
     target: str
-    vulnerabilities: list[Vulnerability] = Field(default_factory=list)
+    vulnerabilities: List[Vulnerability] = Field(default_factory=list)
     statistics: ScanStatistics = Field(default_factory=ScanStatistics)
-    config: dict[str, Any] = Field(default_factory=dict)
+    config: Dict[str, Any] = Field(default_factory=dict)
 
     started_at: datetime = Field(default_factory=datetime.utcnow)
-    completed_at: datetime | None = None
+    completed_at: Optional[datetime] = None
     status: str = "pending"  # pending, running, completed, failed
-    error: str | None = None
+    error: Optional[str] = None
 
     def add_vulnerability(self, vuln: Vulnerability) -> None:
         """Add a vulnerability to the result."""
@@ -69,11 +69,11 @@ class ScanResult(BaseModel):
         else:
             self.statistics.info_count += 1
 
-    def get_by_severity(self, severity: Severity) -> list[Vulnerability]:
+    def get_by_severity(self, severity: Severity) -> List[Vulnerability]:
         """Get all vulnerabilities of a specific severity."""
         return [v for v in self.vulnerabilities if v.severity == severity]
 
-    def get_by_file(self, file_path: str) -> list[Vulnerability]:
+    def get_by_file(self, file_path: str) -> List[Vulnerability]:
         """Get all vulnerabilities in a specific file."""
         return [v for v in self.vulnerabilities if v.file_path == file_path]
 

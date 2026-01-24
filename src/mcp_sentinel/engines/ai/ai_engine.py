@@ -7,7 +7,7 @@ complex vulnerabilities that pattern-based tools might miss.
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional, Dict
 
 from mcp_sentinel.engines.ai.providers.base import (
     AIProviderConfig,
@@ -38,9 +38,9 @@ class AIEngine(BaseEngine):
 
     def __init__(
         self,
-        provider_type: AIProviderType | None = None,
-        api_key: str | None = None,
-        model: str | None = None,
+        provider_type: Optional[AIProviderType] = None,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
         max_cost_per_scan: float = 1.0,
         enabled: bool = True,
     ):
@@ -62,7 +62,7 @@ class AIEngine(BaseEngine):
 
         self.max_cost_per_scan = max_cost_per_scan
         self.total_cost = 0.0
-        self.provider: BaseAIProvider | None = None
+        self.provider: Optional[BaseAIProvider] = None
 
         # Auto-detect provider if not specified
         if provider_type is None:
@@ -76,7 +76,7 @@ class AIEngine(BaseEngine):
         else:
             self.status = EngineStatus.NOT_AVAILABLE
 
-    async def scan_file(self, file_path: Path, content: str, language: str) -> list[Vulnerability]:
+    async def scan_file(self, file_path: Path, content: str, language: str) -> List[Vulnerability]:
         """
         Scan a file using AI analysis.
 
@@ -136,7 +136,7 @@ class AIEngine(BaseEngine):
         """Cleanup resources."""
         self.provider = None
 
-    def _detect_available_provider(self) -> AIProviderType | None:
+    def _detect_available_provider(self) -> Optional[AIProviderType]:
         """
         Auto-detect available AI provider based on API keys.
 
@@ -159,8 +159,8 @@ class AIEngine(BaseEngine):
         return AIProviderType.OLLAMA
 
     def _create_provider(
-        self, provider_type: AIProviderType, api_key: str | None, model: str | None
-    ) -> BaseAIProvider | None:
+        self, provider_type: AIProviderType, api_key: Optional[str], model: Optional[str]
+    ) -> Optional[BaseAIProvider]:
         """
         Create AI provider instance.
 
@@ -201,12 +201,12 @@ class AIEngine(BaseEngine):
 
     def _convert_ai_response(
         self,
-        vuln_dict: dict[str, Any],
+        vuln_dict: Dict[str, Any],
         file_path: Path,
         content: str,
         provider: str,
         model: str,
-    ) -> Vulnerability | None:
+    ) -> Optional[Vulnerability]:
         """
         Convert AI response dictionary to Vulnerability object.
 
@@ -278,7 +278,7 @@ class AIEngine(BaseEngine):
                 description=vuln_dict.get("description", ""),
                 remediation=vuln_dict.get("remediation", ""),
                 cwe_id=vuln_dict.get("cwe_id"),
-                detector_name=f"AI Engine ({provider}/{model})",
+                detector=f"AI Engine ({provider}/{model})",
                 engine="ai",
             )
 

@@ -11,6 +11,7 @@ import re
 import unicodedata
 from pathlib import Path
 from re import Pattern
+from typing import Dict, List, Optional, Set
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -58,9 +59,9 @@ class ToolPoisoningDetector(BaseDetector):
     def __init__(self):
         """Initialize the tool poisoning detector."""
         super().__init__(name="ToolPoisoningDetector", enabled=True)
-        self.text_patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.text_patterns: Dict[str, List[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
         """Compile regex patterns for tool poisoning detection."""
         return {
             # Pattern 1: Ignore/Disregard commands
@@ -94,7 +95,7 @@ class ToolPoisoningDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -137,8 +138,8 @@ class ToolPoisoningDetector(BaseDetector):
         return file_path.suffix.lower() in applicable_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect tool poisoning vulnerabilities in file content.
 
@@ -150,7 +151,7 @@ class ToolPoisoningDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         # Check for invisible Unicode characters (highest priority)
         unicode_vulns = self._detect_invisible_unicode(file_path, content)
@@ -176,19 +177,19 @@ class ToolPoisoningDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _detect_invisible_unicode(self, file_path: Path, content: str) -> list[Vulnerability]:
+    def _detect_invisible_unicode(self, file_path: Path, content: str) -> List[Vulnerability]:
         """
         Detect invisible Unicode characters in content.
 
         These can be used to hide malicious instructions from human review
         while still being processed by LLMs.
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
             # Find all invisible characters in this line
-            found_chars: set[str] = set()
+            found_chars: Set[str] = set()
 
             for char in line:
                 if char in self.INVISIBLE_CHARS:

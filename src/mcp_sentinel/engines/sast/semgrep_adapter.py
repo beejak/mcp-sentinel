@@ -4,7 +4,7 @@ import asyncio
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
 
@@ -15,7 +15,7 @@ class SemgrepAdapter:
     def __init__(
         self,
         enabled: bool = True,
-        rulesets: list[str] | None = None,
+        rulesets: Optional[List[str]] = None,
         timeout: int = 300,
     ):
         """
@@ -40,7 +40,7 @@ class SemgrepAdapter:
     async def scan_directory(
         self,
         target_path: Path,
-    ) -> list[Vulnerability]:
+    ) -> List[Vulnerability]:
         """
         Scan directory with Semgrep.
 
@@ -69,7 +69,7 @@ class SemgrepAdapter:
                     process.communicate(),
                     timeout=self.timeout,
                 )
-            except TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 process.kill()
                 print(f"[WARN] Semgrep timeout after {self.timeout}s")
                 return []
@@ -89,7 +89,7 @@ class SemgrepAdapter:
     async def scan_file(
         self,
         file_path: Path,
-    ) -> list[Vulnerability]:
+    ) -> List[Vulnerability]:
         """
         Scan single file with Semgrep.
 
@@ -105,7 +105,7 @@ class SemgrepAdapter:
         # Semgrep works better on directories, so scan parent
         return await self.scan_directory(file_path.parent)
 
-    def _build_command(self, target_path: Path) -> list[str]:
+    def _build_command(self, target_path: Path) -> List[str]:
         """
         Build Semgrep command.
 
@@ -130,7 +130,7 @@ class SemgrepAdapter:
         self,
         output: str,
         target_path: Path,
-    ) -> list[Vulnerability]:
+    ) -> List[Vulnerability]:
         """
         Parse Semgrep JSON output.
 
@@ -141,7 +141,7 @@ class SemgrepAdapter:
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         try:
             data = json.loads(output)
@@ -161,9 +161,9 @@ class SemgrepAdapter:
 
     def _convert_to_vulnerability(
         self,
-        result: dict[str, Any],
+        result: Dict[str, Any],
         target_path: Path,
-    ) -> Vulnerability | None:
+    ) -> Optional[Vulnerability]:
         """
         Convert Semgrep result to Vulnerability.
 
@@ -319,7 +319,7 @@ class SemgrepAdapter:
         }
         return mapping.get(semgrep_severity, Severity.MEDIUM)
 
-    def _extract_cwe(self, metadata: dict[str, Any]) -> str | None:
+    def _extract_cwe(self, metadata: Dict[str, Any]) -> Optional[str]:
         """
         Extract CWE ID from Semgrep metadata.
 

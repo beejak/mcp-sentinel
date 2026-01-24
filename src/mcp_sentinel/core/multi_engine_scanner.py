@@ -7,9 +7,9 @@ and aggregates their results.
 
 import asyncio
 from collections import defaultdict
-from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import List, Optional, Set, Union, Dict, Callable
 
 from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
@@ -29,9 +29,9 @@ class MultiEngineScanner:
 
     def __init__(
         self,
-        engines: list[BaseEngine] | None = None,
-        enabled_engines: set[EngineType] | None = None,
-        progress_callback: Callable[[str, ScanProgress], None] | None = None,
+        engines: Optional[List[BaseEngine]] = None,
+        enabled_engines: Optional[Set[EngineType]] = None,
+        progress_callback: Optional[Callable[[str, ScanProgress], None]] = None,
     ):
         """
         Initialize the multi-engine scanner.
@@ -56,7 +56,7 @@ class MultiEngineScanner:
         for engine in self.active_engines:
             engine.set_progress_callback(self._create_progress_callback(engine))
 
-    def _get_default_engines(self) -> list[BaseEngine]:
+    def _get_default_engines(self) -> List[BaseEngine]:
         """
         Get default engines.
 
@@ -84,8 +84,8 @@ class MultiEngineScanner:
 
     async def scan_directory(
         self,
-        target_path: str | Path,
-        file_patterns: list[str] | None = None,
+        target_path: Union[str, Path],
+        file_patterns: Optional[List[str]] = None,
     ) -> ScanResult:
         """
         Scan a directory using all enabled engines.
@@ -125,7 +125,7 @@ class MultiEngineScanner:
             engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
             # Process results from each engine
-            all_vulnerabilities: list[Vulnerability] = []
+            all_vulnerabilities: List[Vulnerability] = []
 
             for idx, result in enumerate(engine_results):
                 engine = self.active_engines[idx]
@@ -168,9 +168,9 @@ class MultiEngineScanner:
     async def scan_file(
         self,
         file_path: Path,
-        content: str | None = None,
-        file_type: str | None = None,
-    ) -> list[Vulnerability]:
+        content: Optional[str] = None,
+        file_type: Optional[str] = None,
+    ) -> List[Vulnerability]:
         """
         Scan a single file using all enabled engines.
 
@@ -206,7 +206,7 @@ class MultiEngineScanner:
         engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
         # Aggregate vulnerabilities
-        all_vulnerabilities: list[Vulnerability] = []
+        all_vulnerabilities: List[Vulnerability] = []
         for result in engine_results:
             if isinstance(result, Exception):
                 continue
@@ -217,8 +217,8 @@ class MultiEngineScanner:
 
     def _deduplicate_vulnerabilities(
         self,
-        vulnerabilities: list[Vulnerability],
-    ) -> list[Vulnerability]:
+        vulnerabilities: List[Vulnerability],
+    ) -> List[Vulnerability]:
         """
         Deduplicate vulnerabilities from multiple engines.
 
@@ -238,7 +238,7 @@ class MultiEngineScanner:
             Deduplicated list of vulnerabilities
         """
         # Group by dedup key
-        groups: dict = defaultdict(list)
+        groups: Dict = defaultdict(list)
 
         for vuln in vulnerabilities:
             # Create deduplication key
@@ -251,7 +251,7 @@ class MultiEngineScanner:
             groups[key].append(vuln)
 
         # For each group, keep the best vulnerability
-        deduplicated: list[Vulnerability] = []
+        deduplicated: List[Vulnerability] = []
 
         for _key, group in groups.items():
             if len(group) == 1:
@@ -274,7 +274,7 @@ class MultiEngineScanner:
     def _count_files(
         self,
         target_path: Path,
-        file_patterns: list[str] | None = None,
+        file_patterns: Optional[List[str]] = None,
     ) -> int:
         """Count files that would be scanned."""
         if not file_patterns:
@@ -317,7 +317,7 @@ class MultiEngineScanner:
 
         return len(files)
 
-    def _determine_file_type(self, file_path: Path) -> str | None:
+    def _determine_file_type(self, file_path: Path) -> Optional[str]:
         """Determine the programming language/file type."""
         extension_map = {
             ".py": "python",
@@ -336,10 +336,10 @@ class MultiEngineScanner:
         }
         return extension_map.get(file_path.suffix.lower())
 
-    def get_active_engines(self) -> list[str]:
+    def get_active_engines(self) -> List[str]:
         """Get names of all active engines."""
         return [engine.name for engine in self.active_engines]
 
-    def get_engine_types(self) -> list[EngineType]:
+    def get_engine_types(self) -> List[EngineType]:
         """Get types of all active engines."""
         return [engine.engine_type for engine in self.active_engines]

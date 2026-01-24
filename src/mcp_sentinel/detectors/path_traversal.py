@@ -9,6 +9,7 @@ Critical for MCP servers that handle file operations or serve files.
 
 import ast
 import re
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 from re import Pattern
 
@@ -44,9 +45,9 @@ class PathTraversalDetector(BaseDetector):
             enable_semantic_analysis: Enable semantic analysis for multi-line detection (default: True)
         """
         super().__init__(name="PathTraversalDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
         self.enable_semantic_analysis = enable_semantic_analysis
-        self.semantic_engine: SemanticEngine | None = None
+        self.semantic_engine: Optional[SemanticEngine] = None
         self.cfg_builder = SimpleCFGBuilder()  # For guard detection
 
         # Initialize semantic engine if enabled
@@ -58,7 +59,7 @@ class PathTraversalDetector(BaseDetector):
                 self.enable_semantic_analysis = False
                 self.semantic_engine = None
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
         """Compile regex patterns for path traversal detection."""
         return {
             # Pattern 1: Direct path manipulation
@@ -111,7 +112,7 @@ class PathTraversalDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -157,8 +158,8 @@ class PathTraversalDetector(BaseDetector):
         return file_path.suffix.lower() in code_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect path traversal vulnerabilities in file content.
 
@@ -174,7 +175,7 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of detected path traversal vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         # Phase 1: Pattern-based detection (fast)
         pattern_vulns = self._pattern_based_detection(file_path, content, file_type)
@@ -189,8 +190,8 @@ class PathTraversalDetector(BaseDetector):
         return self._deduplicate_vulnerabilities(vulnerabilities)
 
     def _pattern_based_detection(
-        self, file_path: Path, content: str, file_type: str | None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str]
+    ) -> List[Vulnerability]:
         """
         Pattern-based detection (Phase 1 - fast baseline).
 
@@ -202,7 +203,7 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of vulnerabilities found by pattern matching
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
 
         # Build CFG for guard detection (if Python code)
@@ -244,7 +245,7 @@ class PathTraversalDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _should_use_semantic_analysis(self, file_path: Path, file_type: str | None) -> bool:
+    def _should_use_semantic_analysis(self, file_path: Path, file_type: Optional[str]) -> bool:
         """
         Check if semantic analysis should be used.
 
@@ -267,8 +268,8 @@ class PathTraversalDetector(BaseDetector):
         return file_path.suffix.lower() in supported_extensions
 
     def _semantic_analysis_detection(
-        self, file_path: Path, content: str, file_type: str | None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str]
+    ) -> List[Vulnerability]:
         """
         Semantic analysis detection (Phase 2 - accurate, multi-line).
 
@@ -290,7 +291,7 @@ class PathTraversalDetector(BaseDetector):
         if not self.semantic_engine:
             return []
 
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         try:
             # Run semantic analysis
@@ -485,8 +486,8 @@ class PathTraversalDetector(BaseDetector):
         )
 
     def _deduplicate_vulnerabilities(
-        self, vulnerabilities: list[Vulnerability]
-    ) -> list[Vulnerability]:
+        self, vulnerabilities: List[Vulnerability]
+    ) -> List[Vulnerability]:
         """
         Deduplicate vulnerabilities from pattern-based and semantic analysis.
 
@@ -500,7 +501,7 @@ class PathTraversalDetector(BaseDetector):
             Deduplicated list
         """
         # Group by (file_path, line_number)
-        vuln_map: dict[tuple[str, int], Vulnerability] = {}
+        vuln_map: Dict[Tuple[str, int], Vulnerability] = {}
 
         for vuln in vulnerabilities:
             key = (vuln.file_path, vuln.line_number)
@@ -525,7 +526,7 @@ class PathTraversalDetector(BaseDetector):
 
         return list(vuln_map.values())
 
-    def _is_comment(self, line: str, file_type: str | None) -> bool:
+    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
         """
         Check if line is a comment.
 

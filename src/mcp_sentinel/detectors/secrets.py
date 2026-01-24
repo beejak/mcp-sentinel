@@ -5,6 +5,7 @@ Secrets detector for finding hardcoded credentials and API keys.
 import re
 from pathlib import Path
 from re import Pattern
+from typing import Dict, List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -32,9 +33,9 @@ class SecretsDetector(BaseDetector):
     def __init__(self):
         """Initialize the secrets detector."""
         super().__init__(name="SecretsDetector", enabled=True)
-        self.patterns: dict[str, Pattern] = self._compile_patterns()
+        self.patterns: Dict[str, Pattern] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, Pattern]:
+    def _compile_patterns(self) -> Dict[str, Pattern]:
         """Compile regex patterns for secret detection."""
         return {
             # AWS Access Keys
@@ -79,8 +80,8 @@ class SecretsDetector(BaseDetector):
         }
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect hardcoded secrets in file content.
 
@@ -92,7 +93,7 @@ class SecretsDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         # Split content into lines for line number tracking
         lines = content.split("\n")

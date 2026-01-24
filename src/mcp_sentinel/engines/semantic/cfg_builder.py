@@ -7,6 +7,7 @@ Full CFG implementation deferred to Phase 4.3.
 """
 
 import ast
+from typing import List, Optional, Set
 
 from mcp_sentinel.engines.semantic.models import (
     CFGNode,
@@ -66,7 +67,7 @@ class SimpleCFGBuilder:
 
         return cfg
 
-    def find_guards_before_line(self, cfg: ControlFlowGraph, line: int) -> list[Guard]:
+    def find_guards_before_line(self, cfg: ControlFlowGraph, line: int) -> List[Guard]:
         """
         Find all guards that execute before a given line.
 
@@ -127,7 +128,7 @@ class GuardExtractor(ast.NodeVisitor):
     """
 
     def __init__(self):
-        self.guards: list[Guard] = []
+        self.guards: List[Guard] = []
 
     def visit_If(self, node: ast.If):
         """Visit if statements to extract guards."""
@@ -155,7 +156,7 @@ class GuardExtractor(ast.NodeVisitor):
 
         self.generic_visit(node)
 
-    def _classify_guard(self, condition: str) -> str | None:
+    def _classify_guard(self, condition: str) -> Optional[str]:
         """
         Classify guard type based on condition.
 
@@ -197,7 +198,7 @@ class GuardExtractor(ast.NodeVisitor):
 
         return None
 
-    def _extract_variables(self, node: ast.expr) -> set[str]:
+    def _extract_variables(self, node: ast.expr) -> Set[str]:
         """Extract variable names from condition."""
         variables = set()
 

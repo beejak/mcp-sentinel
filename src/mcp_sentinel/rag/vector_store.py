@@ -42,27 +42,35 @@ class VectorStore:
 
     def __init__(
         self,
-        persist_dir: str = "./data/chroma_db",
+        persist_dir: Optional[str] = "./data/chroma_db",
         embedding_function: Optional[Any] = None
     ):
         """
         Initialize ChromaDB vector store.
 
         Args:
-            persist_dir: Directory for persistent storage
+            persist_dir: Directory for persistent storage (or None/":memory:" for in-memory)
             embedding_function: Custom embedding function (default: sentence-transformers)
         """
-        self.persist_dir = Path(persist_dir)
-        self.persist_dir.mkdir(parents=True, exist_ok=True)
-
-        # Initialize ChromaDB with persistent storage
-        self.client = chromadb.PersistentClient(
-            path=str(self.persist_dir),
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True
+        self.persist_dir = Path(persist_dir) if persist_dir and persist_dir != ":memory:" else None
+        
+        # Initialize ChromaDB
+        if self.persist_dir:
+            self.persist_dir.mkdir(parents=True, exist_ok=True)
+            self.client = chromadb.PersistentClient(
+                path=str(self.persist_dir),
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
             )
-        )
+        else:
+            self.client = chromadb.EphemeralClient(
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
+            )
 
         # Use default sentence-transformers embedding if not provided
         self.embedding_function = embedding_function or embedding_functions.SentenceTransformerEmbeddingFunction(

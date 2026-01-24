@@ -7,6 +7,7 @@ in MCP servers and related applications.
 Critical for ensuring MCP servers follow security best practices in deployment.
 """
 
+from typing import Any, Dict, List, Optional
 import re
 from pathlib import Path
 from re import Pattern
@@ -38,9 +39,9 @@ class ConfigSecurityDetector(BaseDetector):
     def __init__(self):
         """Initialize the Config Security detector."""
         super().__init__(name="ConfigSecurityDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
         """Compile regex patterns for configuration security detection."""
         return {
             # Pattern 1: Debug mode enabled
@@ -137,7 +138,7 @@ class ConfigSecurityDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -200,8 +201,8 @@ class ConfigSecurityDetector(BaseDetector):
         )
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect configuration security vulnerabilities in file content.
 
@@ -213,7 +214,7 @@ class ConfigSecurityDetector(BaseDetector):
         Returns:
             List of detected configuration security vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -242,7 +243,7 @@ class ConfigSecurityDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _is_comment(self, line: str, file_type: str | None) -> bool:
+    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
         """
         Check if line is a comment.
 
@@ -270,7 +271,7 @@ class ConfigSecurityDetector(BaseDetector):
         return False
 
     def _is_likely_false_positive(
-        self, line: str, matched_text: str, category: str, file_path: Path = None
+        self, line: str, matched_text: str, category: str, file_path: Optional[Path] = None
     ) -> bool:
         """
         Check if the match is likely a false positive.

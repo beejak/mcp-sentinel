@@ -4,6 +4,7 @@ Base detector class for all vulnerability detectors.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import List, Optional
 
 from mcp_sentinel.models.vulnerability import Vulnerability
 
@@ -28,8 +29,8 @@ class BaseDetector(ABC):
 
     @abstractmethod
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect vulnerabilities in a file.
 
@@ -43,7 +44,7 @@ class BaseDetector(ABC):
         """
         pass
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector is applicable to the given file.
 

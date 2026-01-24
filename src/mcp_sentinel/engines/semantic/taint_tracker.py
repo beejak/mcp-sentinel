@@ -5,6 +5,7 @@ Implements forward dataflow analysis to track tainted data from sources to sinks
 """
 
 import ast
+from typing import Any, Dict, List, Optional, Set
 
 from mcp_sentinel.engines.semantic.models import (
     TaintPath,
@@ -49,15 +50,15 @@ class TaintTracker:
             unified_ast: UnifiedAST containing sources and sinks
         """
         self.ast = unified_ast
-        self.tainted: dict[str, TaintSource] = {}  # var_name -> source
-        self.sanitized: set[str] = set()  # Variables that have been sanitized
-        self.vulnerability_paths: list[TaintPath] = []
+        self.tainted: Dict[str, TaintSource] = {}  # var_name -> source
+        self.sanitized: Set[str] = set()  # Variables that have been sanitized
+        self.vulnerability_paths: List[TaintPath] = []
 
         # Initialize tainted variables from sources
         for source in unified_ast.sources:
             self.tainted[source.name] = source
 
-    def track_flow(self) -> list[TaintPath]:
+    def track_flow(self) -> List[TaintPath]:
         """
         Track taint flow from sources to sinks.
 
@@ -70,7 +71,7 @@ class TaintTracker:
             # For non-Python, use simple heuristic matching
             return self._track_simple_flow()
 
-    def _track_python_flow(self) -> list[TaintPath]:
+    def _track_python_flow(self) -> List[TaintPath]:
         """Track taint flow in Python AST."""
         paths = []
 
@@ -97,7 +98,7 @@ class TaintTracker:
 
         return paths
 
-    def _track_simple_flow(self) -> list[TaintPath]:
+    def _track_simple_flow(self) -> List[TaintPath]:
         """
         Simple taint tracking for non-Python languages.
 
@@ -158,7 +159,7 @@ class TaintFlowVisitor(ast.NodeVisitor):
     - Attribute assignments
     """
 
-    def __init__(self, tainted: dict[str, TaintSource], sanitized: set[str]):
+    def __init__(self, tainted: Dict[str, TaintSource], sanitized: Set[str]):
         """
         Initialize visitor.
 
@@ -239,7 +240,7 @@ class TaintFlowVisitor(ast.NodeVisitor):
             return True
         return False
 
-    def _get_tainted_from_binop(self, node: ast.BinOp) -> TaintSource | None:
+    def _get_tainted_from_binop(self, node: ast.BinOp) -> Optional[TaintSource]:
         """Get the taint source from a binary operation."""
         if isinstance(node.left, ast.Name) and node.left.id in self.tainted:
             return self.tainted[node.left.id]
@@ -266,11 +267,11 @@ class InterproceduralTaintTracker(TaintTracker):
 
     def __init__(self, unified_ast: UnifiedAST):
         super().__init__(unified_ast)
-        self.function_summaries: dict[str, dict] = (
+        self.function_summaries: Dict[str, Dict[str, Any]] = (
             {}
         )  # func_name -> {taints_params: [], returns_taint: bool}
 
-    def analyze_function(self, func_name: str) -> dict:
+    def analyze_function(self, func_name: str) -> Dict[str, Any]:
         """
         Analyze a function to determine if it propagates taint.
 

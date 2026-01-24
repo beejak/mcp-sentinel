@@ -4,6 +4,7 @@ CLI entry point for MCP Sentinel.
 
 import asyncio
 from pathlib import Path
+from typing import Optional, Set
 
 import click
 from rich import box
@@ -181,7 +182,7 @@ async def _run_scan(target: str) -> ScanResult:
     return await scanner.scan_directory(target)
 
 
-def _parse_engines(engines_str: str) -> set[EngineType]:
+def _parse_engines(engines_str: str) -> Set[EngineType]:
     """
     Parse engine selection string into set of EngineType.
 
@@ -218,8 +219,8 @@ def _parse_engines(engines_str: str) -> set[EngineType]:
 
 async def _run_scan_multi_engine(
     target: str,
-    enabled_engines: set[EngineType],
-    console_for_progress: Console | None = None,
+    enabled_engines: Set[EngineType],
+    console_for_progress: Optional[Console] = None,
 ) -> ScanResult:
     """
     Run the scan with multiple engines asynchronously.
@@ -391,7 +392,7 @@ def _print_terminal_results(result: ScanResult):
         )
 
 
-def _print_json_results(result: ScanResult, output_file: str | None = None):
+def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
     """Print results as JSON."""
 
     json_output = result.model_dump_json(indent=2)
@@ -404,7 +405,7 @@ def _print_json_results(result: ScanResult, output_file: str | None = None):
         console.print(json_output)
 
 
-def _print_sarif_results(result: ScanResult, output_file: str | None = None):
+def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None):
     """Print results in SARIF format."""
     generator = SARIFGenerator()
 
@@ -416,7 +417,7 @@ def _print_sarif_results(result: ScanResult, output_file: str | None = None):
         console.print(sarif_json)
 
 
-def _print_html_results(result: ScanResult, output_file: str | None = None):
+def _print_html_results(result: ScanResult, output_file: Optional[str] = None):
     """Print results in HTML format."""
     generator = HTMLGenerator()
 

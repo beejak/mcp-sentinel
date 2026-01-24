@@ -3,6 +3,8 @@ Configuration management for MCP Sentinel.
 """
 
 
+from typing import List, Optional
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,7 +25,7 @@ class RedisSettings(BaseSettings):
     """Redis configuration."""
 
     url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
-    password: str | None = Field(default=None, alias="REDIS_PASSWORD")
+    password: Optional[str] = Field(default=None, alias="REDIS_PASSWORD")
 
 
 class CelerySettings(BaseSettings):
@@ -33,7 +35,7 @@ class CelerySettings(BaseSettings):
     result_backend: str = Field(default="redis://localhost:6379/2", alias="CELERY_RESULT_BACKEND")
     task_serializer: str = "json"
     result_serializer: str = "json"
-    accept_content: list[str] = ["json"]
+    accept_content: List[str] = ["json"]
     timezone: str = "UTC"
     enable_utc: bool = True
 
@@ -49,13 +51,13 @@ class SecuritySettings(BaseSettings):
 class AISettings(BaseSettings):
     """AI provider configuration."""
 
-    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    openai_api_key: Optional[str] = Field(default=None, alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4-turbo-preview", alias="OPENAI_MODEL")
 
-    anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    anthropic_api_key: Optional[str] = Field(default=None, alias="ANTHROPIC_API_KEY")
     anthropic_model: str = Field(default="claude-3-5-sonnet-20241022", alias="ANTHROPIC_MODEL")
 
-    google_api_key: str | None = Field(default=None, alias="GOOGLE_API_KEY")
+    google_api_key: Optional[str] = Field(default=None, alias="GOOGLE_API_KEY")
     google_model: str = Field(default="gemini-pro", alias="GOOGLE_MODEL")
 
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
@@ -105,7 +107,7 @@ class Settings(BaseSettings):
     parallel_execution: bool = Field(default=True, alias="PARALLEL_EXECUTION")
 
     # CORS
-    cors_allowed_origins: list[str] = Field(
+    cors_allowed_origins: List[str] = Field(
         default=["http://localhost:3000"], alias="CORS_ALLOWED_ORIGINS"
     )
 

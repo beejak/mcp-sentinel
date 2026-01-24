@@ -10,6 +10,7 @@ Critical for MCP servers that serve web UIs or handle HTML/JavaScript generation
 import re
 from pathlib import Path
 from re import Pattern
+from typing import Dict, List, Optional, Set
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -36,9 +37,9 @@ class XSSDetector(BaseDetector):
     def __init__(self):
         """Initialize the XSS detector."""
         super().__init__(name="XSSDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
         """Compile regex patterns for XSS detection."""
         return {
             # Pattern 1: DOM-based XSS (innerHTML manipulation)
@@ -89,7 +90,7 @@ class XSSDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -136,8 +137,8 @@ class XSSDetector(BaseDetector):
         return file_path.suffix.lower() in web_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect XSS vulnerabilities in file content.
 
@@ -149,12 +150,12 @@ class XSSDetector(BaseDetector):
         Returns:
             List of detected XSS vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
         # Track detected matches per line to avoid duplicates
         # For event handlers: track by (category, handler_name) e.g., ('event_handler_xss', 'onclick')
         # For other patterns: track by (category, position)
-        detected_per_line: dict[int, set] = {}
+        detected_per_line: Dict[int, Set] = {}
 
         for line_num, line in enumerate(lines, start=1):
             # Skip comments
@@ -210,7 +211,7 @@ class XSSDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _is_comment(self, line: str, file_type: str | None) -> bool:
+    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
         """
         Check if line is a comment.
 

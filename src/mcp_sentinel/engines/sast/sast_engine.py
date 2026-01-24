@@ -6,6 +6,7 @@ Integrates Semgrep and Bandit for industry-standard static analysis.
 
 import shutil
 from pathlib import Path
+from typing import List, Optional
 
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType
 from mcp_sentinel.models.vulnerability import Vulnerability
@@ -25,7 +26,7 @@ class SASTEngine(BaseEngine):
         enabled: bool = True,
         semgrep_enabled: bool = True,
         bandit_enabled: bool = True,
-        semgrep_rulesets: list[str] | None = None,
+        semgrep_rulesets: Optional[List[str]] = None,
     ):
         """
         Initialize the SAST engine.
@@ -71,14 +72,14 @@ class SASTEngine(BaseEngine):
         self,
         file_path: Path,
         content: str,
-        file_type: str | None = None,
-    ) -> list[Vulnerability]:
+        file_type: Optional[str] = None,
+    ) -> List[Vulnerability]:
         """
         Scan a single file (SAST tools work better on directories).
 
         For single file scans, we create a temporary directory scan.
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         # Semgrep and Bandit work on directories, not individual files
         # For single file scans, scan the parent directory and filter
@@ -93,8 +94,8 @@ class SASTEngine(BaseEngine):
     async def scan_directory(
         self,
         target_path: Path,
-        file_patterns: list[str] | None = None,
-    ) -> list[Vulnerability]:
+        file_patterns: Optional[List[str]] = None,
+    ) -> List[Vulnerability]:
         """
         Scan a directory using Semgrep and Bandit.
 
@@ -106,7 +107,7 @@ class SASTEngine(BaseEngine):
             List of all detected vulnerabilities
         """
         self.status = EngineStatus.RUNNING
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
 
         try:
             # Run Semgrep if available
@@ -135,7 +136,7 @@ class SASTEngine(BaseEngine):
     def is_applicable(
         self,
         file_path: Path,
-        file_type: str | None = None,
+        file_type: Optional[str] = None,
     ) -> bool:
         """
         Check if SAST engine can analyze the given file.
@@ -152,7 +153,7 @@ class SASTEngine(BaseEngine):
 
         return False
 
-    def get_supported_languages(self) -> list[str]:
+    def get_supported_languages(self) -> List[str]:
         """
         Get list of supported programming languages.
 

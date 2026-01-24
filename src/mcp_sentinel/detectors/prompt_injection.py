@@ -8,6 +8,7 @@ Detects:
 - Jailbreak keywords and attempts
 """
 
+from typing import Dict, List, Optional
 import re
 from pathlib import Path
 from re import Pattern
@@ -35,9 +36,9 @@ class PromptInjectionDetector(BaseDetector):
     def __init__(self):
         """Initialize the prompt injection detector."""
         super().__init__(name="PromptInjectionDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
         """Compile regex patterns for prompt injection detection."""
         return {
             # Family 1: Role Manipulation
@@ -79,7 +80,7 @@ class PromptInjectionDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -123,8 +124,8 @@ class PromptInjectionDetector(BaseDetector):
         return file_path.suffix.lower() in applicable_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: str | None = None
-    ) -> list[Vulnerability]:
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
         """
         Detect prompt injection vulnerabilities in file content.
 
@@ -136,7 +137,7 @@ class PromptInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: list[Vulnerability] = []
+        vulnerabilities: List[Vulnerability] = []
         lines = content.split("\n")
 
         # Scan for each pattern family
