@@ -26,9 +26,12 @@ class EngineStatus(Enum):
     """Engine execution status."""
 
     IDLE = "idle"
+    READY = "ready"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+    NOT_AVAILABLE = "not_available"
+
 
 
 class ScanProgress:
