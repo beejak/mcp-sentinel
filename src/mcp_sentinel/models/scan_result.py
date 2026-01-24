@@ -5,7 +5,7 @@ Scan result model for aggregating vulnerability findings.
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
@@ -114,8 +114,8 @@ class ScanResult(BaseModel):
             f"Risk Score: {self.risk_score():.1f}/100"
         )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "scan_id": "scan-1234567890",
                 "target": "/path/to/project",
@@ -135,3 +135,4 @@ class ScanResult(BaseModel):
                 "status": "completed",
             }
         }
+    )

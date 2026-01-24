@@ -3,10 +3,13 @@ CLI entry point for MCP Sentinel.
 """
 
 import asyncio
+import sys
+import os
 from pathlib import Path
 from typing import Optional, Set
 
 import click
+import questionary
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -18,13 +21,26 @@ from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
+from mcp_sentinel.core.logger import setup_logging
 
 console = Console()
 
 
 @click.group()
+@click.option(
+    "--log-level", 
+    type=click.Choice(["DEBUG", "INFO", "WARN", "ERROR", "FATAL"], case_sensitive=False), 
+    default="INFO", 
+    help="Set logging level"
+)
+@click.option(
+    "--log-file", 
+    type=click.Path(dir_okay=False, writable=True), 
+    default=None, 
+    help="Log detailed output to file"
+)
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
-def cli():
+def cli(log_level: str, log_file: Optional[str]):
     """
     MCP Sentinel - Multi-Engine Security Scanner for MCP Servers
 
@@ -52,11 +68,12 @@ def cli():
 
     Documentation: https://github.com/beejak/mcp-sentinel
     """
-    pass
+    # Initialize logging before any command runs
+    setup_logging(log_level=log_level, log_file=log_file)
 
 
 @cli.command()
-@click.argument("target", type=click.Path(exists=True))
+@click.argument("target", type=click.Path(exists=True), required=False)
 @click.option(
     "-o",
     "--output",
@@ -87,12 +104,12 @@ def cli():
     help="Disable progress output",
 )
 def scan(
-    target: str, output: str, engines: str, severity: tuple, json_file: str, no_progress: bool
+    target: Optional[str], output: str, engines: str, severity: tuple, json_file: str, no_progress: bool
 ):
     """
     Scan a directory or file for security vulnerabilities.
 
-    TARGET: Path to directory or file to scan
+    TARGET: Path to directory or file to scan (Optional, will prompt if missing)
 
     Examples:
 
@@ -128,6 +145,18 @@ def scan(
         # Fast CI scan: static + SAST only
         mcp-sentinel scan . --engines static,sast --output sarif --json-file ci-results.sarif
     """
+    # Interactive prompt if target is missing
+    if not target:
+        target = questionary.path("Target directory to scan:").ask()
+        if not target:
+            console.print("[red]Operation cancelled.[/red]")
+            sys.exit(0)
+        
+        # Check existence manually since click didn't check it (as it was optional)
+        if not Path(target).exists():
+            console.print(f"[red]Error: Path '{target}' does not exist.[/red]")
+            sys.exit(1)
+
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
 
@@ -398,179 +427,44 @@ def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
     json_output = result.model_dump_json(indent=2)
 
     if output_file:
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(json_output)
-        console.print(f"[green]Results saved to {output_file}[/green]")
+        try:
+            with open(output_file, "w") as f:
+                f.write(json_output)
+            console.print(f"\n[bold green]JSON report saved to {output_file}[/bold green]")
+        except Exception as e:
+            console.print(f"\n[bold red]Error saving JSON report: {e}[/bold red]")
     else:
-        console.print(json_output)
+        print(json_output)
 
 
 def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None):
-    """Print results in SARIF format."""
-    generator = SARIFGenerator()
+    """Print results as SARIF."""
+    generator = SARIFGenerator(result)
+    sarif_output = generator.generate()
 
     if output_file:
-        generator.save_to_file(result, Path(output_file))
-        console.print(f"[green]SARIF report saved to {output_file}[/green]")
+        try:
+            with open(output_file, "w") as f:
+                f.write(sarif_output)
+            console.print(f"\n[bold green]SARIF report saved to {output_file}[/bold green]")
+        except Exception as e:
+            console.print(f"\n[bold red]Error saving SARIF report: {e}[/bold red]")
     else:
-        sarif_json = generator.generate_json(result)
-        console.print(sarif_json)
+        print(sarif_output)
 
 
 def _print_html_results(result: ScanResult, output_file: Optional[str] = None):
-    """Print results in HTML format."""
-    generator = HTMLGenerator()
+    """Print results as HTML."""
+    if not output_file:
+        console.print("[red]Error: --json-file argument is required for HTML output[/red]")
+        return
 
-    if output_file:
-        generator.save_to_file(result, Path(output_file))
-        console.print(f"[green]HTML report saved to {output_file}[/green]")
-    else:
-        # For terminal output, save to temp file and show path
-        temp_file = Path("mcp-sentinel-report.html")
-        generator.save_to_file(result, temp_file)
-        console.print(f"[green]HTML report saved to {temp_file.absolute()}[/green]")
+    generator = HTMLGenerator(result)
+    html_output = generator.generate()
 
-
-@cli.command()
-@click.option("--host", default="0.0.0.0", help="Host to bind to")
-@click.option("--port", default=8000, help="Port to bind to")
-@click.option("--reload", is_flag=True, help="Enable auto-reload (development)")
-def server(host: str, port: int, reload: bool):
-    """
-    Start the MCP Sentinel API server.
-
-    This starts a FastAPI server that provides REST and GraphQL APIs
-    for scanning, reporting, and integrations.
-
-    Examples:
-
-        \b
-        # Start server on default port
-        mcp-sentinel server
-
-        \b
-        # Start with auto-reload for development
-        mcp-sentinel server --reload
-
-        \b
-        # Start on custom port
-        mcp-sentinel server --port 9000
-    """
-    import uvicorn
-
-    console.print(
-        Panel.fit(
-            f"[bold cyan]Starting MCP Sentinel API Server[/bold cyan]\n"
-            f"Host: [yellow]{host}[/yellow]\n"
-            f"Port: [yellow]{port}[/yellow]\n"
-            f"Docs: [blue]http://{host if host != '0.0.0.0' else 'localhost'}:{port}/docs[/blue]",
-            box=box.ROUNDED,
-        )
-    )
-
-    uvicorn.run(
-        "mcp_sentinel.api.main:app",
-        host=host,
-        port=port,
-        reload=reload,
-        log_level="info",
-    )
-
-
-@cli.command()
-def version():
-    """Show version information."""
-    console.print(f"[bold cyan]MCP Sentinel[/bold cyan] version [yellow]{__version__}[/yellow]")
-
-
-@cli.command()
-def init():
-    """
-    Initialize MCP Sentinel configuration.
-
-    Creates a .mcp-sentinel.yaml configuration file in the current directory
-    with default settings.
-    """
-    config_content = """# MCP Sentinel Configuration (Phase 4.3)
-
-# Analysis engines to enable - All 4 engines available!
-engines:
-  static: true           # Pattern-based detection (8 specialized detectors)
-  sast: true             # Industry-standard SAST (Semgrep + Bandit)
-  semantic: true         # AST-based taint tracking & control flow analysis
-  ai: false              # AI-powered analysis (requires API keys - see below)
-
-# AI provider configuration (Phase 4.3)
-ai:
-  provider: anthropic    # Options: openai, anthropic, google, ollama
-  model: claude-3-5-sonnet-20241022  # Recommended: Best code understanding
-  # api_key: ${ANTHROPIC_API_KEY}  # Set via environment variable
-  max_cost_per_scan: 1.0             # Cost limit in USD
-  use_rag: true                      # Enhanced detection with RAG
-
-# Report generation
-reporting:
-  formats: [terminal, html, sarif]  # Available: terminal, json, sarif, html
-  output_dir: ./reports
-
-  # Terminal output settings
-  terminal:
-    colored: true
-    show_code_snippets: true
-    show_progress: true
-
-  # HTML report settings
-  html:
-    include_executive_summary: true
-    show_risk_score: true
-    animated_charts: true
-    multi_engine_comparison: true
-
-  # SARIF settings
-  sarif:
-    github_code_scanning: true  # GitHub-compatible SARIF 2.1.0
-    include_fixes: true
-
-# Scanning configuration
-scan:
-  # Severity filtering
-  min_severity: low  # Options: critical, high, medium, low, info
-
-  # File patterns
-  include_patterns:
-    - "**/*.py"
-    - "**/*.js"
-    - "**/*.ts"
-    - "**/*.go"
-    - "**/*.java"
-
-  exclude_patterns:
-    - "**/node_modules/**"
-    - "**/.git/**"
-    - "**/__pycache__/**"
-    - "**/venv/**"
-    - "**/dist/**"
-
-# Performance
-performance:
-  max_workers: 10       # Concurrent file processing
-  cache_enabled: true   # Cache scan results
-  parallel_execution: true
-  timeout_seconds: 300  # Max scan duration
-"""
-
-    config_path = Path(".mcp-sentinel.yaml")
-
-    if config_path.exists():
-        console.print("[yellow]Configuration file already exists![/yellow]")
-        if not click.confirm("Overwrite?"):
-            return
-
-    with open(config_path, "w") as f:
-        f.write(config_content)
-
-    console.print(f"[green]Created configuration file: {config_path}[/green]")
-
-
-if __name__ == "__main__":
-    cli()
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write(html_output)
+        console.print(f"\n[bold green]HTML report saved to {output_file}[/bold green]")
+    except Exception as e:
+        console.print(f"\n[bold red]Error saving HTML report: {e}[/bold red]")

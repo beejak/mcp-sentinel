@@ -30,6 +30,38 @@
 
 </div>
 
+## 🎯 What's New - v1.0.0-beta.4
+
+**Latest (Jan 24, 2026):** 🚀 **Advanced CLI & Logging System**
+
+<table>
+<tr>
+<td>
+
+### 🛠️ Enhanced CLI Experience
+- ✅ **Interactive Mode** - Smart prompts for missing arguments
+- ✅ **Structured Logging** - JSON output for ELK/Splunk integration
+- ✅ **Log Rotation** - Auto-rotation (10MB limit) with backups
+- ✅ **Configurable Levels** - Fine-grained control (DEBUG to FATAL)
+
+**[📖 Read the New Tutorial](TUTORIAL.md)**
+
+</td>
+<td>
+
+### 🤖 AI Analysis Engine (Phase 4.3)
+**Revolutionary AI-Powered Detection:**
+- ✅ **Multi-Provider Architecture** - Claude, GPT-4, Gemini
+- ✅ **Claude 3.5 Sonnet** - 200k context window
+- ✅ **Cost Management** - Budget limits & tracking
+- ✅ **Contextual Analysis** - Deep logic flaw detection
+
+</td>
+</tr>
+</table>
+
+---
+
 ## 🎯 What's New - v1.0.0-beta.2
 
 **Latest (Jan 15, 2026):** 🚀 **Phase 4.3 Launched** - AI Analysis Engine is here!
