@@ -468,3 +468,7 @@ def _print_html_results(result: ScanResult, output_file: Optional[str] = None):
         console.print(f"\n[bold green]HTML report saved to {output_file}[/bold green]")
     except Exception as e:
         console.print(f"\n[bold red]Error saving HTML report: {e}[/bold red]")
+
+
+if __name__ == "__main__":
+    cli()
