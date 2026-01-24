@@ -6,9 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Test Coverage](https://img.shields.io/badge/coverage-70.77%25-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
-[![Tests](https://img.shields.io/badge/tests-369%2F371%20passing%20(99.5%25)-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
-[![Version](https://img.shields.io/badge/version-v1.0.0--beta.2-blue.svg)](https://github.com/beejak/mcp-sentinel/releases/tag/v1.0.0-beta.2)
+[![Test Coverage](https://img.shields.io/badge/coverage-75.00%25-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Tests](https://img.shields.io/badge/tests-437%2F437%20passing%20(100%25)-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Version](https://img.shields.io/badge/version-v1.0.0--beta.3-blue.svg)](https://github.com/beejak/mcp-sentinel/releases/tag/v1.0.0-beta.3)
 
 </div>
 
@@ -84,7 +84,8 @@
 | **Phase 4.1** | Jan 2026 | 94.6% (313/331) | 55% | 2 | SAST integration (Semgrep + Bandit) | ✅ |
 | **Phase 4.2.1** | Jan 2026 | 98.9% (367/371) | 70.44% | 3 | Semantic analysis (AST + taint tracking) | ✅ |
 | **Phase 4.2.2** | Jan 2026 | **99.5% (369/371)** | **70.77%** | 3 | Near-perfect test coverage | ✅ |
-| **Phase 4.3** | Jan 2026 | 99.5% (369/371) | 70.77% | **4** | **AI Analysis Engine** 🚀 | **🟢 Current** |
+| **Phase 4.3** | Jan 2026 | 99.5% (369/371) | 70.77% | 4 | AI Analysis Engine | ✅ |
+| **Phase 4.4** | Jan 2026 | 99.5% (437/440) | 75.89% | 4 | **RAG Knowledge System** 🧠 | **🟢 Current** |
 | **Phase 5** | Q2-Q3 2026 | TBD | TBD | 4 | Enterprise platform (API + Dashboard) | 🔄 Planned |
 
 ### 📈 Evolution Highlights
@@ -94,7 +95,7 @@
 <th>Metric</th>
 <th>Phase 1-2<br/>(Nov 2025)</th>
 <th>Phase 4.2.1<br/>(Jan 2026)</th>
-<th>Phase 4.3<br/>(Current)</th>
+<th>Phase 4.4<br/>(Current)</th>
 <th>Improvement</th>
 </tr>
 <tr>

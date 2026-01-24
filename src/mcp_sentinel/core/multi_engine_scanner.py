@@ -188,7 +188,7 @@ class MultiEngineScanner:
                 with open(file_path, encoding="utf-8", errors="ignore") as f:
                     content = f.read()
             except Exception as e:
-                print(f"Error reading {file_path}: {e}")
+                logger.error(f"Error reading {file_path}: {e}")
                 return []
 
         # Determine file type if not provided

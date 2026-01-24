@@ -98,6 +98,37 @@ mcp-sentinel --help
 ```bash
 # Scan current directory
 mcp-sentinel scan .
+```
+
+---
+
+## RAG Knowledge System
+
+### What is RAG?
+Retrieval-Augmented Generation (RAG) enhances MCP Sentinel by retrieving relevant security knowledge from a vector database during scans. This allows the scanner to understand context and provide more accurate results.
+
+### Using the Knowledge Base
+
+The RAG system is enabled by default in Phase 4.4. It automatically loads:
+- **OWASP Top 10** (LLM, Web, API)
+- **CWE Top 25**
+- **Framework Security Patterns** (Django, Flask, FastAPI)
+
+### Managing Knowledge
+
+You can manage the knowledge base using the CLI (coming soon):
+
+```bash
+# Update knowledge base (Planned)
+mcp-sentinel knowledge update
+
+# Search for patterns (Planned)
+mcp-sentinel knowledge search "sql injection"
+```
+
+---
+
+## Output Formats
 
 # Scan a specific directory
 mcp-sentinel scan /path/to/mcp/server
@@ -223,6 +254,16 @@ start report.html  # Windows
 ---
 
 ## Advanced Features
+
+### RAG Knowledge System (New in 4.4)
+
+MCP Sentinel now includes a Retrieval-Augmented Generation (RAG) system that enhances AI analysis with:
+
+- **Vector Search**: Semantic retrieval of security patterns.
+- **Knowledge Base**: Access to OWASP, CWE, and SANS vulnerabilities.
+- **Contextual Insights**: Provides the AI engine with relevant security context for better accuracy.
+
+To use the RAG system, ensure you have the `--engines all` or include `semantic` in your engine list.
 
 ### Severity Filtering
 

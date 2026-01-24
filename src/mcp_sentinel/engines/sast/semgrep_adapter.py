@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
+import logging
 
+logger = logging.getLogger(__name__)
 
 class SemgrepAdapter:
     """Adapter for Semgrep SAST tool."""
@@ -71,7 +73,7 @@ class SemgrepAdapter:
                 )
             except (TimeoutError, asyncio.TimeoutError):
                 process.kill()
-                print(f"[WARN] Semgrep timeout after {self.timeout}s")
+                logger.warning(f"Semgrep timeout after {self.timeout}s")
                 return []
 
             # Parse results
@@ -79,11 +81,11 @@ class SemgrepAdapter:
                 # returncode 1 means findings found (not an error)
                 return self._parse_results(stdout.decode("utf-8"), target_path)
             else:
-                print(f"[WARN] Semgrep failed: {stderr.decode('utf-8')}")
+                logger.warning(f"Semgrep failed: {stderr.decode('utf-8')}")
                 return []
 
         except Exception as e:
-            print(f"[ERROR] Semgrep execution error: {e}")
+            logger.error(f"Semgrep execution error: {e}")
             return []
 
     async def scan_file(

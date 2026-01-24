@@ -10,6 +10,9 @@ from typing import List, Optional
 
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType
 from mcp_sentinel.models.vulnerability import Vulnerability
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SASTEngine(BaseEngine):
@@ -116,7 +119,7 @@ class SASTEngine(BaseEngine):
                     semgrep_vulns = await self.semgrep.scan_directory(target_path)
                     vulnerabilities.extend(semgrep_vulns)
                 except Exception as e:
-                    print(f"[ERROR] Semgrep scan failed: {e}")
+                    logger.error(f"Semgrep scan failed: {e}")
 
             # Run Bandit if available
             if self.bandit and self.bandit.enabled:
@@ -124,7 +127,7 @@ class SASTEngine(BaseEngine):
                     bandit_vulns = await self.bandit.scan_directory(target_path)
                     vulnerabilities.extend(bandit_vulns)
                 except Exception as e:
-                    print(f"[ERROR] Bandit scan failed: {e}")
+                    logger.error(f"Bandit scan failed: {e}")
 
             self.status = EngineStatus.COMPLETED
             return vulnerabilities

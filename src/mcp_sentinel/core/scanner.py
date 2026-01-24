@@ -96,7 +96,7 @@ class Scanner:
 
                 except Exception as e:
                     # Log error but continue scanning
-                    print(f"Error scanning {file_path}: {e}")
+                    logger.error(f"Error scanning {file_path}: {e}")
                     continue
 
             # Mark as completed
