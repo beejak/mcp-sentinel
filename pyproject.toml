@@ -91,6 +91,7 @@ ruff = "^0.1.11"
 jira = "^3.6.0"
 slack-sdk = "^3.26.1"
 PyGithub = "^2.1.1"
+gql = {extras = ["requests"], version = "^3.5.0"}
 python-gitlab = "^4.4.0"
 pdpyras = "^5.2.0"
 splunk-sdk = "^2.0.1"
