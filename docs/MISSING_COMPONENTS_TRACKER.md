@@ -35,28 +35,36 @@
 
 ### Category 1: Threat Intelligence (4 components) - **PHASE 4.4**
 
-#### 1.1 VulnerableMCP API Integration
+#### 1.1 Public Vulnerability Monitoring (GitHub + Community)
 **Status**: ⏳ Not Started
-**Priority**: **HIGH**
+**Priority**: **HIGH** (Phase 4.4 - Research Agent foundation)
 **Effort**: 2-3 days
 **Dependencies**: None
-**Value**: Continuous vulnerability updates from community
+**Value**: Real-time MCP vulnerability monitoring from public sources
 
-**Right Time to Start**: ✅ **NOW** (Phase 4.4 - Research Agent prerequisite)
+**Right Time to Start**: ✅ **NOW** (Phase 4.4 - Research Agent core)
 
 **Triggers**:
 - ✅ Research Agent architecture being designed
-- ✅ Need for real-time MCP vulnerability data
+- ✅ No external VulnerableMCP API exists (we build our own knowledge base)
 
 **Implementation**:
 ```python
-# src/mcp_sentinel/threat_intel/vulnerable_mcp.py
-class VulnerableMCPClient:
-    - Query known vulnerable packages
-    - Get vulnerability details
-    - Check package reputation
-    - Subscribe to updates
+# src/mcp_sentinel/research_agent/sources/github_monitor.py
+class GitHubSecurityMonitor:
+    - GitHub Security Advisories (GHSA-*)
+    - GitHub Issues/PRs (security labels)
+    - MCP server repositories monitoring
+
+# Future: Build our own VulnerableMCP API (Phase 5+)
+# Expose collected vulnerability data as public API
 ```
+
+**Data Sources (No External API Needed)**:
+1. ✅ GitHub Security Advisories API (free, public)
+2. ✅ GitHub GraphQL API for issues/PRs (free, public)
+3. ✅ Security mailing lists (oss-security)
+4. ✅ Reddit/HN/Twitter (optional enhancement)
 
 ---
 

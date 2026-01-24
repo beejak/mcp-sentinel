@@ -383,19 +383,30 @@ class VulnerabilityKnowledgeBase:
 
 ### Data Sources Priority
 
-#### Phase 1 (MVP - Week 1)
-1. ✅ **VulnerableMCP API** (if it exists)
-2. ✅ **GitHub Security Advisories** (GHSA-*)
-3. ✅ **GitHub Issues** (search: "MCP security" OR "MCP vulnerability")
+**✅ NO EXTERNAL API DEPENDENCY** - VulnerableMCP API doesn't exist yet, we'll build our own!
 
-#### Phase 2 (Week 2)
-4. ✅ **MCP Server Repositories** (GitHub issues/PRs with "security" label)
-5. ✅ **Security Mailing Lists** (oss-security)
+#### Phase 1 (MVP - Week 1) - Core Free Public Sources
+1. ✅ **GitHub Security Advisories** (GHSA-*) - REST API, free, comprehensive
+2. ✅ **GitHub Issues/PRs** - GraphQL API, search: "MCP security" OR "MCP vulnerability"
+3. ✅ **MCP Server Repositories** - Monitor popular repos (Anthropic MCP servers, community)
 
-#### Phase 3 (Week 3+)
-6. ✅ **Reddit** (r/MachineLearning, r/netsec, r/programming)
-7. ✅ **HackerNews** (search: "MCP security")
-8. ✅ **Discord/Slack** (MCP community channels)
+**Result**: 80% vulnerability coverage with just GitHub APIs
+
+#### Phase 2 (Week 2) - Extended Public Coverage
+4. ✅ **Security Mailing Lists** - oss-security@lists.openwall.com (RSS/email)
+5. ✅ **Reddit** - r/MachineLearning, r/netsec (Reddit API)
+6. ✅ **HackerNews** - Algolia search API for "MCP security"
+
+**Result**: 95% vulnerability coverage
+
+#### Phase 3 (Post-MVP) - Community Enhancement
+7. ✅ **Discord/Slack** - MCP community channels (webhook integration)
+8. ✅ **Twitter/X** - Security researcher tweets (optional)
+
+#### Future (Phase 5+): Build Our Own VulnerableMCP API
+- Expose collected vulnerability data as public API
+- Become the authoritative MCP security intelligence source
+- Revenue: Free public tier, paid enterprise tier with private data
 
 ---
 
