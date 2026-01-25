@@ -1,1 +1,1 @@
-SAST engine tests.
+"""SAST engine tests."""
