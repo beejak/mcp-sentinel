@@ -7,10 +7,10 @@ in MCP servers and related applications.
 Critical for ensuring MCP servers follow security best practices in deployment.
 """
 
-from typing import Any, Dict, List, Optional
 import re
 from pathlib import Path
 from re import Pattern
+from typing import List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -39,9 +39,9 @@ class ConfigSecurityDetector(BaseDetector):
     def __init__(self):
         """Initialize the Config Security detector."""
         super().__init__(name="ConfigSecurityDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for configuration security detection."""
         return {
             # Pattern 1: Debug mode enabled
@@ -206,9 +206,9 @@ class ConfigSecurityDetector(BaseDetector):
             file_path.suffix.lower() in config_extensions or file_path.name.lower() in config_names
         )
 
-    async def detect(
+    def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect configuration security vulnerabilities in file content.
 
@@ -220,7 +220,7 @@ class ConfigSecurityDetector(BaseDetector):
         Returns:
             List of detected configuration security vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -358,7 +358,7 @@ class ConfigSecurityDetector(BaseDetector):
             # JSON/YAML: "debug": true -> "debug": false
             elif "true" in code_snippet:
                 return code_snippet.replace("true", "false")
-        
+
         return None
 
     def _create_vulnerability(

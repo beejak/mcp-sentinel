@@ -9,9 +9,9 @@ Critical for MCP servers that handle file operations or serve files.
 
 import ast
 import re
-from typing import Any, Dict, List, Optional
 from pathlib import Path
 from re import Pattern
+from typing import Dict, List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.engines.semantic import SemanticEngine, get_semantic_engine
@@ -157,7 +157,7 @@ class PathTraversalDetector(BaseDetector):
         ]
         return file_path.suffix.lower() in code_extensions
 
-    async def detect(
+    def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
     ) -> List[Vulnerability]:
         """
@@ -203,7 +203,7 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of vulnerabilities found by pattern matching
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         # Build CFG for guard detection (if Python code)
@@ -269,7 +269,7 @@ class PathTraversalDetector(BaseDetector):
 
     def _semantic_analysis_detection(
         self, file_path: Path, content: str, file_type: Optional[str]
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Semantic analysis detection (Phase 2 - accurate, multi-line).
 
@@ -291,7 +291,7 @@ class PathTraversalDetector(BaseDetector):
         if not self.semantic_engine:
             return []
 
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             # Run semantic analysis
@@ -486,8 +486,8 @@ class PathTraversalDetector(BaseDetector):
         )
 
     def _deduplicate_vulnerabilities(
-        self, vulnerabilities: List[Vulnerability]
-    ) -> List[Vulnerability]:
+        self, vulnerabilities: list[Vulnerability]
+    ) -> list[Vulnerability]:
         """
         Deduplicate vulnerabilities from pattern-based and semantic analysis.
 
@@ -501,7 +501,7 @@ class PathTraversalDetector(BaseDetector):
             Deduplicated list
         """
         # Group by (file_path, line_number)
-        vuln_map: Dict[Tuple[str, int], Vulnerability] = {}
+        vuln_map: dict[tuple[str, int], Vulnerability] = {}
 
         for vuln in vulnerabilities:
             key = (vuln.file_path, vuln.line_number)

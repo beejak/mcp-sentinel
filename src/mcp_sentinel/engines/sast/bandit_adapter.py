@@ -2,11 +2,14 @@
 
 import asyncio
 import json
+import logging
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
+
+logger = logging.getLogger(__name__)
 
 
 class BanditAdapter:
@@ -28,7 +31,7 @@ class BanditAdapter:
         self.timeout = timeout
 
         if not self.enabled:
-            print("[INFO] Bandit not available - adapter disabled")
+            logger.info("Bandit not available - adapter disabled")
 
     async def scan_directory(
         self,
@@ -64,7 +67,7 @@ class BanditAdapter:
                 )
             except TimeoutError:
                 process.kill()
-                print(f"[WARN] Bandit timeout after {self.timeout}s")
+                logger.warning(f"Bandit timeout after {self.timeout}s")
                 return []
 
             # Parse results
@@ -72,11 +75,11 @@ class BanditAdapter:
             if process.returncode in (0, 1):
                 return self._parse_results(stdout.decode("utf-8"), target_path)
             else:
-                print(f"[WARN] Bandit failed: {stderr.decode('utf-8')}")
+                logger.warning(f"Bandit failed: {stderr.decode('utf-8')}")
                 return []
 
         except Exception as e:
-            print(f"[ERROR] Bandit execution error: {e}")
+            logger.error(f"Bandit execution error: {e}")
             return []
 
     async def scan_file(
@@ -117,7 +120,7 @@ class BanditAdapter:
                 )
             except TimeoutError:
                 process.kill()
-                print(f"[WARN] Bandit timeout for {file_path}")
+                logger.warning(f"Bandit timeout for {file_path}")
                 return []
 
             if process.returncode in (0, 1):
@@ -126,7 +129,7 @@ class BanditAdapter:
                 return []
 
         except Exception as e:
-            print(f"[ERROR] Bandit file scan error: {e}")
+            logger.error(f"Bandit file scan error: {e}")
             return []
 
     def _build_command(self, target_path: Path) -> List[str]:
@@ -151,7 +154,7 @@ class BanditAdapter:
         self,
         output: str,
         target_path: Path,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Parse Bandit JSON output.
 
@@ -174,9 +177,9 @@ class BanditAdapter:
                     vulnerabilities.append(vuln)
 
         except json.JSONDecodeError as e:
-            print(f"[ERROR] Failed to parse Bandit output: {e}")
+            logger.error(f"Failed to parse Bandit output: {e}")
         except Exception as e:
-            print(f"[ERROR] Error processing Bandit results: {e}")
+            logger.error(f"Error processing Bandit results: {e}")
 
         return vulnerabilities
 
@@ -261,7 +264,7 @@ class BanditAdapter:
             )
 
         except Exception as e:
-            print(f"[ERROR] Failed to convert Bandit result: {e}")
+            logger.error(f"Failed to convert Bandit result: {e}")
             return None
 
     def _map_test_id_to_type(self, test_id: str) -> VulnerabilityType:

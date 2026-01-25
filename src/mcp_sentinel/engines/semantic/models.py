@@ -6,7 +6,7 @@ Defines core structures for taint tracking, control flow, and AST representation
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 
 class TaintType(Enum):
@@ -100,7 +100,7 @@ class Guard:
     condition: str  # Guard condition expression
     line: int  # Line number
     guard_type: str  # Type: "validation", "sanitization", "bounds_check"
-    variables: Set[str] = field(default_factory=set)  # Variables involved
+    variables: set[str] = field(default_factory=set)  # Variables involved
     is_exit: bool = False  # Does this guard exit (return, throw)?
 
     def __repr__(self):
@@ -115,9 +115,9 @@ class CFGNode:
     node_type: str  # "statement", "branch", "loop", "return", "merge"
     line: int  # Line number
     content: str  # Node content (code)
-    successors: List[int] = field(default_factory=list)  # Next nodes
-    predecessors: List[int] = field(default_factory=list)  # Previous nodes
-    guards: List[Guard] = field(default_factory=list)  # Guards on this path
+    successors: list[int] = field(default_factory=list)  # Next nodes
+    predecessors: list[int] = field(default_factory=list)  # Previous nodes
+    guards: list[Guard] = field(default_factory=list)  # Guards on this path
 
     def __repr__(self):
         return f"CFGNode({self.node_type}@L{self.line}: {self.content[:30]})"
@@ -127,9 +127,9 @@ class CFGNode:
 class ControlFlowGraph:
     """Control flow graph for a function or code block."""
 
-    nodes: Dict[int, CFGNode]  # node_id -> CFGNode
+    nodes: dict[int, CFGNode]  # node_id -> CFGNode
     entry_node: int  # Entry point node ID
-    exit_nodes: List[int]  # Exit point node IDs
+    exit_nodes: list[int]  # Exit point node IDs
 
     def add_edge(self, from_id: int, to_id: int):
         """Add edge from one node to another."""
@@ -137,12 +137,12 @@ class ControlFlowGraph:
             self.nodes[from_id].successors.append(to_id)
             self.nodes[to_id].predecessors.append(from_id)
 
-    def get_all_paths(self, from_id: int, to_id: int) -> List[List[int]]:
+    def get_all_paths(self, from_id: int, to_id: int) -> list[list[int]]:
         """Get all paths from one node to another."""
         paths = []
         visited = set()
 
-        def dfs(current: int, path: List[int]):
+        def dfs(current: int, path: list[int]):
             if current == to_id:
                 paths.append(path[:])
                 return
@@ -165,10 +165,10 @@ class UnifiedAST:
 
     language: str  # "python", "javascript", "java"
     raw_ast: Any  # Language-specific AST object
-    sources: List[TaintSource] = field(default_factory=list)  # Extracted sources
-    sinks: List[TaintSink] = field(default_factory=list)  # Extracted sinks
-    variables: Dict[str, Any] = field(default_factory=dict)  # Variable tracking
-    functions: List[Dict[str, Any]] = field(default_factory=list)  # Function definitions
+    sources: list[TaintSource] = field(default_factory=list)  # Extracted sources
+    sinks: list[TaintSink] = field(default_factory=list)  # Extracted sinks
+    variables: dict[str, Any] = field(default_factory=dict)  # Variable tracking
+    functions: list[dict[str, Any]] = field(default_factory=list)  # Function definitions
 
     def __repr__(self):
         return (

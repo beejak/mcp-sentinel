@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-01-25T08:18:56.537110",
+  "timestamp": "2026-01-25T08:49:55.993514",
   "metrics": {
-    "test_coverage_pct": 82,
+    "test_coverage_pct": 0,
     "lint_issues": 0,
-    "type_issues": 0
+    "type_issues": 247
   }
 }

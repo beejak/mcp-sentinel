@@ -128,7 +128,7 @@ class GuardExtractor(ast.NodeVisitor):
     """
 
     def __init__(self):
-        self.guards: List[Guard] = []
+        self.guards: list[Guard] = []
 
     def visit_If(self, node: ast.If):
         """Visit if statements to extract guards."""

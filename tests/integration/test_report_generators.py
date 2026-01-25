@@ -58,7 +58,7 @@ async def test_sarif_generator_end_to_end(temp_project):
     """Test SARIF report generation end-to-end."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Verify we found vulnerabilities
     assert result.status == "completed"
@@ -111,7 +111,7 @@ async def test_sarif_generator_save_to_file(temp_project):
     """Test saving SARIF report to file."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Save to file
     temp_file = Path(tempfile.mktemp(suffix=".sarif"))
@@ -138,7 +138,7 @@ async def test_html_generator_end_to_end(temp_project):
     """Test HTML report generation end-to-end."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Verify we found vulnerabilities
     assert result.status == "completed"
@@ -183,7 +183,7 @@ async def test_html_generator_save_to_file(temp_project):
     """Test saving HTML report to file."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Save to file
     temp_file = Path(tempfile.mktemp(suffix=".html"))
@@ -209,7 +209,7 @@ async def test_html_generator_self_contained(temp_project):
     """Test that HTML reports are self-contained with no external dependencies."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Generate HTML
     generator = HTMLGenerator()
@@ -238,7 +238,7 @@ async def test_report_generators_with_no_vulnerabilities():
     try:
         # Run scan on empty directory
         scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-        result = await scanner.scan_directory(temp_dir)
+        result = await scanner.scan(temp_dir)
 
         assert result.status == "completed"
         assert len(result.vulnerabilities) == 0
@@ -264,7 +264,7 @@ async def test_report_generators_with_severity_filtering(temp_project):
     """Test that report generators handle severity-filtered results."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     original_count = len(result.vulnerabilities)
     assert original_count >= 3
@@ -293,7 +293,7 @@ async def test_sarif_github_code_scanning_compatibility(temp_project):
     """Test that SARIF output is compatible with GitHub Code Scanning."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Generate SARIF
     generator = SARIFGenerator()
@@ -340,7 +340,7 @@ async def test_html_report_executive_dashboard(temp_project):
     """Test that HTML reports include executive dashboard elements."""
     # Run scan
     scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Generate HTML
     generator = HTMLGenerator()

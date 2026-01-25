@@ -123,7 +123,7 @@ class PromptInjectionDetector(BaseDetector):
         ]
         return file_path.suffix.lower() in applicable_extensions
 
-    async def detect(
+    def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
     ) -> List[Vulnerability]:
         """

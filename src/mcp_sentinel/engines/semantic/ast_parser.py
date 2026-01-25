@@ -7,8 +7,7 @@ Supports Python, JavaScript, and Java.
 
 import ast
 import re
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Optional
 
 from mcp_sentinel.engines.semantic.models import (
     SinkType,
@@ -98,7 +97,7 @@ class ASTParser:
 
     def _parse_javascript(self, code: str) -> Optional[UnifiedAST]:
         """Parse JavaScript code (stub for now - requires esprima)."""
-        # TODO: Implement JavaScript parsing using esprima
+        # TODO: Implement JavaScript parsing using esprima or similar
         # For now, return a basic UnifiedAST with regex-based extraction
         unified_ast = UnifiedAST(language="javascript", raw_ast=None)
         unified_ast.sources = self._extract_sources_regex(code, "javascript")
@@ -113,7 +112,7 @@ class ASTParser:
         unified_ast.sinks = self._extract_sinks_regex(code, "java")
         return unified_ast
 
-    def _extract_sources_regex(self, code: str, language: str) -> List[TaintSource]:
+    def _extract_sources_regex(self, code: str, language: str) -> list[TaintSource]:
         """Fallback: Extract taint sources using regex (for non-Python)."""
         sources = []
         lines = code.split("\n")
@@ -139,7 +138,7 @@ class ASTParser:
                         )
         return sources
 
-    def _extract_sinks_regex(self, code: str, language: str) -> List[TaintSink]:
+    def _extract_sinks_regex(self, code: str, language: str) -> list[TaintSink]:
         """Fallback: Extract sinks using regex (for non-Python)."""
         sinks = []
         lines = code.split("\n")
@@ -176,10 +175,10 @@ class PythonTaintVisitor(ast.NodeVisitor):
     """AST visitor to extract taint sources and sinks from Python code."""
 
     def __init__(self):
-        self.sources: List[TaintSource] = []
-        self.sinks: List[TaintSink] = []
-        self.variables: Dict[str, Any] = {}  # Track variable assignments
-        self.functions: List[Dict[str, Any]] = []  # Track function definitions
+        self.sources: list[TaintSource] = []
+        self.sinks: list[TaintSink] = []
+        self.variables: dict[str, Any] = {}  # Track variable assignments
+        self.functions: list[dict[str, Any]] = []  # Track function definitions
         self.current_line = 0
 
     def visit_Assign(self, node: ast.Assign):

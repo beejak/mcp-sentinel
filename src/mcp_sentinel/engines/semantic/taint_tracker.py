@@ -159,7 +159,7 @@ class TaintFlowVisitor(ast.NodeVisitor):
     - Attribute assignments
     """
 
-    def __init__(self, tainted: Dict[str, TaintSource], sanitized: Set[str]):
+    def __init__(self, tainted: dict[str, TaintSource], sanitized: set[str]):
         """
         Initialize visitor.
 

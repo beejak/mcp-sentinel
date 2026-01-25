@@ -28,12 +28,12 @@ class BaseDetector(ABC):
         self.enabled = enabled
 
     @abstractmethod
-    async def detect(
+    def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
     ) -> List[Vulnerability]:
         """
-        Detect vulnerabilities in a file.
-
+        Synchronous detection method.
+        
         Args:
             file_path: Path to the file
             content: File content
@@ -43,6 +43,22 @@ class BaseDetector(ABC):
             List of detected vulnerabilities
         """
         pass
+
+    async def detect(
+        self, file_path: Path, content: str, file_type: Optional[str] = None
+    ) -> List[Vulnerability]:
+        """
+        Detect vulnerabilities in a file (Async wrapper).
+
+        Args:
+            file_path: Path to the file
+            content: File content
+            file_type: File type (e.g., "python", "javascript")
+
+        Returns:
+            List of detected vulnerabilities
+        """
+        return self.detect_sync(file_path, content, file_type)
 
     def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """

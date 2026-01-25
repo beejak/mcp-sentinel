@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from mcp_sentinel.models.vulnerability import Vulnerability
+
 class AIProviderType(Enum):
     """Supported AI provider types."""
 

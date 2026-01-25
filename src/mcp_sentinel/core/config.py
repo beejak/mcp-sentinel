@@ -3,6 +3,7 @@ Configuration management for MCP Sentinel.
 """
 
 
+
 from typing import List, Optional
 
 from pydantic import Field
@@ -107,7 +108,7 @@ class Settings(BaseSettings):
     parallel_execution: bool = Field(default=True, alias="PARALLEL_EXECUTION")
 
     # CORS
-    cors_allowed_origins: List[str] = Field(
+    cors_allowed_origins: list[str] = Field(
         default=["http://localhost:3000"], alias="CORS_ALLOWED_ORIGINS"
     )
 

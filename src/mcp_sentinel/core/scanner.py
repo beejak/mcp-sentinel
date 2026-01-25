@@ -2,9 +2,10 @@
 Main scanner orchestrator for MCP Sentinel.
 """
 
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional
 
 from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.detectors.base import BaseDetector
@@ -18,6 +19,8 @@ from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.xss import XSSDetector
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
+
+logger = logging.getLogger(__name__)
 
 
 class Scanner:
@@ -64,17 +67,17 @@ class Scanner:
         Returns:
             ScanResult with all findings
         """
-        target_path = Path(target_path)
+        path_obj = Path(target_path)
 
-        if not target_path.exists():
+        if not path_obj.exists():
             raise ScanError(f"Target path does not exist: {target_path}")
 
-        if not target_path.is_dir():
+        if not path_obj.is_dir():
             raise ScanError(f"Target path is not a directory: {target_path}")
 
         # Initialize scan result
         scan_result = ScanResult(
-            target=str(target_path),
+            target=str(path_obj),
             status="running",
         )
 
@@ -82,7 +85,7 @@ class Scanner:
 
         try:
             # Get all files to scan
-            files_to_scan = self._discover_files(target_path, file_patterns)
+            files_to_scan = self._discover_files(path_obj, file_patterns)
             scan_result.statistics.total_files = len(files_to_scan)
 
             # Scan each file
@@ -146,11 +149,11 @@ class Scanner:
                     detected = await detector.detect(file_path, content, file_type)
                     vulnerabilities.extend(detected)
                 except Exception as e:
-                    print(f"Error in detector {detector.name}: {e}")
+                    logger.error(f"Error in detector {detector.name}: {e}")
                     continue
 
         except Exception as e:
-            print(f"Error reading file {file_path}: {e}")
+            logger.error(f"Error reading file {file_path}: {e}")
 
         return vulnerabilities
 

@@ -5,10 +5,9 @@ All analysis engines (Static, Semantic, SAST, AI) implement this interface.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from mcp_sentinel.models.vulnerability import Vulnerability
 

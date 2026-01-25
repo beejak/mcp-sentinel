@@ -3,8 +3,8 @@ CLI entry point for MCP Sentinel.
 """
 
 import asyncio
+import json
 import sys
-import os
 from pathlib import Path
 from typing import Optional, Set
 
@@ -13,32 +13,33 @@ import questionary
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
+from rich.syntax import Syntax
 from rich.table import Table
 
 from mcp_sentinel import __version__
+from mcp_sentinel.core.logger import setup_logging
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.remediation.models import CodeChange
 from mcp_sentinel.remediation.diff_builder import DiffBuilder
+from mcp_sentinel.remediation.models import CodeChange
 from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
-from mcp_sentinel.core.logger import setup_logging
 
 console = Console()
 
 
 @click.group()
 @click.option(
-    "--log-level", 
-    type=click.Choice(["DEBUG", "INFO", "WARN", "ERROR", "FATAL"], case_sensitive=False), 
-    default="INFO", 
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARN", "ERROR", "FATAL"], case_sensitive=False),
+    default="INFO",
     help="Set logging level"
 )
 @click.option(
-    "--log-file", 
-    type=click.Path(dir_okay=False, writable=True), 
-    default=None, 
+    "--log-file",
+    type=click.Path(dir_okay=False, writable=True),
+    default=None,
     help="Log detailed output to file"
 )
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
@@ -153,7 +154,7 @@ def scan(
         if not target:
             console.print("[red]Operation cancelled.[/red]")
             sys.exit(0)
-        
+
         # Check existence manually since click didn't check it (as it was optional)
         if not Path(target).exists():
             console.print(f"[red]Error: Path '{target}' does not exist.[/red]")
@@ -214,7 +215,7 @@ def scan(
 def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
     """
     Interactively fix vulnerabilities found in code.
-    
+
     This command operationalizes the "Defect Resolution" process by allowing
     developers to quickly apply remediation suggestions.
     """
@@ -224,7 +225,7 @@ def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
         if not target:
             console.print("[red]Operation cancelled.[/red]")
             sys.exit(0)
-            
+
         if not Path(target).exists():
             console.print(f"[red]Error: Path '{target}' does not exist.[/red]")
             sys.exit(1)
@@ -233,22 +234,22 @@ def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
     if scan_file:
         console.print(f"[blue]Loading results from {scan_file}...[/blue]")
         try:
-            with open(scan_file, 'r', encoding='utf-8') as f:
+            with open(scan_file, encoding='utf-8') as f:
                 scan_data = f.read()
             result = ScanResult.model_validate_json(scan_data)
-            
+
             # Use scan target if user didn't provide one
             if not target:
                 target = result.target
                 console.print(f"[dim]Using target from scan file: {target}[/dim]")
-                
+
         except Exception as e:
             console.print(f"[red]Error loading scan file: {e}[/red]")
             sys.exit(1)
     else:
         # Default to static + sast for speed in interactive mode
-        enabled_engines = {EngineType.STATIC, EngineType.SAST} 
-    
+        enabled_engines = {EngineType.STATIC, EngineType.SAST}
+
     console.print(
         Panel.fit(
             f"[bold green]MCP Sentinel Interactive Remediation[/bold green]\n"
@@ -256,31 +257,31 @@ def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
             box=box.ROUNDED
         )
     )
-    
+
     if not scan_file:
         # Run scan with progress tracking
         with console.status("[bold green]Scanning for fixable issues..."):
             result = asyncio.run(_run_scan_multi_engine(target, enabled_engines, None))
-        
+
     fixable_vulns = [v for v in result.vulnerabilities if v.fixed_code]
-    
+
     if not fixable_vulns:
         console.print("[yellow]No vulnerabilities with automated fixes found.[/yellow]")
         return
 
     console.print(f"[green]Found {len(fixable_vulns)} fixable vulnerabilities.[/green]\n")
-    
+
     fixed_count = 0
     skipped_count = 0
-    
+
     for i, vuln in enumerate(fixable_vulns, 1):
         console.print(f"[bold cyan]Issue {i}/{len(fixable_vulns)}: {vuln.title}[/bold cyan]")
         console.print(f"File: [magenta]{vuln.file_path}:{vuln.line_number}[/magenta]")
-        
+
         try:
-            with open(vuln.file_path, 'r', encoding='utf-8') as f:
+            with open(vuln.file_path, encoding='utf-8') as f:
                 content = f.read()
-                
+
             code_change = CodeChange(
                 file_path=vuln.file_path,
                 original_code=vuln.code_snippet or "",
@@ -288,21 +289,21 @@ def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
                 start_line=vuln.line_number,
                 end_line=vuln.line_end or vuln.line_number
             )
-            
+
             diff = DiffBuilder.generate_diff(code_change)
-            
+
             if not diff:
                 console.print("[yellow]No changes detected in fix.[/yellow]")
                 continue
 
             console.print(Panel(diff, title="Proposed Change", border_style="blue"))
-            
+
             if auto_approve:
                 should_fix = True
                 console.print("[dim]Auto-approving fix...[/dim]")
             else:
                 should_fix = questionary.confirm("Apply this fix?").ask()
-                
+
             if should_fix:
                 new_content = DiffBuilder.apply_patch(content, code_change)
                 with open(vuln.file_path, 'w', encoding='utf-8') as f:
@@ -312,10 +313,10 @@ def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
             else:
                 console.print("[yellow]⚠ Skipped.[/yellow]\n")
                 skipped_count += 1
-                
+
         except Exception as e:
             console.print(f"[red]Error applying fix: {e}[/red]\n")
-            
+
     console.print(
         Panel.fit(
             f"[bold]Remediation Complete[/bold]\n"
@@ -416,7 +417,7 @@ async def _run_scan_multi_engine(
             )
 
             # Start scan in background
-            scan_task = asyncio.create_task(scanner.scan_directory(target))
+            scan_task = asyncio.create_task(scanner.scan(target))
 
             # Update progress while scanning
             while not scan_task.done():
@@ -436,7 +437,7 @@ async def _run_scan_multi_engine(
             return result
     else:
         # No progress display
-        return await scanner.scan_directory(target)
+        return await scanner.scan(target)
 
 
 def _print_terminal_results(result: ScanResult):
@@ -525,16 +526,16 @@ def _print_terminal_results(result: ScanResult):
                 console.print(f"   [bold green]Remediation:[/bold green] {vuln.remediation}")
 
             if vuln.remediation_steps:
-                console.print(f"   [bold green]Steps to Fix:[/bold green]")
+                console.print("   [bold green]Steps to Fix:[/bold green]")
                 for step in vuln.remediation_steps:
                     console.print(f"   - {step}")
 
             if vuln.diff:
-                console.print(f"   [bold green]Suggested Change:[/bold green]")
+                console.print("   [bold green]Suggested Change:[/bold green]")
                 syntax = Syntax(vuln.diff, "diff", theme="monokai", line_numbers=False)
                 console.print(syntax)
             elif vuln.fixed_code:
-                console.print(f"   [bold green]Fixed Code:[/bold green]")
+                console.print("   [bold green]Fixed Code:[/bold green]")
                 console.print(f"[green]{vuln.fixed_code}[/green]")
 
             console.print()
@@ -577,18 +578,25 @@ def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
 
 def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None):
     """Print results as SARIF."""
-    generator = SARIFGenerator(result)
-    sarif_output = generator.generate()
+    generator = SARIFGenerator()
+    sarif_output = generator.generate(result)
+
+    # Convert dict to string if needed
+    if isinstance(sarif_output, dict):
+        sarif_str = json.dumps(sarif_output, indent=2)
+    else:
+        sarif_str = str(sarif_output)
 
     if output_file:
         try:
             with open(output_file, "w") as f:
-                f.write(sarif_output)
+                f.write(sarif_str)
             console.print(f"\n[bold green]SARIF report saved to {output_file}[/bold green]")
         except Exception as e:
             console.print(f"\n[bold red]Error saving SARIF report: {e}[/bold red]")
     else:
-        print(sarif_output)
+        # Output to stdout
+        click.echo(sarif_str)
 
 
 def _print_html_results(result: ScanResult, output_file: Optional[str] = None):
@@ -597,8 +605,8 @@ def _print_html_results(result: ScanResult, output_file: Optional[str] = None):
         console.print("[red]Error: --json-file argument is required for HTML output[/red]")
         return
 
-    generator = HTMLGenerator(result)
-    html_output = generator.generate()
+    generator = HTMLGenerator()
+    html_output = generator.generate(result)
 
     try:
         with open(output_file, "w", encoding="utf-8") as f:

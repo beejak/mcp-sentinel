@@ -12,9 +12,16 @@ This engine wraps the 8 pattern-based detectors from Phase 3:
 - PathTraversalDetector
 """
 
+import asyncio
+import concurrent.futures
+import logging
 from pathlib import Path
 from typing import List, Optional
 
+import aiofiles
+from mcp_sentinel.core.cache_manager import CacheManager
+
+logger = logging.getLogger(__name__)
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
@@ -54,6 +61,12 @@ class StaticAnalysisEngine(BaseEngine):
             enabled=enabled,
         )
         self.detectors = detectors or self._get_default_detectors()
+        self.process_pool = concurrent.futures.ProcessPoolExecutor()
+        self.cache_manager = CacheManager()
+
+    def shutdown(self):
+        """Shutdown the process pool."""
+        self.process_pool.shutdown()
 
     def _get_default_detectors(self) -> List[BaseDetector]:
         """Get all 8 Phase 3 detectors."""
@@ -85,13 +98,21 @@ class StaticAnalysisEngine(BaseEngine):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Determine file type if not provided
         if file_type is None:
             file_type = self._determine_file_type(file_path)
 
+        # Check cache
+        content_hash = self.cache_manager.calculate_hash(content)
+        cached_results = self.cache_manager.get_cached_results(file_path, content_hash)
+        if cached_results is not None:
+            return cached_results
+
         # Run all applicable detectors
+        loop = asyncio.get_running_loop()
+        
         for detector in self.detectors:
             if not detector.enabled:
                 continue
@@ -100,12 +121,22 @@ class StaticAnalysisEngine(BaseEngine):
                 continue
 
             try:
-                detected = await detector.detect(file_path, content, file_type)
+                # Run detection in process pool to avoid blocking the event loop
+                detected = await loop.run_in_executor(
+                    self.process_pool,
+                    detector.detect_sync,
+                    file_path,
+                    content,
+                    file_type
+                )
                 vulnerabilities.extend(detected)
             except Exception as e:
                 # Log error but continue with other detectors
-                print(f"Error in detector {detector.name}: {e}")
+                logger.error(f"Error in detector {detector.name}: {e}")
                 continue
+
+        # Update cache
+        self.cache_manager.update_cache(file_path, content_hash, vulnerabilities)
 
         return vulnerabilities
 
@@ -125,7 +156,7 @@ class StaticAnalysisEngine(BaseEngine):
             List of all detected vulnerabilities
         """
         self.status = EngineStatus.RUNNING
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             # Discover files to scan
@@ -140,31 +171,34 @@ class StaticAnalysisEngine(BaseEngine):
                 vulnerabilities_found=0,
             )
 
-            # Scan each file
-            for idx, file_path in enumerate(files_to_scan):
-                progress.current_file = file_path
-                progress.scanned_files = idx
+            # Create semaphore to limit concurrency
+            sem = asyncio.Semaphore(50)  # Reasonable limit for file IO
+
+            async def scan_single_file(file_path: Path) -> list[Vulnerability]:
+                async with sem:
+                    try:
+                        # Read file content asynchronously
+                        async with aiofiles.open(file_path, encoding="utf-8", errors="ignore") as f:
+                            content = await f.read()
+
+                        # Scan file
+                        return await self.scan_file(file_path, content)
+                    except Exception as e:
+                        # Log error but continue scanning
+                        logger.error(f"Error scanning {file_path}: {e}")
+                        return []
+
+            # Create tasks
+            tasks = [scan_single_file(fp) for fp in files_to_scan]
+
+            # Run tasks and update progress
+            for coro in asyncio.as_completed(tasks):
+                file_vulns = await coro
+                vulnerabilities.extend(file_vulns)
+
+                progress.scanned_files += 1
+                progress.vulnerabilities_found = len(vulnerabilities)
                 self._report_progress(progress)
-
-                try:
-                    # Read file content
-                    with open(file_path, encoding="utf-8", errors="ignore") as f:
-                        content = f.read()
-
-                    # Scan file
-                    file_vulns = await self.scan_file(file_path, content)
-                    vulnerabilities.extend(file_vulns)
-                    progress.vulnerabilities_found = len(vulnerabilities)
-
-                except Exception as e:
-                    # Log error but continue scanning
-                    print(f"Error scanning {file_path}: {e}")
-                    continue
-
-            # Final progress update
-            progress.scanned_files = total_files
-            progress.current_file = None
-            self._report_progress(progress)
 
             self.status = EngineStatus.COMPLETED
             return vulnerabilities
@@ -196,7 +230,7 @@ class StaticAnalysisEngine(BaseEngine):
             for detector in self.detectors
         )
 
-    def get_supported_languages(self) -> List[str]:
+    def get_supported_languages(self) -> list[str]:
         """
         Get list of all languages supported by detectors.
 
@@ -228,7 +262,7 @@ class StaticAnalysisEngine(BaseEngine):
         self,
         target_path: Path,
         file_patterns: Optional[List[str]] = None,
-    ) -> List[Path]:
+    ) -> list[Path]:
         """
         Discover all files to scan in the target directory.
 
@@ -239,7 +273,7 @@ class StaticAnalysisEngine(BaseEngine):
         Returns:
             List of file paths to scan
         """
-        files: List[Path] = []
+        files: list[Path] = []
 
         # Default patterns if none provided
         if not file_patterns:

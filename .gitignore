@@ -44,6 +44,13 @@ mcp-sentinel-report.*
 # Coverage reports
 /coverage/
 lcov.info
+.coverage*
+coverage.xml
+
+# Test reports
+test-report.xml
+junit.xml
+reports/junit.xml
 
 # Python artifacts
 __pycache__/

@@ -29,7 +29,7 @@ def run_command(command, capture=True):
         return ""
 
 def get_coverage():
-    print("  - Running coverage check (this may take ~60 seconds)...")
+    print("  - Running coverage check (this may take ~60 seconds)...", flush=True)
     # Assumes pytest-cov is installed
     # We capture output to parse the percentage
     stdout = run_command("pytest --cov=src/mcp_sentinel --cov-report=term-missing:skip-covered")
@@ -50,9 +50,9 @@ def get_coverage():
     return 0
 
 def get_lint_errors():
-    print("  - Running linter (ruff)...")
+    print("  - Running linter (ruff)...", flush=True)
     # Use JSON output for accurate counting
-    stdout = run_command("ruff check . --output-format=json")
+    stdout = run_command("ruff check src --output-format=json")
     try:
         issues = json.loads(stdout)
         return len(issues)
@@ -60,8 +60,8 @@ def get_lint_errors():
         return 0
 
 def get_type_errors():
-    print("  - Running type checker (mypy)...")
-    stdout = run_command("mypy .")
+    print("  - Running type checker (mypy)...", flush=True)
+    stdout = run_command("mypy src")
     # Output: Found 5 errors in 2 files (checked 10 source files)
     match = re.search(r"Found (\d+) error", stdout)
     if match:
@@ -73,7 +73,7 @@ def get_type_errors():
     return 0
 
 def main():
-    print("Collecting Adaptive Compliance Metrics (Pillar 2)...")
+    print("Collecting Adaptive Compliance Metrics (Pillar 2)...", flush=True)
     
     metrics = {
         "timestamp": datetime.utcnow().isoformat(),

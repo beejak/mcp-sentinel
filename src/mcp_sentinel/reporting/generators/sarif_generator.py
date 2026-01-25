@@ -10,7 +10,7 @@ Generates SARIF 2.1.0 format reports compatible with:
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from mcp_sentinel import __version__
 from mcp_sentinel.models.scan_result import ScanResult
@@ -51,7 +51,7 @@ class SARIFGenerator:
             # If can't make relative, just use the filename
             return Path(file_path).name
 
-    def generate(self, result: ScanResult) -> Dict[str, Any]:
+    def generate(self, result: ScanResult) -> dict[str, Any]:
         """
         Generate SARIF report from scan result.
 
@@ -93,7 +93,7 @@ class SARIFGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(sarif_json, encoding="utf-8")
 
-    def _create_run(self, result: ScanResult) -> Dict[str, Any]:
+    def _create_run(self, result: ScanResult) -> dict[str, Any]:
         """Create SARIF run object."""
         return {
             "tool": self._create_tool(),
@@ -118,7 +118,7 @@ class SARIFGenerator:
             },
         }
 
-    def _create_tool(self) -> Dict[str, Any]:
+    def _create_tool(self) -> dict[str, Any]:
         """Create SARIF tool object."""
         return {
             "driver": {

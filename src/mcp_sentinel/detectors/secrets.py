@@ -5,7 +5,7 @@ Secrets detector for finding hardcoded credentials and API keys.
 import re
 from pathlib import Path
 from re import Pattern
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -33,9 +33,9 @@ class SecretsDetector(BaseDetector):
     def __init__(self):
         """Initialize the secrets detector."""
         super().__init__(name="SecretsDetector", enabled=True)
-        self.patterns: Dict[str, Pattern] = self._compile_patterns()
+        self.patterns: dict[str, Pattern] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, Pattern]:
+    def _compile_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for secret detection."""
         return {
             # AWS Access Keys
@@ -79,11 +79,11 @@ class SecretsDetector(BaseDetector):
             ),
         }
 
-    async def detect(
+    def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
     ) -> List[Vulnerability]:
         """
-        Detect hardcoded secrets in file content.
+        Detect secrets in file content.
 
         Args:
             file_path: Path to the file
@@ -93,7 +93,7 @@ class SecretsDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Split content into lines for line number tracking
         lines = content.split("\n")
@@ -148,26 +148,26 @@ class SecretsDetector(BaseDetector):
             parts = code_snippet.split("=")
             var_part = parts[0].strip()
             val_part = "=".join(parts[1:]).strip()
-            
+
             # Simple heuristic for variable name from code
             # e.g. AWS_KEY = "..." -> var_name = AWS_KEY
             var_name = var_part.split()[-1] # Take last word if there are modifiers like 'export'
-            
+
             # Clean variable name for env var usage
             env_var = var_name.upper().replace(".", "_").replace("-", "_")
-            
+
             # Check for quotes
             quote_char = None
             if '"' in val_part and secret_value in val_part:
                 quote_char = '"'
             elif "'" in val_part and secret_value in val_part:
                 quote_char = "'"
-                
+
             if quote_char:
                 target = f"{quote_char}{secret_value}{quote_char}"
                 if target in code_snippet:
                     return code_snippet.replace(target, f'os.getenv("{env_var}")')
-        
+
         return None
 
     def _is_placeholder(self, secret: str) -> bool:

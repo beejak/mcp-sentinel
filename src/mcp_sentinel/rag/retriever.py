@@ -5,7 +5,7 @@ Provides intelligent retrieval of relevant security patterns to enhance AI promp
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from mcp_sentinel.rag.vector_store import VectorStore
 
@@ -289,7 +289,7 @@ class Retriever:
         for i, result in enumerate(results, 1):
             metadata = result.metadata
             title = metadata.get("title", "Unknown")
-            category = metadata.get("category", "Unknown")
+            metadata.get("category", "Unknown")
             cwe_id = metadata.get("cwe_id", "")
             owasp_id = metadata.get("owasp_id", "")
 
@@ -311,10 +311,10 @@ class Retriever:
 
         return "\n".join(context_parts)
 
-    def _build_knowledge_context(self, results: List[RetrievalResult]) -> str:
+    def _build_knowledge_context(self, results: list[RetrievalResult]) -> str:
         """
         Build formatted knowledge context from retrieval results.
-        
+
         Deprecated: Use format_results instead.
         """
         return self.format_results(results)
@@ -323,7 +323,7 @@ class Retriever:
         self,
         vulnerability_description: str,
         top_k: int = 10
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """
         Find similar known vulnerabilities.
 
@@ -351,7 +351,7 @@ class Retriever:
         query: str,
         framework: str,
         top_k: int = 5
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """
         Search framework-specific security patterns.
 
@@ -375,7 +375,7 @@ class Retriever:
         self,
         cwe_id: str,
         top_k: int = 5
-    ) -> List[RetrievalResult]:
+    ) -> list[RetrievalResult]:
         """
         Search by CWE ID.
 

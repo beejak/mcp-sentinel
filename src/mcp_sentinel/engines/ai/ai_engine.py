@@ -8,7 +8,7 @@ complex vulnerabilities that pattern-based tools might miss.
 import logging
 import os
 from pathlib import Path
-from typing import Any, List, Optional, Dict
+from typing import Any, Dict, List, Optional
 
 from mcp_sentinel.engines.ai.providers.base import (
     AIProviderConfig,
@@ -25,12 +25,12 @@ from mcp_sentinel.models.vulnerability import (
 )
 from mcp_sentinel.rag.retriever import Retriever
 from mcp_sentinel.rag.vector_store import VectorStore
+from mcp_sentinel.remediation.diff_builder import DiffBuilder
 from mcp_sentinel.remediation.models import (
+    CodeChange,
     RemediationSuggestion,
     RemediationType,
-    CodeChange,
 )
-from mcp_sentinel.remediation.diff_builder import DiffBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +191,7 @@ class AIEngine(BaseEngine):
         # Read file content if not provided
         if file_content is None:
             try:
-                with open(vulnerability.file_path, "r", encoding="utf-8") as f:
+                with open(vulnerability.file_path, encoding="utf-8") as f:
                     file_content = f.read()
             except Exception as e:
                 logger.error(f"Could not read file {vulnerability.file_path}: {e}")
@@ -308,7 +308,7 @@ class AIEngine(BaseEngine):
 
                 except Exception as e:
                     # Log error but continue scanning
-                    print(f"Error scanning {file_path}: {e}")
+                    logger.error(f"Error scanning {file_path}: {e}")
                     continue
 
             # Final progress update

@@ -370,7 +370,7 @@ Source Code:
         prompt += "\nProvide the fix in the specified JSON format."
         return prompt
 
-    def _parse_fix_response(self, response: str) -> Dict[str, Any]:
+    def _parse_fix_response(self, response: str) -> dict[str, Any]:
         """Parse fix response."""
         try:
             response = response.strip()
@@ -385,7 +385,7 @@ Source Code:
                     if in_code_block or (not line.startswith("```")):
                         json_lines.append(line)
                 response = "\n".join(json_lines).strip()
-            
+
             return json.loads(response)
         except Exception as e:
             return {

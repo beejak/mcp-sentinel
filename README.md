@@ -684,12 +684,16 @@ mcp-sentinel/
 
 ## 📚 Documentation
 
-- **[🏗️ Architecture](docs/ARCHITECTURE.md)** - System design and components
-- **[🤝 Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute
-- **[💻 Development Setup](docs/DEVELOPMENT_SETUP.md)** - Setup instructions
-- **[📋 Release Notes v1.0.0-beta.1](RELEASE_NOTES_v1.0.0-beta.1.md)** - Previous release
-- **[🗺️ Complete Roadmap](ROADMAP.md)** - Detailed roadmap through 2027
-- **[📊 Feature Status](FEATURE_STATUS.md)** - Complete feature inventory
+- [**Architecture Overview**](docs/ARCHITECTURE.md) - System design and core concepts.
+- [**API Reference**](docs/API_REFERENCE.md) - REST API endpoints and schemas.
+- [**Configuration Guide**](docs/CONFIGURATION.md) - Environment variables and settings.
+- [**Deployment Guide**](docs/DEPLOYMENT.md) - Docker and bare metal deployment.
+- [**FAQ**](docs/FAQ.md) - Frequently asked questions.
+- [**Maintenance Guide**](docs/MAINTENANCE.md) - Operations and troubleshooting.
+- [**User Guide**](docs/USER_GUIDE.md) - Detailed usage instructions.
+- [**Roadmap**](ROADMAP.md) - Future development plans.
+- [**Contributing**](docs/CONTRIBUTING.md) - Guidelines for contributors.
+- [**Release Notes**](docs/releases/) - Version history.
 
 ---
 

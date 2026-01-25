@@ -8,11 +8,11 @@ and other dependency files.
 Critical for preventing supply chain compromises in MCP servers.
 """
 
-from typing import Any, Dict, List, Optional
 import json
 import re
 from pathlib import Path
 from re import Pattern
+from typing import Dict, List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -191,7 +191,7 @@ class SupplyChainDetector(BaseDetector):
 
         return False
 
-    async def detect(
+    def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
     ) -> List[Vulnerability]:
         """
@@ -205,20 +205,20 @@ class SupplyChainDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         filename_lower = file_path.name.lower()
 
         # Detect based on file type
         if "package.json" in filename_lower or "package-lock.json" in filename_lower:
-            vulns = await self._detect_npm_issues(file_path, content)
+            vulns = self._detect_npm_issues(file_path, content)
             vulnerabilities.extend(vulns)
 
         elif "requirements.txt" in filename_lower or "pipfile" in filename_lower:
-            vulns = await self._detect_python_issues(file_path, content)
+            vulns = self._detect_python_issues(file_path, content)
             vulnerabilities.extend(vulns)
 
         elif "pyproject.toml" in filename_lower:
-            vulns = await self._detect_pyproject_issues(file_path, content)
+            vulns = self._detect_pyproject_issues(file_path, content)
             vulnerabilities.extend(vulns)
 
         # Generic pattern detection
@@ -249,9 +249,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_npm_issues(self, file_path: Path, content: str) -> List[Vulnerability]:
+    def _detect_npm_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
         """Detect issues in package.json files."""
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             data = json.loads(content)
@@ -297,9 +297,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_python_issues(self, file_path: Path, content: str) -> List[Vulnerability]:
+    def _detect_python_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
         """Detect issues in requirements.txt or Pipfile."""
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -339,9 +339,9 @@ class SupplyChainDetector(BaseDetector):
 
         return vulnerabilities
 
-    async def _detect_pyproject_issues(self, file_path: Path, content: str) -> List[Vulnerability]:
+    def _detect_pyproject_issues(self, file_path: Path, content: str) -> list[Vulnerability]:
         """Detect issues in pyproject.toml files."""
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Simple TOML parsing (for dependencies section)
         in_dependencies = False

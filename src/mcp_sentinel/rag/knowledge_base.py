@@ -191,7 +191,7 @@ class KnowledgeBase:
     def update_knowledge(
         self,
         collection_name: str,
-        knowledge_items: List[SecurityKnowledge]
+        knowledge_items: list[SecurityKnowledge]
     ) -> None:
         """
         Update existing knowledge items (upsert).
@@ -230,7 +230,7 @@ class KnowledgeBase:
         """
         logger.info(f"Loading knowledge from {json_file}")
 
-        with open(json_file, "r", encoding="utf-8") as f:
+        with open(json_file, encoding="utf-8") as f:
             data = json.load(f)
 
         knowledge_items = [
@@ -287,7 +287,7 @@ class KnowledgeBase:
         logger.info(f"Exported {len(items)} items to {output_file}")
         return len(items)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """
         Get statistics for all collections.
 
@@ -316,26 +316,26 @@ class KnowledgeBase:
 
     def initialize_collections(self) -> None:
         """Initialize all predefined collections."""
-        for collection_name, description in self.COLLECTIONS.items():
+        for collection_name, _description in self.COLLECTIONS.items():
             self.vector_store.get_or_create_collection(collection_name)
             logger.debug(f"Initialized collection: {collection_name}")
 
         logger.info(f"Initialized {len(self.COLLECTIONS)} collections")
 
-    def populate_defaults(self) -> Dict[str, int]:
+    def populate_defaults(self) -> dict[str, int]:
         """
         Populate knowledge base with default security data.
-        
+
         Returns:
             Dictionary with population statistics
         """
         from mcp_sentinel.rag.data_loaders import populate_knowledge_base
         return populate_knowledge_base(self)
 
-    async def populate_defaults_async(self) -> Dict[str, int]:
+    async def populate_defaults_async(self) -> dict[str, int]:
         """
         Populate knowledge base with default security data concurrently.
-        
+
         Returns:
             Dictionary with population statistics
         """

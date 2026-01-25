@@ -6,7 +6,7 @@ Provides persistent storage and retrieval of security knowledge embeddings.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional, List, Dict
 
 import chromadb
 from chromadb.config import Settings
@@ -53,7 +53,7 @@ class VectorStore:
             embedding_function: Custom embedding function (default: sentence-transformers)
         """
         self.persist_dir = Path(persist_dir) if persist_dir and persist_dir != ":memory:" else None
-        
+
         # Initialize ChromaDB
         if self.persist_dir:
             self.persist_dir.mkdir(parents=True, exist_ok=True)

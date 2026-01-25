@@ -80,7 +80,7 @@ async def test_multi_engine_scan_directory(temp_project):
     """Test scanning a directory with multiple engines."""
     scanner = MultiEngineScanner()
 
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Should find vulnerabilities
     assert result.status == "completed"
@@ -98,7 +98,8 @@ async def test_multi_engine_scan_file(temp_project):
     scanner = MultiEngineScanner()
 
     py_file = temp_project / "app.py"
-    vulns = await scanner.scan_file(py_file)
+    result = await scanner.scan(py_file)
+    vulns = result.vulnerabilities
 
     # Should find at least AWS key and command injection
     assert len(vulns) >= 2
@@ -114,7 +115,7 @@ async def test_multi_engine_progress_callback(temp_project):
         progress_updates.append((engine_name, progress))
 
     scanner = MultiEngineScanner(progress_callback=progress_callback)
-    await scanner.scan_directory(temp_project)
+    await scanner.scan(temp_project)
 
     # Should have received progress updates
     assert len(progress_updates) > 0
@@ -136,7 +137,7 @@ async def test_multi_engine_deduplication(temp_project):
 
     scanner = MultiEngineScanner(engines=[engine1, engine2])
 
-    result = await scanner.scan_directory(temp_project)
+    result = await scanner.scan(temp_project)
 
     # Even though we have 2 identical engines, vulnerabilities should be deduplicated
     # Each vulnerability should appear only once
@@ -180,7 +181,7 @@ async def test_multi_engine_empty_directory():
 
     try:
         scanner = MultiEngineScanner()
-        result = await scanner.scan_directory(temp_dir)
+        result = await scanner.scan(temp_dir)
 
         assert result.status == "completed"
         assert len(result.vulnerabilities) == 0
@@ -196,7 +197,7 @@ async def test_multi_engine_nonexistent_directory():
     scanner = MultiEngineScanner()
 
     with pytest.raises(Exception):  # Should raise ScanError
-        await scanner.scan_directory(Path("/nonexistent/directory"))
+        await scanner.scan(Path("/nonexistent/directory"))
 
 
 @pytest.mark.asyncio

@@ -8,13 +8,16 @@ Loads security knowledge from various sources:
 - Tier 2: Framework-specific patterns (Django, FastAPI, Express, Flask, React)
 """
 
+from __future__ import annotations
+
 import asyncio
-import json
 import logging
-from pathlib import Path
-from typing import List, Dict
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from mcp_sentinel.rag.knowledge_base import SecurityKnowledge
+
+if TYPE_CHECKING:
+    from mcp_sentinel.rag.knowledge_base import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
@@ -799,7 +802,7 @@ class OWASPAPITop10Loader:
     ]
 
     @classmethod
-    def load(cls) -> List[SecurityKnowledge]:
+    def load(cls) -> list[SecurityKnowledge]:
         """Load OWASP API Top 10 items."""
         knowledge_items = []
         for item in cls.OWASP_API_TOP10:
@@ -906,7 +909,7 @@ async def read_user(user_id: str, db: Session = Depends(get_db)):
 async def read_user(user_id: str, db: Session = Depends(get_db)):
     # Use ORM
     return db.query(User).filter(User.id == user_id).first()
-    
+
     # Or parameterized SQL
     # db.execute(text("SELECT * FROM users WHERE id = :id"), {"id": user_id})
 """,
@@ -1035,7 +1038,7 @@ return render_template_string(f"Hello {user_input}")
     ]
 
     @classmethod
-    def load_fastapi(cls) -> List[SecurityKnowledge]:
+    def load_fastapi(cls) -> list[SecurityKnowledge]:
         """Load FastAPI security patterns."""
         knowledge_items = []
 
@@ -1141,7 +1144,7 @@ def populate_knowledge_base(kb: "KnowledgeBase") -> dict:
     return stats
 
 
-async def populate_knowledge_base_async(kb: "KnowledgeBase") -> dict:
+async def populate_knowledge_base_async(kb: "KnowledgeBase") -> Dict[str, int]:
     """
     Populate knowledge base with all security data concurrently.
 
@@ -1152,7 +1155,7 @@ async def populate_knowledge_base_async(kb: "KnowledgeBase") -> dict:
         Dictionary with population statistics
     """
     stats = {}
-    
+
     # Helper function to run load and add in a thread
     async def load_and_add(collection_name: str, loader_func) -> int:
         try:
@@ -1178,7 +1181,7 @@ async def populate_knowledge_base_async(kb: "KnowledgeBase") -> dict:
         ("framework_fastapi", FrameworkSecurityLoader.load_fastapi),
         ("framework_flask", FrameworkSecurityLoader.load_flask)
     ]
-    
+
     # Check if OWASPWebTop10Loader and OWASPAPITop10Loader are available
     if 'OWASPWebTop10Loader' in globals():
         tasks.append(("owasp_top10_web", OWASPWebTop10Loader.load))

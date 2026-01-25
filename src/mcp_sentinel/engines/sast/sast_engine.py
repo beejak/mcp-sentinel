@@ -4,13 +4,13 @@ SAST Integration Engine for MCP Sentinel.
 Integrates Semgrep and Bandit for industry-standard static analysis.
 """
 
+import logging
 import shutil
 from pathlib import Path
 from typing import List, Optional
 
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType
 from mcp_sentinel.models.vulnerability import Vulnerability
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class SASTEngine(BaseEngine):
         self.bandit_available = bandit_enabled and shutil.which("bandit") is not None
 
         if not self.semgrep_available and not self.bandit_available:
-            print("[WARN] Neither Semgrep nor Bandit available. SAST engine disabled.")
+            logger.warning("Neither Semgrep nor Bandit available. SAST engine disabled.")
             self.enabled = False
 
         # Initialize adapters (will create these next)

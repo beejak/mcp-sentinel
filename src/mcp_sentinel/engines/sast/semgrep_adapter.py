@@ -2,12 +2,12 @@
 
 import asyncio
 import json
+import logging
 import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class SemgrepAdapter:
         self.timeout = timeout
 
         if not self.enabled:
-            print("[INFO] Semgrep not available - adapter disabled")
+            logger.info("Semgrep not available - adapter disabled")
 
     async def scan_directory(
         self,
@@ -72,7 +72,10 @@ class SemgrepAdapter:
                     timeout=self.timeout,
                 )
             except (TimeoutError, asyncio.TimeoutError):
-                process.kill()
+                try:
+                    process.kill()
+                except OSError:
+                    pass  # Process might have already exited
                 logger.warning(f"Semgrep timeout after {self.timeout}s")
                 return []
 
@@ -155,9 +158,9 @@ class SemgrepAdapter:
                     vulnerabilities.append(vuln)
 
         except json.JSONDecodeError as e:
-            print(f"[ERROR] Failed to parse Semgrep output: {e}")
+            logger.error(f"Failed to parse Semgrep output: {e}")
         except Exception as e:
-            print(f"[ERROR] Error processing Semgrep results: {e}")
+            logger.error(f"Error processing Semgrep results: {e}")
 
         return vulnerabilities
 
@@ -238,7 +241,7 @@ class SemgrepAdapter:
             )
 
         except Exception as e:
-            print(f"[ERROR] Failed to convert Semgrep result: {e}")
+            logger.error(f"Failed to convert Semgrep result: {e}")
             return None
 
     def _map_check_id_to_type(self, check_id: str) -> VulnerabilityType:

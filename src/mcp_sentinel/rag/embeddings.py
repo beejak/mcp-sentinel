@@ -114,8 +114,8 @@ class EmbeddingService:
         Returns:
             Similarity score (0.0 to 1.0)
         """
-        from sklearn.metrics.pairwise import cosine_similarity
         import numpy as np
+        from sklearn.metrics.pairwise import cosine_similarity
 
         emb1 = np.array([self.embed_text(text1)])
         emb2 = np.array([self.embed_text(text2)])
@@ -126,9 +126,9 @@ class EmbeddingService:
     def find_most_similar(
         self,
         query: str,
-        candidates: List[str],
+        candidates: list[str],
         top_k: int = 5
-    ) -> List[tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """
         Find most similar texts from candidates.
 
@@ -140,8 +140,8 @@ class EmbeddingService:
         Returns:
             List of (text, similarity_score) tuples, sorted by similarity
         """
-        from sklearn.metrics.pairwise import cosine_similarity
         import numpy as np
+        from sklearn.metrics.pairwise import cosine_similarity
 
         query_emb = np.array([self.embed_text(query)])
         candidate_embs = np.array(self.embed_texts(candidates))
