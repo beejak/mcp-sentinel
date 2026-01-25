@@ -2,7 +2,7 @@
 Configuration management for MCP Sentinel.
 """
 
-
+from __future__ import annotations  # Python 3.9 compatibility for list[str] syntax
 
 from typing import List, Optional
 
