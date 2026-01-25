@@ -274,9 +274,9 @@ class Retriever:
         logger.info(f"Augmented prompt with {len(results)} knowledge items")
         return augmented_prompt
 
-    def _build_knowledge_context(self, results: List[RetrievalResult]) -> str:
+    def format_results(self, results: List[RetrievalResult]) -> str:
         """
-        Build formatted knowledge context from retrieval results.
+        Format retrieval results into a knowledge context string.
 
         Args:
             results: List of RetrievalResult objects
@@ -297,14 +297,27 @@ class Retriever:
             if cwe_id or owasp_id:
                 refs = []
                 if cwe_id:
-                    refs.append(cwe_id)
+                    refs.append(f"CWE: {cwe_id}")
                 if owasp_id:
-                    refs.append(owasp_id)
+                    refs.append(f"OWASP: {owasp_id}")
                 header += f" ({', '.join(refs)})"
 
-            context_parts.append(f"{header}\n**Category:** {category}\n**Relevance:** {result.similarity:.1%}\n\n{result.document}\n")
+            content = result.document.strip()
+            # Truncate if too long
+            if len(content) > 1000:
+                content = content[:997] + "..."
 
-        return "\n---\n\n".join(context_parts)
+            context_parts.append(f"{header}\n{content}\n")
+
+        return "\n".join(context_parts)
+
+    def _build_knowledge_context(self, results: List[RetrievalResult]) -> str:
+        """
+        Build formatted knowledge context from retrieval results.
+        
+        Deprecated: Use format_results instead.
+        """
+        return self.format_results(results)
 
     def get_similar_vulnerabilities(
         self,

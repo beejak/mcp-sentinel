@@ -12,11 +12,13 @@ from pathlib import Path
 from typing import List, Optional, Set, Union, Dict, Callable
 
 from mcp_sentinel.core.exceptions import ScanError
+from mcp_sentinel.engines.ai.ai_engine import AIEngine
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
 from mcp_sentinel.engines.sast import SASTEngine
 from mcp_sentinel.engines.static import StaticAnalysisEngine
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
+from mcp_sentinel.rag.vector_store import VectorStore
 
 
 class MultiEngineScanner:
@@ -63,15 +65,25 @@ class MultiEngineScanner:
         Available engines:
         - StaticAnalysisEngine - Pattern-based detection (8 detectors)
         - SASTEngine - Semgrep + Bandit integration (Phase 4.1)
-
-        Coming in future phases:
-        - SemanticAnalysisEngine (Phase 4.2)
-        - AIAnalysisEngine (Phase 4.3)
+        - AIAnalysisEngine - AI-powered detection with RAG (Phase 4.4)
         """
-        return [
+        engines = [
             StaticAnalysisEngine(enabled=True),
             SASTEngine(enabled=True),
         ]
+
+        # Initialize AI Engine with RAG
+        try:
+            # Try to initialize vector store, but don't fail if it fails
+            # (e.g. missing dependencies or permissions)
+            vector_store = VectorStore()
+            engines.append(AIEngine(enabled=True, vector_store=vector_store))
+        except Exception as e:
+            # Fallback to AI Engine without RAG
+            print(f"Warning: Failed to initialize VectorStore for RAG: {e}")
+            engines.append(AIEngine(enabled=True))
+
+        return engines
 
     def _create_progress_callback(self, engine: BaseEngine) -> Callable[[ScanProgress], None]:
         """Create a progress callback for a specific engine."""

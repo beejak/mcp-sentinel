@@ -84,6 +84,28 @@ class BaseAIProvider(ABC):
         pass
 
     @abstractmethod
+    async def generate_fix(
+        self,
+        code: str,
+        vulnerability: Dict[str, Any],
+        file_path: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate a fix for a specific vulnerability.
+
+        Args:
+            code: Source code
+            vulnerability: Vulnerability details
+            file_path: Path to the file
+            context: Additional context
+
+        Returns:
+            Dictionary containing the suggested fix (code changes, explanation)
+        """
+        pass
+
+    @abstractmethod
     def estimate_cost(self, code: str) -> float:
         """
         Estimate the cost of analyzing the given code.

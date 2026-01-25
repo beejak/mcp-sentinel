@@ -8,10 +8,11 @@ Loads security knowledge from various sources:
 - Tier 2: Framework-specific patterns (Django, FastAPI, Express, Flask, React)
 """
 
+import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 from mcp_sentinel.rag.knowledge_base import SecurityKnowledge
 
@@ -1137,4 +1138,64 @@ def populate_knowledge_base(kb: "KnowledgeBase") -> dict:
     stats["total"] = sum(stats.values())
 
     logger.info(f"Knowledge base populated: {stats['total']} total items")
+    return stats
+
+
+async def populate_knowledge_base_async(kb: "KnowledgeBase") -> dict:
+    """
+    Populate knowledge base with all security data concurrently.
+
+    Args:
+        kb: KnowledgeBase instance
+
+    Returns:
+        Dictionary with population statistics
+    """
+    stats = {}
+    
+    # Helper function to run load and add in a thread
+    async def load_and_add(collection_name: str, loader_func) -> int:
+        try:
+            # Run loader in thread to avoid blocking event loop
+            items = await asyncio.to_thread(loader_func)
+            if items:
+                # Run add_knowledge in thread (since it does I/O)
+                await asyncio.to_thread(kb.add_knowledge, collection_name, items)
+                return len(items)
+            return 0
+        except Exception as e:
+            logger.error(f"Error populating {collection_name}: {e}")
+            return 0
+
+    # Define tasks
+    tasks = [
+        ("owasp_top10_llm", OWASPTop10Loader.load),
+        # ("owasp_top10_web", OWASPWebTop10Loader.load),  # Not imported/defined yet? Wait, let me check
+        # ("owasp_top10_api", OWASPAPITop10Loader.load),  # Not imported/defined yet?
+        ("cwe_database", CWETop100Loader.load),
+        ("sans_top25", SANSTop25Loader.load),
+        ("framework_django", FrameworkSecurityLoader.load_django),
+        ("framework_fastapi", FrameworkSecurityLoader.load_fastapi),
+        ("framework_flask", FrameworkSecurityLoader.load_flask)
+    ]
+    
+    # Check if OWASPWebTop10Loader and OWASPAPITop10Loader are available
+    if 'OWASPWebTop10Loader' in globals():
+        tasks.append(("owasp_top10_web", OWASPWebTop10Loader.load))
+    if 'OWASPAPITop10Loader' in globals():
+        tasks.append(("owasp_top10_api", OWASPAPITop10Loader.load))
+
+    # Run all tasks concurrently
+    results = await asyncio.gather(*[
+        load_and_add(name, func) for name, func in tasks
+    ])
+
+    # Collect results
+    for i, (name, _) in enumerate(tasks):
+        stats[name] = results[i]
+
+    # Calculate total
+    stats["total"] = sum(stats.values())
+
+    logger.info(f"Knowledge base populated (async): {stats['total']} total items")
     return stats

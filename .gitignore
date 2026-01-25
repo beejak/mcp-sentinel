@@ -26,6 +26,7 @@ config.local.yaml
 .mcp-sentinel/
 *.db
 *.sled/
+data/
 
 # Temporary files
 /tmp/

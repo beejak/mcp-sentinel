@@ -23,6 +23,13 @@ from mcp_sentinel.models.vulnerability import (
     Vulnerability,
     VulnerabilityType,
 )
+from mcp_sentinel.rag.retriever import Retriever
+from mcp_sentinel.rag.vector_store import VectorStore
+from mcp_sentinel.remediation.models import (
+    RemediationSuggestion,
+    RemediationType,
+    CodeChange,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +53,7 @@ class AIEngine(BaseEngine):
         model: Optional[str] = None,
         max_cost_per_scan: float = 1.0,
         enabled: bool = True,
+        vector_store: Optional[VectorStore] = None,
     ):
         """
         Initialize AI engine.
@@ -56,6 +64,7 @@ class AIEngine(BaseEngine):
             model: Specific model to use
             max_cost_per_scan: Maximum cost in USD per scan
             enabled: Whether engine is enabled
+            vector_store: Optional VectorStore for RAG
         """
         super().__init__(
             name="AI Analysis Engine",
@@ -66,6 +75,10 @@ class AIEngine(BaseEngine):
         self.max_cost_per_scan = max_cost_per_scan
         self.total_cost = 0.0
         self.provider: Optional[BaseAIProvider] = None
+        self.retriever: Optional[Retriever] = None
+
+        if vector_store:
+            self.retriever = Retriever(vector_store)
 
         # Auto-detect provider if not specified
         if provider_type is None:
@@ -111,9 +124,25 @@ class AIEngine(BaseEngine):
             return []
 
         try:
+            # Prepare context
+            context = None
+            if self.retriever:
+                try:
+                    # Retrieve relevant security knowledge
+                    # Use first 1000 chars as query
+                    query = content[:1000]
+                    # We use multi_search to get results from relevant collections
+                    results = self.retriever.multi_search(query=query, top_k=3)
+                    if results:
+                        knowledge = self.retriever.format_results(results)
+                        context = {"security_knowledge": knowledge}
+                        logger.debug(f"Retrieved {len(results)} knowledge items for {file_path.name}")
+                except Exception as e:
+                    logger.warning(f"RAG retrieval failed: {e}")
+
             # Analyze code with AI
             response: AIResponse = await self.provider.analyze_code(
-                code=content, file_path=str(file_path), language=language, context=None
+                code=content, file_path=str(file_path), language=language, context=context
             )
 
             # Track cost
@@ -139,6 +168,95 @@ class AIEngine(BaseEngine):
             # Log error but don't fail the scan
             logger.error(f"Error scanning file {file_path}: {e}", exc_info=True)
             return []
+
+    async def generate_fix(
+        self,
+        vulnerability: Vulnerability,
+        file_content: Optional[str] = None,
+    ) -> Optional[RemediationSuggestion]:
+        """
+        Generate a fix for a specific vulnerability.
+
+        Args:
+            vulnerability: The vulnerability to fix
+            file_content: Content of the file (if not provided, tries to read from disk)
+
+        Returns:
+            RemediationSuggestion or None
+        """
+        if not self.provider or not self.enabled:
+            return None
+
+        # Read file content if not provided
+        if file_content is None:
+            try:
+                with open(vulnerability.file_path, "r", encoding="utf-8") as f:
+                    file_content = f.read()
+            except Exception as e:
+                logger.error(f"Could not read file {vulnerability.file_path}: {e}")
+                return None
+
+        # Check cost limit (rough estimate)
+        try:
+            estimated_cost = self.provider.estimate_cost(file_content) * 0.5
+            if self.total_cost + estimated_cost > self.max_cost_per_scan:
+                logger.warning("Cost limit exceeded for fix generation")
+                return None
+        except Exception:
+            pass # Ignore cost check errors
+
+        try:
+            # Prepare context
+            context = None
+            if self.retriever:
+                try:
+                    query = f"Fix {vulnerability.title}: {vulnerability.description}"
+                    results = self.retriever.multi_search(query=query, top_k=2)
+                    if results:
+                        knowledge = self.retriever.format_results(results)
+                        context = {"security_knowledge": knowledge}
+                except Exception as e:
+                    logger.warning(f"RAG retrieval failed for fix: {e}")
+
+            # Generate fix
+            fix_dict = await self.provider.generate_fix(
+                code=file_content,
+                vulnerability=vulnerability.model_dump(),
+                file_path=vulnerability.file_path,
+                context=context
+            )
+
+            if not fix_dict:
+                return None
+
+            # Process code changes and generate diffs
+            code_changes = []
+            for cc_dict in fix_dict.get("code_changes", []):
+                cc = CodeChange(**cc_dict)
+                if not cc.diff:
+                    cc.diff = DiffBuilder.generate_diff(cc)
+                code_changes.append(cc)
+
+            # Construct RemediationSuggestion
+            # We must ensure all required fields are present
+            suggestion = RemediationSuggestion(
+                id=f"fix-{vulnerability.id}",
+                vulnerability_id=vulnerability.id,
+                type=RemediationType.CODE_CHANGE,
+                title=fix_dict.get("title", f"Fix for {vulnerability.title}"),
+                description=fix_dict.get("description", "AI generated fix"),
+                code_changes=code_changes,
+                explanation=fix_dict.get("explanation", "No explanation provided"),
+                steps=fix_dict.get("steps", []),
+                safety_notes=fix_dict.get("safety_notes"),
+                confidence=fix_dict.get("confidence", 0.5)
+            )
+
+            return suggestion
+
+        except Exception as e:
+            logger.error(f"Error generating fix: {e}")
+            raise
 
     async def scan_directory(
         self,
@@ -436,9 +554,28 @@ class AIEngine(BaseEngine):
             line_number = vuln_dict.get("line", 1)
             lines = content.split("\n")
             if 1 <= line_number <= len(lines):
-                code_snippet = lines[line_number - 1].strip()
+                # Keep original indentation for diff generation
+                original_line = lines[line_number - 1]
+                code_snippet = original_line.strip()
             else:
+                original_line = ""
                 code_snippet = ""
+
+            # Generate diff if fixed_code is provided
+            diff = None
+            fixed_code = vuln_dict.get("fixed_code")
+            if fixed_code and original_line:
+                try:
+                    cc = CodeChange(
+                        file_path=str(file_path),
+                        original_code=original_line,
+                        new_code=fixed_code,
+                        start_line=line_number,
+                        end_line=line_number
+                    )
+                    diff = DiffBuilder.generate_diff(cc)
+                except Exception as e:
+                    logger.debug(f"Failed to generate diff: {e}")
 
             # Create vulnerability
             return Vulnerability(
@@ -451,6 +588,9 @@ class AIEngine(BaseEngine):
                 title=f"AI Detected: {vuln_dict.get('description', 'Security Issue')}",
                 description=vuln_dict.get("description", ""),
                 remediation=vuln_dict.get("remediation", ""),
+                fixed_code=fixed_code,
+                diff=diff,
+                remediation_steps=vuln_dict.get("remediation_steps", []),
                 cwe_id=vuln_dict.get("cwe_id"),
                 detector=f"AI Engine ({provider}/{model})",
                 engine="ai",

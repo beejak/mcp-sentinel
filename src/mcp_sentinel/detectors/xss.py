@@ -79,6 +79,7 @@ class XSSDetector(BaseDetector):
                 re.compile(r"\{\{[^}]*\|\s*safe[^}]*\}\}", re.IGNORECASE),
                 re.compile(r"\{\{[^}]*\|\s*mark_safe[^}]*\}\}", re.IGNORECASE),
                 re.compile(r"\bsafe\s*\(\s*[^)]*\)"),  # Django safe() function
+                re.compile(r"\bmark_safe\s*\(\s*[^)]*\)"),  # Django mark_safe() function
                 # JavaScript template literals with user input
                 re.compile(r"`[^`]*\$\{[^}]*(?:params|query|input|user|request)[^}]*\}[^`]*`"),
             ],

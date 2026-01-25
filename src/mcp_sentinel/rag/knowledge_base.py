@@ -321,3 +321,23 @@ class KnowledgeBase:
             logger.debug(f"Initialized collection: {collection_name}")
 
         logger.info(f"Initialized {len(self.COLLECTIONS)} collections")
+
+    def populate_defaults(self) -> Dict[str, int]:
+        """
+        Populate knowledge base with default security data.
+        
+        Returns:
+            Dictionary with population statistics
+        """
+        from mcp_sentinel.rag.data_loaders import populate_knowledge_base
+        return populate_knowledge_base(self)
+
+    async def populate_defaults_async(self) -> Dict[str, int]:
+        """
+        Populate knowledge base with default security data concurrently.
+        
+        Returns:
+            Dictionary with population statistics
+        """
+        from mcp_sentinel.rag.data_loaders import populate_knowledge_base_async
+        return await populate_knowledge_base_async(self)

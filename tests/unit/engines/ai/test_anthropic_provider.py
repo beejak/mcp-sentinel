@@ -90,3 +90,36 @@ def test_estimate_cost(mock_anthropic_client, provider_config):
 def test_is_available(mock_anthropic_client, provider_config):
     provider = AnthropicProvider(provider_config)
     assert provider.is_available() is True
+
+@pytest.mark.asyncio
+async def test_generate_fix(mock_anthropic_client, provider_config):
+    # Setup mock response
+    mock_instance = mock_anthropic_client.return_value
+    mock_message = MagicMock()
+    
+    fix_data = {
+        "title": "Use parameterized queries",
+        "description": "Replaced string concatenation with parameter binding",
+        "explanation": "Prevents SQL injection",
+        "code_changes": [{
+            "file_path": "db.py",
+            "original_code": "sql = '...'",
+            "new_code": "sql = '...'",
+            "start_line": 10,
+            "end_line": 10
+        }],
+        "confidence": 0.95
+    }
+    
+    mock_message.content = [MagicMock(text=json.dumps(fix_data))]
+    mock_instance.messages.create = AsyncMock(return_value=mock_message)
+    
+    provider = AnthropicProvider(provider_config)
+    
+    code = "def test(): pass"
+    vuln = {"type": "SQL_INJECTION", "title": "SQL Injection", "line_number": 10}
+    
+    response = await provider.generate_fix(code, vuln, "test.py")
+    
+    assert response["title"] == "Use parameterized queries"
+    assert len(response["code_changes"]) == 1

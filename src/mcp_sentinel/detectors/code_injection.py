@@ -71,6 +71,10 @@ class CodeInjectionDetector(BaseDetector):
             "eval_usage": re.compile(r"\beval\s*\("),
             # exec() - Code execution
             "exec_usage": re.compile(r"\bexec\s*\("),
+            # Django raw SQL injection
+            "django_raw_sql": re.compile(r"\.objects\.raw\s*\(\s*f[\"']"),
+            # SQL Injection - generic cursor.execute with f-string
+            "cursor_execute_fstring": re.compile(r"cursor\.execute\s*\(\s*f[\"']"),
         }
 
     def _compile_javascript_patterns(self) -> Dict[str, Pattern]:
@@ -349,6 +353,26 @@ class CodeInjectionDetector(BaseDetector):
                 "3. Refactor code to use proper function calls or imports\n"
                 "4. If dynamic behavior is needed, use plugin architectures with importlib\n"
                 "5. Consider using __import__() with strict module name validation",
+            },
+            "django_raw_sql": {
+                "title": "SQL Injection via Django raw()",
+                "description": "Django User.objects.raw() used with f-string. "
+                "This allows direct SQL injection if user input is included.",
+                "cwe_id": "CWE-89",
+                "confidence": Confidence.HIGH,
+                "remediation": "1. Use Django ORM methods (filter, get) instead of raw SQL\n"
+                "2. If raw SQL is needed, use parameterized queries: raw('sql %s', [params])\n"
+                "3. NEVER use f-strings or format() to build SQL queries",
+            },
+            "cursor_execute_fstring": {
+                "title": "SQL Injection via f-string",
+                "description": "Database cursor.execute() used with f-string. "
+                "This allows direct SQL injection if user input is included.",
+                "cwe_id": "CWE-89",
+                "confidence": Confidence.HIGH,
+                "remediation": "1. Use parameterized queries: execute('sql %s', (params,))\n"
+                "2. NEVER use f-strings or format() to build SQL queries\n"
+                "3. Validate and sanitize all inputs",
             },
         }
 

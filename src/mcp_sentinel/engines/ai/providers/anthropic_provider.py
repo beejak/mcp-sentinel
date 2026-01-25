@@ -129,6 +129,48 @@ class AnthropicProvider(BaseAIProvider):
                 model=self.model,
             )
 
+    async def generate_fix(
+        self,
+        code: str,
+        vulnerability: Dict[str, Any],
+        file_path: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate a fix for a specific vulnerability using Claude.
+
+        Args:
+            code: Source code
+            vulnerability: Vulnerability details
+            file_path: Path to the file
+            context: Additional context
+
+        Returns:
+            Dictionary containing the suggested fix
+        """
+        system_prompt = self._build_fix_system_prompt()
+        user_prompt = self._build_fix_user_prompt(code, vulnerability, file_path, context)
+
+        try:
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+
+            content = response.content[0].text
+            return self._parse_fix_response(content)
+
+        except Exception as e:
+            return {
+                "error": str(e),
+                "code_changes": [],
+                "explanation": "Failed to generate fix.",
+                "confidence": 0.0,
+            }
+
     def estimate_cost(self, code: str) -> float:
         """
         Estimate cost of analyzing code.
@@ -186,8 +228,10 @@ For each vulnerability found, provide:
 3. confidence: "HIGH", "MEDIUM", or "LOW"
 4. line: Line number where vulnerability occurs
 5. description: Clear explanation of the vulnerability
-6. remediation: Specific steps to fix the issue
-7. cwe_id: Relevant CWE identifier (e.g., "CWE-89")
+6. remediation: A summary of how to fix the issue
+7. fixed_code: The actual safe code snippet to replace the vulnerable code (optional but recommended)
+8. remediation_steps: Array of specific steps to fix the issue (optional)
+9. cwe_id: Relevant CWE identifier (e.g., "CWE-89")
 
 Output ONLY a JSON array of vulnerabilities. No markdown, no code blocks, just the JSON array.
 If no vulnerabilities found, return an empty array: []
@@ -201,6 +245,11 @@ Example format:
     "line": 42,
     "description": "User input directly concatenated into SQL query",
     "remediation": "Use parameterized queries with placeholders",
+    "fixed_code": "cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
+    "remediation_steps": [
+      "Replace string concatenation with parameterized query",
+      "Ensure input validation is applied before query execution"
+    ],
     "cwe_id": "CWE-89"
   }
 ]
@@ -266,3 +315,82 @@ Return JSON array of vulnerabilities found."""
         except json.JSONDecodeError:
             # Failed to parse, return empty
             return []
+
+    def _build_fix_system_prompt(self) -> str:
+        """Build system prompt for fix generation."""
+        return """You are a secure coding expert. Your task is to fix a specific security vulnerability in the provided code.
+
+You will be given:
+1. The source code
+2. The vulnerability details (type, description, location)
+3. Additional security context (optional)
+
+You must return a JSON object with the following fields:
+- title: A short title for the fix
+- description: A brief description of what the fix does
+- explanation: A detailed explanation of why this fix resolves the vulnerability
+- steps: A list of step-by-step instructions to apply the fix
+- code_changes: A list of code changes, each containing:
+    - file_path: The path to the file
+    - original_code: The code being replaced (exact match)
+    - new_code: The new secure code
+    - start_line: The starting line number of the change
+    - end_line: The ending line number of the change
+- safety_notes: Any potential side effects or things to check
+- confidence: Your confidence in the fix (0.0 to 1.0)
+
+Output ONLY valid JSON. No markdown formatting."""
+
+    def _build_fix_user_prompt(
+        self,
+        code: str,
+        vulnerability: Dict[str, Any],
+        file_path: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Build user prompt for fix generation."""
+        prompt = f"""Fix the following vulnerability in {file_path}:
+
+Vulnerability:
+Type: {vulnerability.get('type')}
+Title: {vulnerability.get('title')}
+Description: {vulnerability.get('description')}
+Location: Line {vulnerability.get('line_number')}
+Code Snippet:
+{vulnerability.get('code_snippet', 'N/A')}
+
+Source Code:
+```
+{code}
+```
+"""
+        if context:
+            prompt += f"\nAdditional Context:\n{json.dumps(context, indent=2)}"
+
+        prompt += "\nProvide the fix in the specified JSON format."
+        return prompt
+
+    def _parse_fix_response(self, response: str) -> Dict[str, Any]:
+        """Parse fix response."""
+        try:
+            response = response.strip()
+            if response.startswith("```"):
+                lines = response.split("\n")
+                json_lines = []
+                in_code_block = False
+                for line in lines:
+                    if line.startswith("```"):
+                        in_code_block = not in_code_block
+                        continue
+                    if in_code_block or (not line.startswith("```")):
+                        json_lines.append(line)
+                response = "\n".join(json_lines).strip()
+            
+            return json.loads(response)
+        except Exception as e:
+            return {
+                "error": str(e),
+                "code_changes": [],
+                "explanation": "Failed to parse AI response.",
+                "confidence": 0.0
+            }

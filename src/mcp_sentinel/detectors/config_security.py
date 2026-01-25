@@ -51,6 +51,8 @@ class ConfigSecurityDetector(BaseDetector):
                 re.compile(r"app\.debug\s*=\s*True", re.IGNORECASE),
                 re.compile(r"environment\s*:\s*['\"]development['\"]", re.IGNORECASE),
                 re.compile(r"NODE_ENV\s*=\s*['\"]development['\"]", re.IGNORECASE),
+                re.compile(r"reload\s*=\s*True", re.IGNORECASE),  # Uvicorn/FastAPI reload
+                re.compile(r"app\.run\s*\([^)]*debug\s*=\s*True", re.IGNORECASE),  # Flask debug
             ],
             # Pattern 2: Weak authentication
             "weak_auth": [
@@ -88,6 +90,10 @@ class ConfigSecurityDetector(BaseDetector):
             "weak_secrets": [
                 re.compile(
                     r"SECRET_KEY\s*=\s*['\"](?:secret|changeme|default|test|dev)['\"]",
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r"config\['SECRET_KEY'\]\s*=\s*['\"](?:secret|changeme|default|test|dev)['\"]",
                     re.IGNORECASE,
                 ),
                 re.compile(
@@ -307,7 +313,8 @@ class ConfigSecurityDetector(BaseDetector):
         if category == "debug_mode":
             # Check file path for local/dev indicators (but not unit test files)
             if file_path:
-                filename_lower = str(file_path).lower()
+                # Use .name to avoid matching parent directories like "AppData/Local"
+                filename_lower = file_path.name.lower()
                 # Only match local/dev config files, not unit test files
                 if any(
                     marker in filename_lower

@@ -399,6 +399,22 @@ def _print_terminal_results(result: ScanResult):
             if vuln.code_snippet:
                 console.print(f"   Code: [dim]{vuln.code_snippet}[/dim]")
 
+            if vuln.remediation:
+                console.print(f"   [bold green]Remediation:[/bold green] {vuln.remediation}")
+
+            if vuln.remediation_steps:
+                console.print(f"   [bold green]Steps to Fix:[/bold green]")
+                for step in vuln.remediation_steps:
+                    console.print(f"   - {step}")
+
+            if vuln.diff:
+                console.print(f"   [bold green]Suggested Change:[/bold green]")
+                syntax = Syntax(vuln.diff, "diff", theme="monokai", line_numbers=False)
+                console.print(syntax)
+            elif vuln.fixed_code:
+                console.print(f"   [bold green]Fixed Code:[/bold green]")
+                console.print(f"[green]{vuln.fixed_code}[/green]")
+
             console.print()
 
     # Risk score
