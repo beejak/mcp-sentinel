@@ -1,0 +1,72 @@
+name: Adaptive Compliance Checks
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  compliance:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+        pip install pytest-cov ruff mypy
+        
+    - name: Run Compliance Metrics
+      run: |
+        python scripts/metrics.py
+        
+    - name: Verify Compliance Gates
+      run: |
+        # Parse the generated metrics JSON and fail if thresholds aren't met
+        python -c "
+        import json
+        import sys
+        
+        with open('reports/compliance_metrics.json') as f:
+            data = json.load(f)
+            
+        metrics = data['metrics']
+        failed = False
+        
+        # 1. Coverage Gate (> 80%)
+        cov = metrics.get('test_coverage_pct', 0)
+        if cov < 80:
+            print(f'❌ Coverage {cov}% is below threshold (80%)')
+            failed = True
+        else:
+            print(f'✅ Coverage {cov}% passed')
+            
+        # 2. Linting Gate (0 errors) - Optional, maybe just warn for now
+        lint = metrics.get('lint_issues', 0)
+        if lint > 0:
+            print(f'⚠️ Found {lint} lint issues')
+            # failed = True  # Uncomment to enforce strict linting
+            
+        # 3. Type Check Gate (0 errors)
+        types = metrics.get('type_issues', 0)
+        if types > 0:
+            print(f'⚠️ Found {types} type issues')
+            # failed = True  # Uncomment to enforce strict typing
+            
+        if failed:
+            sys.exit(1)
+        "
+        
+    - name: Upload Compliance Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: compliance-report
+        path: reports/compliance_metrics.json

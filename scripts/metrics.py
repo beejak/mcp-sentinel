@@ -5,25 +5,34 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-def run_command(command):
+def run_command(command, capture=True):
     """Run a shell command and return stdout."""
     try:
-        result = subprocess.run(
-            command, 
-            shell=True, 
-            capture_output=True, 
-            text=True
-        )
-        return result.stdout
+        if capture:
+            result = subprocess.run(
+                command, 
+                shell=True, 
+                capture_output=True, 
+                text=True
+            )
+            return result.stdout
+        else:
+            # Stream output to console but verify return code
+            result = subprocess.run(
+                command,
+                shell=True,
+                check=False
+            )
+            return ""
     except Exception as e:
         print(f"Error running {command}: {e}", file=sys.stderr)
         return ""
 
 def get_coverage():
-    print("  - Running coverage check...")
+    print("  - Running coverage check (this may take ~60 seconds)...")
     # Assumes pytest-cov is installed
+    # We capture output to parse the percentage
     stdout = run_command("pytest --cov=src/mcp_sentinel --cov-report=term-missing:skip-covered")
-    print(f"DEBUG: Coverage output:\n{stdout}")
     
     # Look for TOTAL line
     # src/mcp_sentinel/utils.py      25      5    80%

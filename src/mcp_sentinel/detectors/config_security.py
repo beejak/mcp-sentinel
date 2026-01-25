@@ -349,6 +349,18 @@ class ConfigSecurityDetector(BaseDetector):
 
         return False
 
+    def _generate_fix(self, category: str, matched_text: str, code_snippet: str) -> Optional[str]:
+        """Generate a fix for the vulnerability."""
+        if category == "debug_mode":
+            # Python: DEBUG = True -> DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+            if "True" in code_snippet and ("=" in code_snippet or ":" in code_snippet):
+                return code_snippet.replace("True", "os.getenv('DEBUG', 'False').lower() == 'true'")
+            # JSON/YAML: "debug": true -> "debug": false
+            elif "true" in code_snippet:
+                return code_snippet.replace("true", "false")
+        
+        return None
+
     def _create_vulnerability(
         self,
         category: str,
@@ -557,6 +569,8 @@ class ConfigSecurityDetector(BaseDetector):
 
         metadata = vuln_metadata.get(category, {})
 
+        fixed_code = self._generate_fix(category, matched_text, code_snippet)
+
         return Vulnerability(
             type=VulnerabilityType.CONFIG_SECURITY,
             title=metadata.get("title", "Configuration Security Issue"),
@@ -566,6 +580,7 @@ class ConfigSecurityDetector(BaseDetector):
             file_path=str(file_path),
             line_number=line_number,
             code_snippet=code_snippet,
+            fixed_code=fixed_code,
             cwe_id=metadata.get("cwe_id", "CWE-16"),
             cvss_score=metadata.get("cvss_score", 5.0),
             remediation=metadata.get("remediation", "Review and fix configuration"),

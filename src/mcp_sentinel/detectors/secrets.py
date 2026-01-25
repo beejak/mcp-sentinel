@@ -111,6 +111,8 @@ class SecretsDetector(BaseDetector):
                         continue
 
                     # Create vulnerability
+                    fixed_code = self._generate_fix(secret_type, secret_value, line.strip())
+
                     vuln = Vulnerability(
                         type=VulnerabilityType.SECRET_EXPOSURE,
                         title=f"Hardcoded {self._format_secret_type(secret_type)}",
@@ -120,6 +122,7 @@ class SecretsDetector(BaseDetector):
                         file_path=str(file_path),
                         line_number=line_num,
                         code_snippet=line.strip(),
+                        fixed_code=fixed_code,
                         cwe_id="CWE-798",  # Use of Hard-coded Credentials
                         cvss_score=9.1,
                         remediation=self._generate_remediation(secret_type),
@@ -137,6 +140,35 @@ class SecretsDetector(BaseDetector):
                     vulnerabilities.append(vuln)
 
         return vulnerabilities
+
+    def _generate_fix(self, secret_type: str, secret_value: str, code_snippet: str) -> Optional[str]:
+        """Generate a fix for the secret exposure."""
+        # Check if secret is assigned to a variable
+        if "=" in code_snippet:
+            parts = code_snippet.split("=")
+            var_part = parts[0].strip()
+            val_part = "=".join(parts[1:]).strip()
+            
+            # Simple heuristic for variable name from code
+            # e.g. AWS_KEY = "..." -> var_name = AWS_KEY
+            var_name = var_part.split()[-1] # Take last word if there are modifiers like 'export'
+            
+            # Clean variable name for env var usage
+            env_var = var_name.upper().replace(".", "_").replace("-", "_")
+            
+            # Check for quotes
+            quote_char = None
+            if '"' in val_part and secret_value in val_part:
+                quote_char = '"'
+            elif "'" in val_part and secret_value in val_part:
+                quote_char = "'"
+                
+            if quote_char:
+                target = f"{quote_char}{secret_value}{quote_char}"
+                if target in code_snippet:
+                    return code_snippet.replace(target, f'os.getenv("{env_var}")')
+        
+        return None
 
     def _is_placeholder(self, secret: str) -> bool:
         """Check if the secret is likely a placeholder."""
