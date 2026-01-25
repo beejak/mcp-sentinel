@@ -30,6 +30,35 @@
 
 </div>
 
+## 🎯 What's New - v1.0.0-beta.5
+
+**Latest (Jan 25, 2026):** 🚀 **Automated Remediation & RAG Integration**
+
+<table>
+<tr>
+<td>
+
+### 🛠️ RAG-Enhanced Remediation
+- ✅ **Automated Fixes** - AI-generated patches with unified diffs
+- ✅ **Context-Aware** - RAG retrieves relevant security patterns (OWASP, CWE)
+- ✅ **Knowledge Base** - Local ChromaDB store with 50+ security patterns
+- ✅ **Parallel Population** - Fast knowledge base hydration
+
+</td>
+<td>
+
+### 🛡️ Framework Intelligence
+- ✅ **Django** - SQLi (raw queries), XSS (mark_safe)
+- ✅ **FastAPI** - Debug mode detection, mass assignment
+- ✅ **Flask** - Weak secrets, debug mode
+- ✅ **Smart Filtering** - Reduced false positives in test files
+
+</td>
+</tr>
+</table>
+
+---
+
 ## 🎯 What's New - v1.0.0-beta.4
 
 **Latest (Jan 24, 2026):** 🚀 **Advanced CLI & Logging System**

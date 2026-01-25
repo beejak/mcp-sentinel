@@ -30,6 +30,7 @@ from mcp_sentinel.remediation.models import (
     RemediationType,
     CodeChange,
 )
+from mcp_sentinel.remediation.diff_builder import DiffBuilder
 
 logger = logging.getLogger(__name__)
 

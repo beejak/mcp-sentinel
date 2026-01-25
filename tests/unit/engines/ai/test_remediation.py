@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock
 from pathlib import Path
 from mcp_sentinel.engines.ai.ai_engine import AIEngine
+from mcp_sentinel.remediation.diff_builder import DiffBuilder
 from mcp_sentinel.models.vulnerability import Vulnerability, VulnerabilityType, Severity, Confidence
 from mcp_sentinel.remediation.models import RemediationSuggestion
 
