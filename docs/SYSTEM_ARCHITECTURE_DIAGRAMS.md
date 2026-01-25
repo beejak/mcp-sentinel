@@ -2,550 +2,161 @@
 
 ## Overview
 
-This document provides comprehensive architecture diagrams for the MCP Sentinel Python project, illustrating the system's design patterns, component relationships, and data flow. These diagrams serve as visual documentation for developers, architects, and stakeholders to understand the system's structure and behavior.
+This document provides comprehensive architecture diagrams for the MCP Sentinel Python project, using the C4 model and Mermaid.js to illustrate the system's design, component relationships, and data flow. These diagrams reflect the Phase 4.4 architecture, including **RAG (Retrieval-Augmented Generation)** and **Automated Remediation**.
 
 ## Table of Contents
 
-1. [High-Level Architecture](#high-level-architecture)
-2. [Component Diagram](#component-diagram)
-3. [Data Flow Diagram](#data-flow-diagram)
-4. [Sequence Diagrams](#sequence-diagrams)
+1. [System Context (C4 Level 1)](#system-context-c4-level-1)
+2. [Container Diagram (C4 Level 2)](#container-diagram-c4-level-2)
+3. [Component Diagram - AI & RAG (C4 Level 3)](#component-diagram---ai--rag-c4-level-3)
+4. [Remediation Data Flow](#remediation-data-flow)
 5. [Deployment Architecture](#deployment-architecture)
-6. [Security Architecture](#security-architecture)
-7. [Performance Architecture](#performance-architecture)
 
 ---
 
-## High-Level Architecture
+## System Context (C4 Level 1)
 
-### System Overview
+This diagram shows the high-level interactions between the User, MCP Sentinel, and external systems.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           MCP Sentinel Python                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐      │
-│  │   CLI Layer     │────▶│  Scanner Core    │────▶│  Output Layer    │      │
-│  │  (Rich/Click)   │     │  (Async Engine)  │     │ (JSON/CSV/XML)   │      │
-│  └─────────────────┘     └──────────────────┘     └──────────────────┘      │
-│          │                       │                       │                   │
-│          ▼                       ▼                       ▼                   │
-│  ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐      │
-│  │  Configuration  │     │  Detector Chain  │     │   Reporting      │      │
-│  │  (Pydantic)     │     │  (Plugin System) │     │  (Templates)     │      │
-│  └─────────────────┘     └──────────────────┘     └──────────────────┘      │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Supporting Systems                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐    │
-│  │   File System   │     │   Async I/O      │     │   Logging/       │    │
-│  │   (Pathlib)     │     │  (aiofiles)      │     │   Telemetry      │    │
-│  └─────────────────┘     └──────────────────┘     └──────────────────┘    │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+C4Context
+    title System Context Diagram for MCP Sentinel
+
+    Person(user, "Security Engineer", "Runs scans, reviews findings, applies fixes")
+    System(sentinel, "MCP Sentinel", "AI-Powered Security Scanner with RAG & Remediation")
+
+    System_Ext(target_code, "Target Codebase", "Source code to be analyzed")
+    System_Ext(llm_providers, "AI Providers", "Anthropic Claude, OpenAI GPT-4, Google Gemini")
+    System_Ext(knowledge_base, "Security Knowledge Base", "OWASP, CWE, Framework Patterns")
+
+    Rel(user, sentinel, "Uses CLI to scan/fix", "Terminal")
+    Rel(sentinel, target_code, "Reads/Analyzes", "File System")
+    Rel(sentinel, llm_providers, "Sends Context/Code, Receives Analysis/Fixes", "HTTPS/API")
+    Rel(sentinel, knowledge_base, "Retrieves Security Patterns", "Local/Embedded")
 ```
 
-### Key Components Description
+## Container Diagram (C4 Level 2)
 
-- **CLI Layer**: User interface using Rich library for enhanced terminal output and Click for command parsing
-- **Scanner Core**: Async engine that orchestrates file processing and vulnerability detection
-- **Detector Chain**: Plugin-based system for running multiple vulnerability detectors
-- **Configuration**: Type-safe configuration management using Pydantic BaseSettings
-- **Output Layer**: Flexible output formatting supporting JSON, CSV, and XML formats
-- **Reporting**: Template-based report generation with customizable formats
+This diagram breaks down the MCP Sentinel system into its core containers and their interactions.
 
----
+```mermaid
+C4Container
+    title Container Diagram for MCP Sentinel
 
-## Component Diagram
+    Container(cli, "CLI Layer", "Python/Click/Rich", "Handles user input, displays results, renders diffs")
+    Container(scanner_core, "Scanner Core", "MultiEngineScanner", "Orchestrates scanning pipelines, manages concurrency")
+    Container(ai_engine, "AI Engine", "AIEngine", "Manages AI interactions, context windowing, prompt engineering")
+    Container(rag_engine, "RAG Engine", "ChromaDB/Embeddings", "Retrieves context-aware security patterns")
+    Container(detectors, "Detector Plugins", "Python Modules", "Specialized logic for Frameworks, Secrets, Injection")
+    Container(remediation, "Remediation System", "DiffBuilder/Patch", "Generates and applies code fixes")
+    ContainerDb(kb_store, "Vector Store", "ChromaDB", "Stores embeddings of security patterns")
 
-### Detailed Component Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Scanner Orchestrator                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    ScannerOrchestrator                              │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │                     Configuration                               │ │  │
-│  │  │  - max_concurrent_files: int = 10                            │ │  │
-│  │  │  - timeout_seconds: int = 30                                 │ │  │
-│  │  │  - retry_attempts: int = 3                                   │ │  │
-│  │  │  - batch_size: int = 50                                      │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │                   Circuit Breaker                              │ │  │
-│  │  │  - error_threshold: float = 0.1                              │ │  │
-│  │  │  - reset_timeout: int = 60                                   │ │  │
-│  │  │  - should_continue_scanning()                               │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │                    Async Pipeline                              │ │  │
-│  │  │  - input_queue: asyncio.Queue(maxsize=100)                    │ │  │
-│  │  │  - processing_semaphore: asyncio.Semaphore(20)                │ │  │
-│  │  │  - output_queue: asyncio.Queue(maxsize=100)                   │ │  │
-│  │  │  - process_files_stream()                                     │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Detector Manager                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                     DetectorManager                                 │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │                  Health Monitoring                             │ │  │
-│  │  │  - detector_health: Dict[str, bool]                          │ │  │
-│  │  │  - last_successful_run: Dict[str, datetime]                 │ │  │
-│  │  │  - disable_unhealthy_detectors()                           │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │              Detector Registration                             │ │  │
-│  │  │  - register_detector(BaseDetector)                         │ │  │
-│  │  │  - get_detector(name: str) -> BaseDetector                  │ │  │
-│  │  │  - list_detectors() -> List[str]                          │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │              Parallel Execution                                │ │  │
-│  │  │  - run_detectors(file_path, content) -> List[Vulnerability] │ │  │
-│  │  │  - semaphore-based concurrency control                     │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Base Detector Interface                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    BaseDetector (ABC)                               │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │               Abstract Methods                                  │ │  │
-│  │  │  - detect(file_path, content) -> List[Vulnerability]        │ │  │
-│  │  │  - get_name() -> str                                          │ │  │
-│  │  │  - get_description() -> str                                   │ │  │
-│  │  │  - get_severity_level() -> Severity                           │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  │  ┌─────────────────────────────────────────────────────────────────┐ │  │
-│  │  │              Common Utilities                                   │ │  │
-│  │  │  - regex_patterns: Dict[str, Pattern]                        │ │  │
-│  │  │  - validate_content(content) -> bool                         │ │  │
-│  │  │  - extract_context(line, match) -> str                       │ │  │
-│  │  └─────────────────────────────────────────────────────────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+    Rel(cli, scanner_core, "Initiates Scan/Fix")
+    Rel(scanner_core, detectors, "Delegates Static Analysis")
+    Rel(scanner_core, ai_engine, "Delegates Semantic Analysis")
+    Rel(ai_engine, rag_engine, "Queries for Context")
+    Rel(rag_engine, kb_store, "Retrieves Embeddings")
+    Rel(ai_engine, remediation, "Generates Fix Suggestions")
+    Rel(remediation, cli, "Returns Unified Diffs")
 ```
 
----
+## Component Diagram - AI & RAG (C4 Level 3)
 
-## Data Flow Diagram
+Detailed view of the AI Engine and its integration with RAG and Remediation.
 
-### Scanning Process Flow
+```mermaid
+classDiagram
+    class MultiEngineScanner {
+        +scan_project()
+        +orchestrate_scan()
+    }
+    
+    class AIEngine {
+        -providers: Dict
+        -rag_controller: RAGController
+        +analyze_code()
+        +generate_fix()
+    }
+    
+    class RAGController {
+        -vector_store: ChromaDB
+        -retriever: SemanticRetriever
+        +retrieve_context(query)
+        +populate_knowledge_base()
+    }
+    
+    class AIProvider {
+        <<Interface>>
+        +analyze()
+        +generate_fix()
+    }
+    
+    class AnthropicProvider {
+        +analyze()
+        +generate_fix()
+    }
+    
+    class DiffBuilder {
+        +create_unified_diff(original, modified)
+        +apply_patch(file_path, diff)
+    }
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   User CLI  │────▶│   Config    │────▶│   Scanner   │────▶│  Detector   │
-│   Command   │     │  Validation │     │Orchestrator │     │   Manager   │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-      │                   │                   │                   │
-      ▼                   ▼                   ▼                   ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Argument   │     │  Pydantic   │     │   Async     │     │   Plugin    │
-│   Parsing   │     │   Config    │     │  Pipeline   │     │  Registry   │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-      │                   │                   │                   │
-      ▼                   ▼                   ▼                   ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Rich UI    │     │  Type Safe  │     │  Semaphore  │     │  Detector   │
-│   Output    │     │  Settings   │     │ Concurrency │     │   Chain     │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-                            │
-                            ▼
-                    ┌─────────────┐
-                    │   File      │
-                    │ Processing  │
-                    │   Stream    │
-                    └─────────────┘
-                            │
-                            ▼
-                    ┌─────────────┐     ┌─────────────┐
-                    │Vulnerability│────▶│   Report    │
-                    │ Detection   │     │ Generation  │
-                    └─────────────┘     └─────────────┘
-```
-
-### Async Processing Flow
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Async Processing Pipeline                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐│
-│  │ Input Queue │────▶│  Semaphore  │────▶│ Processing  │────▶│ Output Queue││
-│  │  (Files)    │     │   (Limit)   │     │  Workers    │     │ (Results)   ││
-│  └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘│
-│         │                  │                     │                  │        │
-│         ▼                  ▼                     ▼                  ▼        │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐│
-│  │  Backpressure│    │ Concurrency │    │   Timeout   │     │  Results    ││
-│  │  Handling   │     │   Control   │     │   Control   │     │ Aggregation ││
-│  └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘│
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+    MultiEngineScanner --> AIEngine : Uses
+    AIEngine --> RAGController : Queries Context
+    AIEngine --> AIProvider : Delegates LLM Calls
+    AIProvider <|.. AnthropicProvider : Implements
+    AnthropicProvider --> DiffBuilder : Formats Output
+    RAGController --> KnowledgeBase : Loads Data
 ```
 
----
+## Remediation Data Flow
 
-## Sequence Diagrams
+The flow of data when generating an automated fix.
 
-### File Scanning Sequence
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant AIEngine
+    participant RAG
+    participant LLM
+    participant DiffBuilder
 
+    User->>CLI: mcp-sentinel fix
+    CLI->>AIEngine: Request Remediation (Vulnerability)
+    AIEngine->>RAG: Retrieve Context (CWE/OWASP)
+    RAG-->>AIEngine: Context Docs
+    AIEngine->>LLM: Prompt (Code + Vuln + Context)
+    LLM-->>AIEngine: Fixed Code Block
+    AIEngine->>DiffBuilder: Generate Diff (Original, Fixed)
+    DiffBuilder-->>AIEngine: Unified Diff Object
+    AIEngine-->>CLI: RemediationSuggestion
+    CLI-->>User: Display Diff & Ask Confirmation
 ```
-User          CLI         Scanner      Detector    File System
- │             │            │            │            │
- │ scan cmd    │            │            │            │
- │────────────▶│            │            │            │
- │             │            │            │            │
- │             │ validate   │            │            │
- │             │──────────▶│            │            │
- │             │            │            │            │
- │             │            │ get files  │            │
- │             │            │───────────▶│            │
- │             │            │            │            │
- │             │            │            │ read dir   │
- │             │            │            │───────────▶│
- │             │            │            │◀───────────│
- │             │            │            │ file list  │
- │             │            │◀───────────│            │
- │             │            │            │            │
- │             │            │ process    │            │
- │             │            │ files      │            │
- │             │            │───────────▶│            │
- │             │            │            │            │
- │             │            │            │ detect()   │
- │             │            │            │───────────▶│
- │             │            │            │◀───────────│
- │             │            │            │ results    │
- │             │            │◀───────────│            │
- │             │            │            │            │
- │             │            │ aggregate  │            │
- │             │            │ results    │            │
- │             │            │───────────▶│            │
- │             │            │            │            │
- │             │            │ generate   │            │
- │             │            │ report     │            │
- │             │            │───────────▶│            │
- │             │            │            │            │
- │             │◀───────────│            │            │
- │ results     │            │            │            │
- │◀────────────│            │            │            │
-```
-
-### Error Handling Sequence
-
-```
-Scanner      Circuit     Detector    Logger      User
-  │          Breaker       │          │         │
-  │          │             │          │         │
-  │ scan()   │             │          │         │
-  │─────────▶│             │          │         │
-  │          │             │          │         │
-  │          │ check()    │          │         │
-  │          │────────────▶│          │         │
-  │          │             │          │         │
-  │          │◀────────────│          │         │
-  │          │ continue?    │          │         │
-  │          │             │          │         │
-  │          │ error       │          │         │
-  │          │────────────▶│          │         │
-  │          │             │          │         │
-  │          │ increment   │          │         │
-  │          │ error count │          │         │
-  │          │────────────▶│          │         │
-  │          │             │          │         │
-  │          │ threshold?  │          │         │
-  │          │────────────▶│          │         │
-  │          │             │          │         │
-  │          │◀────────────│ exceeded  │         │
-  │          │             │───────────▶│         │
-  │          │             │          │ log     │
-  │          │             │          │ error   │
-  │          │             │          │─────────▶│
-  │          │ open        │          │         │
-  │          │ circuit     │          │         │
-  │          │────────────▶│          │         │
-  │          │             │          │         │
-  │          │◀────────────│          │         │
-  │          │ stop        │          │         │
-  │          │ scanning    │          │         │
-  │◀─────────│             │          │         │
-  │ error msg  │             │          │         │
-  │───────────▶│             │          │         │
-```
-
----
 
 ## Deployment Architecture
 
-### Container Deployment
+Deployment view for Docker-based distribution.
 
+```mermaid
+graph TB
+    subgraph "Docker Host"
+        subgraph "Container: mcp-sentinel"
+            CLI[CLI / App]
+            Code[Source Code]
+            Env[Environment Vars]
+        end
+        
+        subgraph "Volumes"
+            DataVol[./data - ChromaDB]
+            LogVol[./logs]
+            ConfigVol[./config]
+        end
+        
+        CLI --> DataVol
+        CLI --> LogVol
+        CLI --> ConfigVol
+    end
+    
+    Target[Target Project] --> CLI
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Docker Deployment                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Multi-Stage Build                                │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Build Stage   │     │   Runtime Stage  │     │   Config    │ │  │
-│  │  │                 │     │                  │     │   Volume    │ │  │
-│  │  │ - Python 3.11  │     │ - Python 3.11    │     │             │ │  │
-│  │  │ - Poetry       │     │ - Poetry deps    │     │ - Config    │ │  │
-│  │  │ - Build deps     │     │ - App code       │     │ - Rules     │ │  │
-│  │  │ - Compile        │     │ - Non-root user  │     │ - Patterns  │ │  │
-│  │  │   bytecode       │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  │           │                       │                       │        │  │
-│  │           ▼                       ▼                       ▼        │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Security      │     │   Optimization   │     │   Health    │ │  │
-│  │  │   Scanning      │     │   Layers         │     │   Checks    │ │  │
-│  │  │   (Trivy)       │     │   Caching        │     │   (HEALTH)  │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Kubernetes Deployment                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Pod Configuration                                │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Deployment    │     │   Service        │     │   Config    │ │  │
-│  │  │                 │     │                  │     │    Map      │ │  │
-│  │  │ - Replicas: 3   │     │ - Type: ClusterIP│     │             │ │  │
-│  │  │ - Rolling       │     │ - Port: 8080     │     │ - Config    │ │  │
-│  │  │   update        │     │ - Target: 8080   │     │ - Secrets   │ │  │
-│  │  │ - Resource      │     │                  │     │             │ │  │
-│  │  │   limits        │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  │           │                       │                       │        │  │
-│  │           ▼                       ▼                       ▼        │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Horizontal    │     │   Auto-scaling   │     │   Storage   │ │  │
-│  │  │   Pod Autoscaler│     │   (HPA)          │     │   (PVC)     │ │  │
-│  │  │                 │     │                  │     │             │ │  │
-│  │  │ - Min: 1        │     │ - CPU: 70%       │     │ - Results   │ │  │
-│  │  │ - Max: 10       │     │ - Memory: 80%    │     │ - Cache     │ │  │
-│  │  │ - Target: 50%   │     │                  │     │ - Logs      │ │  │
-│  │  │   CPU           │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Security Architecture
-
-### Security Layers
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Security Architecture                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Application Security                             │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Input         │     │   Secrets        │     │   Output    │ │  │
-│  │  │   Validation    │     │   Management     │     │   Sanitization│ │  │
-│  │  │                 │     │                  │     │             │ │  │
-│  │  │ - Path traversal│     │ - Environment    │     │ - Redact    │ │  │
-│  │  │   prevention    │     │   variables      │     │   secrets   │ │  │
-│  │  │ - File size     │     │ - Vault          │     │ - Mask      │ │  │
-│  │  │   limits          │     │   integration    │     │   sensitive │ │  │
-│  │  │ - Content       │     │                  │     │   data      │ │  │
-│  │  │   filtering       │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  │           │                       │                       │        │  │
-│  │           ▼                       ▼                       ▼        │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Code        │     │   Runtime        │     │   Network   │ │  │
-│  │  │   Security    │     │   Security       │     │   Security  │ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  │ - Bandit      │     │ - Sandboxing     │     │ - TLS 1.3   │ │  │
-│  │  │   scanning    │     │ - Resource       │     │ - mTLS      │ │  │
-│  │  │ - Dependency  │     │   limits         │     │ - Firewall  │ │  │
-│  │  │   scanning    │     │ - Privilege      │     │   rules     │ │  │
-│  │  │               │     │   dropping       │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Infrastructure Security                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Container Security                               │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Image       │     │   Runtime        │     │   Secrets   │ │  │
-│  │  │   Scanning    │     │   Security       │     │   Management│ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  │ - Trivy       │     │ - Read-only      │     │ - Sealed    │ │  │
-│  │  │   scanning    │     │   root           │     │   secrets   │ │  │
-│  │  │ - CVE checks  │     │ - Non-root       │     │ - Rotation  │ │  │
-│  │  │               │     │   user           │     │   policy    │ │  │
-│  │  │               │     │ - Capabilities   │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  │           │                       │                       │        │  │
-│  │           ▼                       ▼                       ▼        │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Network     │     │   Storage        │     │   Monitoring│ │  │
-│  │  │   Policies    │     │   Encryption     │     │   & Audit   │ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  │ - Network     │     │ - At-rest        │     │ - Security  │ │  │
-│  │  │   policies    │     │   encryption     │     │   events    │ │  │
-│  │  │ - Segmentation│     │ - Key            │     │ - Alerts    │ │  │
-│  │  │               │     │   management     │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Performance Architecture
-
-### Scalability Design
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Performance Architecture                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Memory Management                                │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Streaming     │     │   Object         │     │   Cache     │ │  │
-│  │  │   Processing    │     │   Pooling        │     │   Strategy  │ │  │
-│  │  │                 │     │                  │     │             │ │  │
-│  │  │ - File stream   │     │ - Regex          │     │ - LRU       │ │  │
-│  │  │   processing    │     │   compilation    │     │   cache     │ │  │
-│  │  │ - Chunked       │     │   caching        │     │ - Pattern   │ │  │
-│  │  │   reading       │     │                  │     │   cache     │ │  │
-│  │  │ - Generator     │     │                  │     │             │ │  │
-│  │  │   functions     │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  │           │                       │                       │        │  │
-│  │           ▼                       ▼                       ▼        │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Concurrency   │     │   Async I/O      │     │   Resource  │ │  │
-│  │  │   Control       │     │   Optimization   │     │   Limits    │ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  │ - Semaphore   │     │ - aiofiles       │     │ - CPU       │ │  │
-│  │  │   limits      │     │ - Async context  │     │ - Memory    │ │  │
-│  │  │ - Worker      │     │   managers       │     │ - File      │ │  │
-│  │  │   pools       │     │                  │     │   handles   │ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Distributed Processing                                  │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                    Worker Coordination                              │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Job         │     │   Queue        │     │   Results   │ │  │
-│  │  │   Queue       │     │   Management   │     │   Aggregation│ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  │ - Redis       │     │ - Priority       │     │ - Streaming │ │  │
-│  │  │   backend     │     │   queues         │     │   results   │ │  │
-│  │  │ - Task        │     │ - Dead letter    │     │ - Batch     │ │  │
-│  │  │   routing     │     │   queues         │     │   processing│ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  │           │                       │                       │        │  │
-│  │           ▼                       ▼                       ▼        │  │
-│  │  ┌─────────────────┐     ┌──────────────────┐     ┌─────────────┐ │  │
-│  │  │   Load        │     │   Fault        │     │   Monitoring│ │  │
-│  │  │   Balancing   │     │   Tolerance    │     │   & Metrics │ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  │ - Round-robin │     │ - Retry          │     │ - Latency   │ │  │
-│  │  │ - Least conn  │     │   policies       │     │ - Throughput│ │  │
-│  │  │ - Health      │     │ - Circuit        │     │ - Error     │ │  │
-│  │  │   checks      │     │   breaker        │     │   rates     │ │  │
-│  │  │               │     │                  │     │             │ │  │
-│  │  └─────────────────┘     └──────────────────┘     └─────────────┘ │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Implementation Notes
-
-### Diagram Standards
-
-- **Mermaid Compatibility**: All diagrams are compatible with Mermaid.js for rendering
-- **Color Coding**: Consistent color scheme for different component types
-- **Layer Separation**: Clear separation between application, infrastructure, and security layers
-- **Scalability**: Diagrams designed to accommodate future architectural changes
-
-### Usage Guidelines
-
-1. **Documentation Integration**: Include relevant diagrams in API documentation
-2. **Code Reviews**: Reference diagrams during architecture discussions
-3. **Onboarding**: Use diagrams for new developer orientation
-4. **Stakeholder Communication**: Simplified views for non-technical audiences
-
-### Maintenance
-
-- **Version Control**: Track diagram changes in Git
-- **Regular Updates**: Update diagrams with architectural changes
-- **Review Process**: Include diagram review in code review process
-- **Automation**: Consider automated diagram generation from code
-
----
-
-## Related Documents
-
-- [SYSTEM_DESIGN_SPECIFICATION.md](./SYSTEM_DESIGN_SPECIFICATION.md) - Detailed system design
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Core architecture documentation
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Deployment procedures
-- [SECURITY.md](./SECURITY.md) - Security implementation details
-
----
-
-*Last Updated: January 2026*
-*Version: 1.0*
-*Status: Review Ready*

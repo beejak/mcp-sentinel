@@ -73,120 +73,53 @@ def cli(ctx, config, verbose, quiet):
 
 @cli.command()
 @click.argument('path', type=click.Path(exists=True))
-@click.option('--output', '-o', type=click.Choice(['json', 'csv', 'xml']), default='json')
+@click.option('--output', '-o', type=click.Choice(['json', 'csv', 'xml', 'html', 'sarif']), default='json')
 @click.option('--output-file', '-f', type=click.Path(), help='Output file path')
 @click.option('--detectors', '-d', multiple=True, help='Specific detectors to run')
 @click.option('--exclude', '-e', multiple=True, help='Patterns to exclude')
 @click.option('--severity', '-s', type=click.Choice(['low', 'medium', 'high', 'critical']), help='Minimum severity')
-@click.option('--max-depth', type=int, help='Maximum directory depth')
-@click.option('--concurrent', type=int, default=20, help='Maximum concurrent files')
+@click.option('--ai', is_flag=True, help='Enable AI analysis')
+@click.option('--remediate', is_flag=True, help='Generate remediation suggestions')
+@click.option('--provider', type=click.Choice(['anthropic', 'openai', 'gemini', 'ollama']), default='anthropic')
 @click.pass_context
-def scan(ctx, path, output, output_file, detectors, exclude, severity, max_depth, concurrent):
+def scan(ctx, path, output, output_file, detectors, exclude, severity, ai, remediate, provider):
     """Scan directory for security vulnerabilities."""
     # Implementation
-
-@cli.command()
-@click.option('--list', '-l', 'list_detectors', is_flag=True, help='List available detectors')
-@click.option('--info', '-i', help='Show detailed info about a detector')
-@click.pass_context
-def detectors(ctx, list_detectors, info):
-    """Manage vulnerability detectors."""
-    # Implementation
-
-@cli.command()
-@click.pass_context
-def config(ctx):
-    """Manage configuration settings."""
-    # Implementation
 ```
-
-### CLI Options Reference
-
-| Option | Short | Type | Default | Description |
-|--------|-------|------|---------|-------------|
-| `--config` | `-c` | Path | None | Configuration file path |
-| `--output` | `-o` | Choice | json | Output format |
-| `--output-file` | `-f` | Path | None | Output file path |
-| `--detectors` | `-d` | Multiple | All | Specific detectors to run |
-| `--exclude` | `-e` | Multiple | None | Exclude patterns |
-| `--severity` | `-s` | Choice | low | Minimum severity level |
-| `--max-depth` | None | Int | None | Maximum directory depth |
-| `--concurrent` | None | Int | 20 | Max concurrent files |
-| `--verbose` | `-v` | Count | 0 | Verbosity level |
-| `--quiet` | `-q` | Flag | False | Suppress output |
 
 ---
 
 ## Programmatic API
 
-### Main Scanner API
+### Scanning Engine
 
 ```python
-from pathlib import Path
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
-import asyncio
+class MultiEngineScanner:
+    def __init__(self, config: Config):
+        self.detectors = load_detectors()
+        self.ai_engine = AIEngine(config) if config.ai_enabled else None
 
-class ScanResults(BaseModel):
-    """Scan results data model."""
-    total_files: int
-    scanned_files: int
-    vulnerabilities: List[Vulnerability]
-    scan_duration: float
-    errors: List[str]
-    summary: Dict[str, Any]
+    async def scan_directory(self, path: Path) -> ScanResult:
+        """Run all enabled engines on the directory."""
+        pass
+```
 
-class Vulnerability(BaseModel):
-    """Vulnerability data model."""
-    file_path: Path
-    line_number: int
-    severity: str  # 'low', 'medium', 'high', 'critical'
-    detector_name: str
-    description: str
-    recommendation: str
-    context: str
-    rule_id: str
-    confidence: float  # 0.0 to 1.0
+### AI & Remediation
 
-class Config(BaseModel):
-    """Configuration data model."""
-    max_concurrent_files: int = 20
-    timeout_seconds: int = 30
-    severity_threshold: str = "low"
-    exclude_patterns: List[str] = []
-    include_patterns: List[str] = ["*"]
-    max_file_size: int = 100 * 1024 * 1024  # 100MB
-    output_format: str = "json"
-    detectors: List[str] = []  # Empty means all
-    
-class MCPSentinel:
-    """Main scanner class."""
-    
-    def __init__(self, config: Optional[Config] = None):
-        """Initialize scanner with configuration."""
-        self.config = config or Config()
-        self.detector_manager = DetectorManager()
-        self.orchestrator = ScannerOrchestrator(self.config)
-    
-    async def scan_directory(self, path: Path) -> ScanResults:
-        """Scan directory for vulnerabilities."""
-        return await self.orchestrator.scan_directory(path)
-    
-    async def scan_file(self, file_path: Path) -> List[Vulnerability]:
-        """Scan single file for vulnerabilities."""
-        return await self.orchestrator.scan_file(file_path)
-    
-    async def scan_files(self, files: List[Path]) -> ScanResults:
-        """Scan multiple files for vulnerabilities."""
-        return await self.orchestrator.scan_files(files)
-    
-    def get_available_detectors(self) -> List[str]:
-        """Get list of available detectors."""
-        return self.detector_manager.list_detectors()
-    
-    def get_detector_info(self, detector_name: str) -> Dict[str, Any]:
-        """Get detailed information about a detector."""
-        return self.detector_manager.get_detector_info(detector_name)
+```python
+class AIEngine:
+    async def analyze_vulnerability(self, vuln: Vulnerability) -> AnalysisResult:
+        """Analyze a vulnerability using LLM + RAG."""
+        pass
+
+    async def generate_fix(self, vuln: Vulnerability) -> RemediationSuggestion:
+        """Generate a fix for the vulnerability."""
+        pass
+
+class DiffBuilder:
+    def create_unified_diff(self, original: str, modified: str, filepath: Path) -> str:
+        """Create a unified diff between original and modified code."""
+        pass
 ```
 
 ### Async Context Manager API

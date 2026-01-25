@@ -102,6 +102,39 @@ mcp-sentinel scan .
 
 ---
 
+## AI Analysis & Remediation
+
+MCP Sentinel v1.0.0-beta.5 introduces advanced AI capabilities powered by LLMs (Claude, GPT-4) and RAG (Retrieval-Augmented Generation).
+
+### AI-Powered Scanning
+
+To enable AI analysis, use the `--ai` flag. This will send detected vulnerabilities to the AI engine for deeper analysis and false positive reduction.
+
+```bash
+mcp-sentinel scan . --ai --provider anthropic
+```
+
+### Automated Remediation
+
+The AI engine can suggest fixes for detected vulnerabilities. These suggestions are generated as unified diffs that can be applied directly to your code.
+
+```bash
+# Scan and generate remediation suggestions
+mcp-sentinel scan . --ai --remediate
+```
+
+### Knowledge Base
+
+The system uses a local vector database (ChromaDB) to retrieve relevant security patterns (OWASP, CWE) to improve AI accuracy. The knowledge base is automatically populated on first run, but you can manually update it:
+
+```bash
+# Update the security knowledge base
+python populate_kb_script.py
+```
+```
+
+---
+
 ## RAG Knowledge System
 
 ### What is RAG?

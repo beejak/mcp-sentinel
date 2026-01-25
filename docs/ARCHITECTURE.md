@@ -1,11 +1,11 @@
 # MCP Sentinel - Architecture Documentation
 
-**Version**: 5.0.0
-**Date**: 2026-01-15
+**Version**: v1.0.0-beta.5
+**Date**: 2026-01-25
 **Repository**: mcp-sentinel (Python Edition)
-**Status**: Phase 4.3 (AI Analysis Engine + 99.5% Test Coverage)
+**Status**: Phase 4.4 (RAG & Remediation Complete)
 
-This document outlines the architecture and technical design decisions for MCP Sentinel, focusing on the async-first approach, multi-engine analysis platform, and production-ready implementation with AI-powered vulnerability detection.
+This document outlines the architecture and technical design decisions for MCP Sentinel, focusing on the async-first approach, multi-engine analysis platform, RAG-enhanced intelligence, and automated remediation capabilities.
 
 ---
 
@@ -13,109 +13,52 @@ This document outlines the architecture and technical design decisions for MCP S
 
 1. [Architecture Overview](#architecture-overview)
 2. [Multi-Engine Architecture](#multi-engine-architecture)
-3. [Core Design Principles](#core-design-principles)
-4. [Module Structure](#module-structure)
-5. [Analysis Engines](#analysis-engines)
-6. [Detector Modules](#detector-modules)
-7. [Async Architecture](#async-architecture)
-8. [Configuration Management](#configuration-management)
-9. [Error Handling Strategy](#error-handling-strategy)
-10. [Testing Architecture](#testing-architecture)
-11. [CLI Design](#cli-design)
-12. [Reporting System](#reporting-system)
-13. [Security Architecture](#security-architecture)
-14. [Performance Considerations](#performance-considerations)
-15. [Future Architecture Plans](#future-architecture-plans)
+3. [RAG & Remediation Architecture](#rag--remediation-architecture)
+4. [Core Design Principles](#core-design-principles)
+5. [Module Structure](#module-structure)
+6. [Analysis Engines](#analysis-engines)
+7. [Detector Modules](#detector-modules)
+8. [Async Architecture](#async-architecture)
+9. [Configuration Management](#configuration-management)
+10. [Error Handling Strategy](#error-handling-strategy)
+11. [Testing Architecture](#testing-architecture)
+12. [CLI Design](#cli-design)
+13. [Reporting System](#reporting-system)
+14. [Security Architecture](#security-architecture)
+15. [Performance Considerations](#performance-considerations)
+16. [Future Architecture Plans](#future-architecture-plans)
 
 ---
 
 ## Architecture Overview
 
+For detailed C4 diagrams, please refer to [SYSTEM_ARCHITECTURE_DIAGRAMS.md](SYSTEM_ARCHITECTURE_DIAGRAMS.md).
+
 ### High-Level Architecture
 
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                           CLI Layer (Rich Terminal)                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │                         CLI Commands                                 │  │
-│  │  scan, server, config, validate, stats                              │  │
-│  └────────────────────────────┬────────────────────────────────────────┘  │
-└─────────────────────────────────┼────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼────────────────────────────────────────────┐
-│                      Multi-Engine Scanner Orchestrator                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │   Config     │  │   Scanner    │  │   Results    │  │    Engine    │   │
-│  │   Manager    │  │   Engine     │  │   Processor  │  │  Coordinator │   │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
-└─────────────────────────────────┬────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼────────────────────────────────────────────┐
-│                        4 Analysis Engines (Concurrent)                       │
-│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────┐│
-│  │    Static      │  │     SAST       │  │   Semantic     │  │     AI     ││
-│  │   Analysis     │  │  Integration   │  │   Analysis     │  │  Analysis  ││
-│  │                │  │                │  │                │  │            ││
-│  │ • Pattern-     │  │ • Semgrep      │  │ • AST Parser   │  │ • Claude   ││
-│  │   based regex  │  │   (1000+       │  │ • Taint        │  │ • GPT-4    ││
-│  │ • 100+ vulns   │  │   rules)       │  │   tracking     │  │ • Google   ││
-│  │ • Fast (1-2s)  │  │ • Bandit       │  │ • CFG analysis │  │ • Ollama   ││
-│  │ • 85% acc      │  │ • 5-10s        │  │ • Multi-line   │  │ • Context  ││
-│  │                │  │ • 90% acc      │  │ • 10-30s       │  │ • 30-60s   ││
-│  │                │  │                │  │ • 95% acc      │  │ • 98% acc  ││
-│  └────────────────┘  └────────────────┘  └────────────────┘  └────────────┘│
-└─────────────────────────────────┬────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼────────────────────────────────────────────┐
-│                     8 Specialized Detector Modules                           │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
-│  │   Secrets    │ │    Prompt    │ │     Code     │ │     XSS      │       │
-│  │   Detector   │ │  Injection   │ │  Injection   │ │   Detector   │       │
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘       │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
-│  │    Path      │ │    Config    │ │    Supply    │ │     Tool     │       │
-│  │  Traversal   │ │   Security   │ │    Chain     │ │  Poisoning   │       │
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘       │
-└─────────────────────────────────┬────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼────────────────────────────────────────────┐
-│                     Deduplication & Result Merging                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                       │
-│  │ Fingerprint  │  │  Confidence  │  │    Engine    │                       │
-│  │  Matching    │  │   Scoring    │  │  Attribution │                       │
-│  └──────────────┘  └──────────────┘  └──────────────┘                       │
-└─────────────────────────────────┬────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼────────────────────────────────────────────┐
-│                         4 Report Generators                                  │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐       │
-│  │   Terminal   │ │     JSON     │ │   SARIF      │ │     HTML     │       │
-│  │   (Rich)     │ │  Structured  │ │   2.1.0      │ │  Dashboard   │       │
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘       │
-└────────────────────────────────────────────────────────────────────────────────┘
-                                  │
-┌─────────────────────────────────▼────────────────────────────────────────────┐
-│                        File System Layer (Async)                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                       │
-│  │  Async File  │  │     Path     │  │   Content    │                       │
-│  │     I/O      │  │   Resolver   │  │    Cache     │                       │
-│  └──────────────┘  └──────────────┘  └──────────────┘                       │
-└────────────────────────────────────────────────────────────────────────────────┘
-```
+The system follows a pipeline architecture with four main phases: **Scan -> Analyze -> Detect -> Remediate**.
+
+1.  **CLI Layer**: Entry point for users.
+2.  **Scanner Core**: Orchestrates parallel engines.
+3.  **Analysis Engines**: Static, SAST, Semantic, and AI (RAG-enhanced).
+4.  **Knowledge Base**: Local vector store (ChromaDB) for security context.
+5.  **Remediation System**: Generates unified diffs for automated fixes.
+6.  **Reporting**: Outputs results in multiple formats.
 
 ### Key Architectural Decisions
 
 1. **Multi-Engine Architecture**: 4 complementary engines for comprehensive analysis
 2. **Async-First Design**: All I/O operations are asynchronous for maximum performance
-3. **Modular Detector System**: 8 specialized, pluggable detector modules
-4. **AI-Powered Analysis**: Revolutionary AI engine using Claude/GPT-4 for complex vulnerabilities
-5. **Concurrent Execution**: All engines run in parallel with intelligent deduplication
-6. **Pydantic Configuration**: Type-safe configuration with validation and defaults
-7. **Rich Terminal Interface**: Beautiful, informative CLI using Rich library
-8. **Multiple Output Formats**: Terminal, JSON, SARIF 2.1.0, and HTML output support
-9. **GitHub Integration Ready**: SARIF format compatible with GitHub Code Scanning
-10. **Enterprise-Grade Reports**: Self-contained HTML reports with executive dashboards
-11. **99.5% Test Coverage**: Industry-leading quality with 369/371 tests passing
+3. **Modular Detector System**: Specialized, pluggable detector modules (Django, FastAPI, Flask, etc.)
+4. **AI-Powered Analysis**: Advanced AI engine using Claude/GPT-4/Gemini with RAG context
+5. **RAG Integration**: ChromaDB vector store for retrieving security patterns (OWASP, CWE)
+6. **Automated Remediation**: `DiffBuilder` generates unified diffs for one-click fixes
+7. **Concurrent Execution**: All engines run in parallel with intelligent deduplication
+8. **Pydantic V2 Configuration**: Type-safe configuration with validation and defaults
+9. **Rich Terminal Interface**: Beautiful, informative CLI using Rich library
+10. **Multiple Output Formats**: Terminal, JSON, SARIF 2.1.0, and HTML output support
+11. **GitHub Integration Ready**: SARIF format compatible with GitHub Code Scanning
+12. **High Test Coverage**: Industry-leading quality with extensive unit and integration tests
 
 ---
 
