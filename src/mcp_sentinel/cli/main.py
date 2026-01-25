@@ -20,6 +20,8 @@ from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.remediation.models import CodeChange
+from mcp_sentinel.remediation.diff_builder import DiffBuilder
 from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
 from mcp_sentinel.core.logger import setup_logging
 
@@ -203,6 +205,126 @@ def scan(
     # Exit code based on findings
     if result.has_critical_findings():
         raise click.Abort()
+
+
+@cli.command()
+@click.argument("target", type=click.Path(exists=True), required=False)
+@click.option("--scan-file", type=click.Path(exists=True), help="Use existing JSON scan results")
+@click.option("--auto-approve", is_flag=True, help="Apply all safe fixes without confirmation")
+def fix(target: Optional[str], scan_file: Optional[str], auto_approve: bool):
+    """
+    Interactively fix vulnerabilities found in code.
+    
+    This command operationalizes the "Defect Resolution" process by allowing
+    developers to quickly apply remediation suggestions.
+    """
+    # Interactive prompt if target is missing
+    if not target and not scan_file:
+        target = questionary.path("Target directory to fix:").ask()
+        if not target:
+            console.print("[red]Operation cancelled.[/red]")
+            sys.exit(0)
+            
+        if not Path(target).exists():
+            console.print(f"[red]Error: Path '{target}' does not exist.[/red]")
+            sys.exit(1)
+
+    # 1. Load or Run Scan
+    if scan_file:
+        console.print(f"[blue]Loading results from {scan_file}...[/blue]")
+        try:
+            with open(scan_file, 'r', encoding='utf-8') as f:
+                scan_data = f.read()
+            result = ScanResult.model_validate_json(scan_data)
+            
+            # Use scan target if user didn't provide one
+            if not target:
+                target = result.target
+                console.print(f"[dim]Using target from scan file: {target}[/dim]")
+                
+        except Exception as e:
+            console.print(f"[red]Error loading scan file: {e}[/red]")
+            sys.exit(1)
+    else:
+        # Default to static + sast for speed in interactive mode
+        enabled_engines = {EngineType.STATIC, EngineType.SAST} 
+    
+    console.print(
+        Panel.fit(
+            f"[bold green]MCP Sentinel Interactive Remediation[/bold green]\n"
+            f"Target: [yellow]{target}[/yellow]",
+            box=box.ROUNDED
+        )
+    )
+    
+    if not scan_file:
+        # Run scan with progress tracking
+        with console.status("[bold green]Scanning for fixable issues..."):
+            result = asyncio.run(_run_scan_multi_engine(target, enabled_engines, None))
+        
+    fixable_vulns = [v for v in result.vulnerabilities if v.fixed_code]
+    
+    if not fixable_vulns:
+        console.print("[yellow]No vulnerabilities with automated fixes found.[/yellow]")
+        return
+
+    console.print(f"[green]Found {len(fixable_vulns)} fixable vulnerabilities.[/green]\n")
+    
+    fixed_count = 0
+    skipped_count = 0
+    
+    for i, vuln in enumerate(fixable_vulns, 1):
+        console.print(f"[bold cyan]Issue {i}/{len(fixable_vulns)}: {vuln.title}[/bold cyan]")
+        console.print(f"File: [magenta]{vuln.file_path}:{vuln.line_number}[/magenta]")
+        
+        try:
+            with open(vuln.file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            code_change = CodeChange(
+                file_path=vuln.file_path,
+                original_code=vuln.code_snippet or "",
+                new_code=vuln.fixed_code,
+                start_line=vuln.line_number,
+                end_line=vuln.line_end or vuln.line_number
+            )
+            
+            diff = DiffBuilder.generate_diff(code_change)
+            
+            if not diff:
+                console.print("[yellow]No changes detected in fix.[/yellow]")
+                continue
+
+            console.print(Panel(diff, title="Proposed Change", border_style="blue"))
+            
+            if auto_approve:
+                should_fix = True
+                console.print("[dim]Auto-approving fix...[/dim]")
+            else:
+                should_fix = questionary.confirm("Apply this fix?").ask()
+                
+            if should_fix:
+                new_content = DiffBuilder.apply_patch(content, code_change)
+                with open(vuln.file_path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+                console.print("[green]✔ Fix applied successfully![/green]\n")
+                fixed_count += 1
+            else:
+                console.print("[yellow]⚠ Skipped.[/yellow]\n")
+                skipped_count += 1
+                
+        except Exception as e:
+            console.print(f"[red]Error applying fix: {e}[/red]\n")
+            
+    console.print(
+        Panel.fit(
+            f"[bold]Remediation Complete[/bold]\n"
+            f"Fixed: [green]{fixed_count}[/green]\n"
+            f"Skipped: [yellow]{skipped_count}[/yellow]",
+            title="Summary",
+            box=box.ROUNDED
+        )
+    )
 
 
 async def _run_scan(target: str) -> ScanResult:

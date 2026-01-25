@@ -14,12 +14,13 @@ Welcome to MCP Sentinel! This guide will help you get started with scanning your
 2. [Installation](#installation)
 3. [Basic Usage](#basic-usage)
 4. [Output Formats](#output-formats)
-5. [Advanced Features](#advanced-features)
-6. [Configuration](#configuration)
-7. [Integration with CI/CD](#integration-with-cicd)
-8. [Docker Deployment](#docker-deployment)
-9. [Troubleshooting](#troubleshooting)
-10. [FAQ](#faq)
+5. [Interactive Remediation](#interactive-remediation)
+6. [Advanced Features](#advanced-features)
+7. [Configuration](#configuration)
+8. [Integration with CI/CD](#integration-with-cicd)
+9. [Docker Deployment](#docker-deployment)
+10. [Troubleshooting](#troubleshooting)
+11. [FAQ](#faq)
 
 ---
 
@@ -282,6 +283,50 @@ mcp-sentinel scan /path/to/project --output html --json-file report.html
 open report.html  # macOS
 xdg-open report.html  # Linux
 start report.html  # Windows
+```
+
+---
+
+## Interactive Remediation
+
+The `fix` command allows you to interactively apply patches to detected vulnerabilities. This streamlines the remediation process by automating the code modification step.
+
+### Usage
+
+```bash
+# Scan and fix current directory
+mcp-sentinel fix
+
+# Scan and fix specific target
+mcp-sentinel fix /path/to/target
+
+# Fix using existing scan results (faster)
+mcp-sentinel fix --scan-file scan_results.json
+
+# Auto-approve all safe fixes (use with caution)
+mcp-sentinel fix --auto-approve
+```
+
+### How it Works
+
+1.  **Detection**: Scans the code (or loads existing results) to find vulnerabilities with available automated fixes.
+2.  **Proposal**: Generates a unified diff showing exactly what will change.
+3.  **Confirmation**: Prompts you to confirm, skip, or auto-approve the change.
+4.  **Application**: Applies the patch safely to your source code.
+
+**Example Session:**
+```text
+Issue 1/5: Hardcoded AWS Access Key
+File: src/config.py:15
+
+Proposed Change:
+--- a/src/config.py
++++ b/src/config.py
+- AWS_KEY = "AKIA1234567890123456"
++ AWS_KEY = os.getenv("AWS_KEY")
+
+Apply this fix? (Y/n) y
+✔ Fix applied successfully!
 ```
 
 ---
