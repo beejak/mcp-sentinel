@@ -1,6 +1,6 @@
 # MCP Sentinel — FAQ
 
-**Version**: v0.2.0
+**Version**: v0.3.0
 
 ---
 
@@ -8,7 +8,7 @@
 
 **Q: What is MCP Sentinel?**
 
-A: MCP Sentinel is a static security scanner for MCP (Model Context Protocol) servers. It uses pattern-matching across 9 specialized detectors to find vulnerabilities in Python, JavaScript, TypeScript, Go, Java, PHP, and config files. It runs entirely locally — no network calls, no API keys required.
+A: MCP Sentinel is a static security scanner for MCP (Model Context Protocol) servers. It uses pattern-matching across 10 specialized detectors to find vulnerabilities in Python, JavaScript, TypeScript, Go, Java, PHP, and config files. It runs entirely locally — no network calls, no API keys required.
 
 **Q: How does it differ from Bandit or Semgrep?**
 
@@ -79,9 +79,9 @@ A: A `.gitignore`-style file at the root of your project. Any paths listed are s
 
 ## Detectors
 
-**Q: What detectors are included in v0.2.0?**
+**Q: What detectors are included in v0.3.0?**
 
-A: Nine detectors:
+A: Ten detectors:
 
 | Detector | What It Finds |
 |---|---|
@@ -94,10 +94,11 @@ A: Nine detectors:
 | `SSRFDetector` | HTTP calls with user-controlled URLs, cloud metadata endpoint access |
 | `NetworkBindingDetector` | Services binding to `0.0.0.0` instead of `127.0.0.1` |
 | `MissingAuthDetector` | Sensitive routes/tools exposed without authentication middleware |
+| `SupplyChainDetector` | Encoded payloads, install-time shell/network exec, env var exfiltration, silent BCC, dependency confusion, typosquatted packages |
 
 **Q: Can I disable a specific detector?**
 
-A: Not via CLI flags in v0.2.0. All 9 detectors run on every scan. Per-detector configuration is on the roadmap for v0.3.0.
+A: Not via CLI flags in v0.3.0. All 10 detectors run on every scan. Per-detector configuration is on the roadmap for a future release.
 
 ---
 

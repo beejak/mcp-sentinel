@@ -6,8 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-334%20passing-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
-[![Version](https://img.shields.io/badge/version-v0.2.0-blue.svg)](https://github.com/beejak/mcp-sentinel/releases)
+[![Tests](https://img.shields.io/badge/tests-525%20passing-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Version](https://img.shields.io/badge/version-v0.4.0-blue.svg)](https://github.com/beejak/mcp-sentinel/releases)
 
 </div>
 
@@ -23,49 +23,79 @@
 
 ---
 
-## What's New in v0.2.0
+## What's New in v0.4.0
 
-| | v0.1.0 | v0.2.0 |
+| | v0.1.0 | v0.2.0 | v0.3.0 | v0.4.0 |
+|---|---|---|---|---|
+| **Detectors** | 6 | 9 (+3) | 10 (+1) | 12 (+2) |
+| **Tests passing** | 248 | 334 (+86) | 409 (+75) | 525 (+116) |
+| **Coverage** | ~82% | 86.47% | ~87% | ~88% |
+| **VulnerabilityTypes** | 10 | 13 | 14 | 16 (+WEAK_CRYPTO, +INSECURE_DESERIALIZATION) |
+
+### New in v0.4.0
+
+#### `WeakCryptoDetector`
+
+Catches cryptographic weaknesses that undermine security guarantees. Complementary to SecretsDetector — finds the *use* of bad crypto, not just the keys.
+
+| Pattern | Severity | What it catches |
 |---|---|---|
-| **Detectors** | 6 | 9 (+3) |
-| **Tests passing** | 248 | 334 (+86) |
-| **Coverage** | ~82% | 86.47% |
-| **VulnerabilityTypes** | 10 | 13 (+SSRF, NETWORK_BINDING, MISSING_AUTH) |
+| `hashlib.md5()`/`hashlib.sha1()` in security context | HIGH | Broken hash algorithms — collision attacks are practical |
+| `random.random()`/`randint()`/`Math.random()` | HIGH | Non-CSPRNG for tokens/session IDs — state is recoverable |
+| `AES.MODE_ECB` / `AES/ECB/...` | HIGH | ECB mode — identical blocks → identical ciphertext |
+| `DES.new()` / `ARC4.new()` / `Blowfish` | HIGH | Deprecated ciphers — broken by modern hardware |
+| Hardcoded `iv = b'\x00' * 16` | HIGH | Static IV — breaks CBC/CTR/GCM security |
+| `pbkdf2_hmac(..., iterations=100)` | MEDIUM | Weak KDF — brute-forceable with GPU |
 
-### New detectors
+#### `InsecureDeserializationDetector`
 
-| Detector | What it catches | Key finding |
+Catches OWASP A8 — deserialization of untrusted data. Covers all major RCE-via-deserialization vectors across Python, Java, PHP, and Node.js.
+
+| Pattern | Severity | What it catches |
 |---|---|---|
-| `SSRFDetector` | Variable URLs passed to HTTP clients; cloud metadata IPs; redirect params | `169.254.169.254` → CRITICAL |
-| `NetworkBindingDetector` | `0.0.0.0` binding in code and config files across all languages | Root cause of 8,000+ exposed MCP servers |
-| `MissingAuthDetector` | Routes and endpoints without auth decorators or middleware | `/admin` without `@login_required` → HIGH |
+| `pickle.loads(data)` / `cPickle.loads()` | CRITICAL | Arbitrary Python object RCE via `__reduce__` |
+| `yaml.load(stream)` without SafeLoader | CRITICAL | `!!python/object:os.system` YAML RCE |
+| `marshal.loads(bytecode)` | CRITICAL | Python bytecode deserialization — bypasses sandboxes |
+| `eval(request.body)` / `eval(data)` | CRITICAL | eval() used as a data parser |
+| `jsonpickle.decode(json_str)` | CRITICAL | JSON-encoded pickle — same RCE risk |
+| `new ObjectInputStream(input)` / `.readObject()` | CRITICAL | Java gadget chain RCE (CVE-2015-4852 class) |
+| `unserialize($_POST['data'])` | CRITICAL | PHP magic method chain exploitation |
+| `vm.runInContext()` / `vm.runInNewContext()` | CRITICAL | Node.js VM sandbox escape |
 
-### ToolPoisoningDetector: full-schema poisoning (v0.2 additions)
+### New in v0.3.0: `SupplyChainDetector`
 
-v0.1 only scanned `description` fields. v0.2 scans all schema fields:
+Detects malicious package patterns targeting MCP server installations. Based on documented real-world incidents: the `postmark-mcp` silent BCC attack, npm packages with embedded reverse shells, and PyPI typosquatting of MCP server names.
 
-| Added in v0.2 | Coverage |
-|---|---|
-| Suspicious tool names | `always_run_first`, `override_*`, `hijack` |
-| Suspicious param names | `__instruction__`, `system_prompt`, `ai_directive` |
-| Cross-tool manipulation | "before calling", "global rule", "always call this tool first" |
-| Sensitive path targeting | `.env`, `.ssh/`, `~/.aws/credentials`, `/etc/passwd`, `id_rsa` → **CRITICAL** |
-| Anomalous description length | >500 chars flagged as potential payload embedding |
-
-### Threat model expanded in v0.2
-
-| Vulnerability class | v0.1 | v0.2 |
+| Pattern | Severity | What it catches |
 |---|---|---|
-| Hardcoded secrets | ✅ | ✅ |
-| Code/command injection | ✅ | ✅ |
-| Prompt injection | ✅ | ✅ |
-| Tool poisoning (description field) | ✅ | ✅ |
-| Tool poisoning (all schema fields) | — | ✅ |
-| Path traversal | ✅ | ✅ |
-| Insecure configuration | ✅ | ✅ |
-| SSRF | — | ✅ |
-| Server exposed on all interfaces | — | ✅ |
-| Missing authentication on routes | — | ✅ |
+| Encoded payload execution | CRITICAL | `eval(base64.b64decode(...))`, `eval(atob(...))`, `exec(compile(...))` — obfuscated code execution |
+| Install-time network calls | CRITICAL | HTTP requests inside `setup.py` or npm `postinstall` — data exfiltration at install time |
+| Install-time shell execution | HIGH | `cmdclass` in `setup.py`, npm `postinstall`/`prepare` hooks with shell commands |
+| Covert data exfiltration | CRITICAL | Outbound HTTP calls containing `os.environ`, file reads, or `process.env` |
+| Silent BCC/forward injection | HIGH | Hardcoded BCC addresses in email-sending MCP tools |
+| Dependency confusion | MEDIUM | Non-standard `--extra-index-url`, `--index-url`, or `registry=` overrides |
+| Known typosquatted packages | HIGH | Package names from real PyPI/npm typosquatting incidents (colourama, crossenv, etc.) |
+
+### Full threat model comparison
+
+| Vulnerability class | v0.1 | v0.2 | v0.3 | v0.4 |
+|---|---|---|---|---|
+| Hardcoded secrets | ✅ | ✅ | ✅ | ✅ |
+| Code/command injection | ✅ | ✅ | ✅ | ✅ |
+| Prompt injection | ✅ | ✅ | ✅ | ✅ |
+| Tool poisoning (description field) | ✅ | ✅ | ✅ | ✅ |
+| Tool poisoning (all schema fields) | — | ✅ | ✅ | ✅ |
+| Path traversal | ✅ | ✅ | ✅ | ✅ |
+| Insecure configuration | ✅ | ✅ | ✅ | ✅ |
+| SSRF | — | ✅ | ✅ | ✅ |
+| Server exposed on all interfaces | — | ✅ | ✅ | ✅ |
+| Missing authentication on routes | — | ✅ | ✅ | ✅ |
+| Supply chain / malicious packages | — | — | ✅ | ✅ |
+| Encoded payload obfuscation | — | — | ✅ | ✅ |
+| Silent email exfiltration | — | — | ✅ | ✅ |
+| Dependency confusion attacks | — | — | ✅ | ✅ |
+| Weak / broken cryptography | — | — | — | ✅ |
+| Insecure deserialization (RCE) | — | — | — | ✅ |
 
 ---
 
@@ -104,7 +134,7 @@ mcp-sentinel scan . --output json --json-file results.json
 
 ## Detectors
 
-Nine detectors covering the attack surface most relevant to MCP servers, based on real CVE data and incident reports.
+Twelve detectors covering the attack surface most relevant to MCP servers, based on real CVE data and incident reports.
 
 ### SecretsDetector
 Catches hardcoded credentials before they reach version control.
@@ -207,6 +237,45 @@ Catches routes and endpoints defined without authentication decorators or middle
 | Express route without auth middleware | MEDIUM — unauthenticated Express route |
 | MCP tool definitions exposing `exec`/`shell`/`system` | HIGH — system operation without access check |
 
+### WeakCryptoDetector _(new in v0.4)_
+Catches cryptographic weaknesses. Complements SecretsDetector — finds bad crypto *use*, not just exposed keys.
+
+| Pattern | Risk |
+|---|---|
+| `hashlib.md5(password)` / `hashlib.sha1(token)` | HIGH — broken hash, collision attacks practical |
+| `random.randint()` / `Math.random()` for tokens | HIGH — Mersenne Twister state is recoverable |
+| `AES.MODE_ECB` / `AES/ECB/PKCS5Padding` | HIGH — ECB leaks data structure |
+| `DES.new()` / `ARC4.new()` / `Blowfish.new()` | HIGH — deprecated, broken by modern hardware |
+| Hardcoded `iv = b'\x00' * 16` | HIGH — static IV breaks CBC/CTR/GCM |
+| `pbkdf2_hmac(..., iterations=100)` | MEDIUM — GPU-brute-forceable |
+
+### InsecureDeserializationDetector _(new in v0.4)_
+Catches OWASP A8 — deserialization of untrusted data. All critical findings are direct RCE vectors.
+
+| Pattern | Risk |
+|---|---|
+| `pickle.loads(data)` | CRITICAL — arbitrary code via `__reduce__` |
+| `yaml.load(stream)` without `SafeLoader` | CRITICAL — `!!python/object:os.system` in YAML |
+| `marshal.loads(bytecode)` | CRITICAL — Python bytecode deserialization |
+| `eval(request.body)` / `eval(data)` | CRITICAL — eval() used as data parser |
+| `jsonpickle.decode(json_str)` | CRITICAL — JSON-encoded pickle |
+| `new ObjectInputStream(input)` | CRITICAL — Java gadget chain RCE |
+| `unserialize($_POST['data'])` | CRITICAL — PHP magic method exploitation |
+| `vm.runInContext()` / `vm.runInNewContext()` | CRITICAL — Node.js VM sandbox escape |
+
+### SupplyChainDetector _(new in v0.3)_
+Catches malicious package patterns. Based on real incidents: `postmark-mcp` silent BCC, npm reverse shells, PyPI typosquatting of MCP package names.
+
+| Pattern | Risk |
+|---|---|
+| `eval(base64.b64decode(...))` / `eval(atob(...))` | CRITICAL — obfuscated code execution |
+| Network calls in `setup.py` / `postinstall` hooks | CRITICAL — install-time data exfiltration |
+| `subprocess`/`os.system` in install scripts | HIGH — install-time shell execution |
+| `requests.post(..., data=os.environ)` / `fetch(..., process.env)` | CRITICAL — env var exfiltration |
+| Hardcoded BCC address in email tools | HIGH — silent email surveillance |
+| `--extra-index-url` / `--index-url` with non-PyPI registry | MEDIUM — dependency confusion risk |
+| Known typosquatted package names (colourama, crossenv…) | HIGH — real-incident package list |
+
 ---
 
 ## Output Formats
@@ -303,9 +372,12 @@ StaticAnalysisEngine
         ├── ToolPoisoningDetector   (enhanced: full-schema poisoning, path targeting)
         ├── PathTraversalDetector
         ├── ConfigSecurityDetector
-        ├── SSRFDetector            (new v0.2: Python/JS/Go/Java HTTP clients)
-        ├── NetworkBindingDetector  (new v0.2: 0.0.0.0 binding across all languages)
-        └── MissingAuthDetector     (new v0.2: routes without auth decorators)
+        ├── SSRFDetector            (v0.2: Python/JS/Go/Java HTTP clients)
+        ├── NetworkBindingDetector  (v0.2: 0.0.0.0 binding across all languages)
+        ├── MissingAuthDetector     (v0.2: routes without auth decorators)
+        ├── SupplyChainDetector     (v0.3: encoded payloads, install exec/network, exfiltration)
+        ├── WeakCryptoDetector      (v0.4: MD5/SHA-1, insecure random, ECB, broken ciphers)
+        └── InsecureDeserializationDetector (v0.4: pickle, yaml.load, marshal, eval-as-parser)
         │
         ▼
 Vulnerability Objects → Deduplication → Output Formatter
@@ -336,7 +408,7 @@ black --check src/
 mypy src/
 ```
 
-**Test suite:** 334 passing, 4 xfail (multi-line taint patterns that require semantic analysis — documented in `tests/unit/test_path_traversal.py`)
+**Test suite:** 525 passing, 4 xfail (multi-line taint patterns that require semantic analysis — documented in `tests/unit/test_path_traversal.py`)
 
 ---
 
@@ -344,13 +416,13 @@ mypy src/
 
 MCP Sentinel is a **static analysis tool**. It finds patterns in source code — it does not execute code or observe runtime behavior.
 
-**What it catches:** Hardcoded secrets, dangerous function calls, known injection patterns, insecure configuration values, SSRF sinks, 0.0.0.0 binding, unauthenticated routes, tool poisoning in all schema fields.
+**What it catches:** Hardcoded secrets, dangerous function calls, known injection patterns, insecure configuration values, SSRF sinks, 0.0.0.0 binding, unauthenticated routes, tool poisoning in all schema fields, supply chain attacks (encoded payloads, install-time exfiltration, typosquatting), weak crypto (MD5, ECB, insecure random), insecure deserialization (pickle, yaml.load, ObjectInputStream).
 
 **What it does not catch:**
 - Multi-line taint flows (e.g., `x = request.args.get("f")` on line 1, `open(x)` on line 50) — requires semantic/dynamic analysis
 - Rug pull attacks (tool definitions changing at runtime) — requires runtime monitoring; structural signals planned for v0.4
 - Logic flaws, business logic vulnerabilities
-- Vulnerabilities in dependencies — planned for v0.3 (Supply Chain rebuild)
+- Deep transitive dependency analysis (only checks direct manifest files and code patterns)
 
 **False positives:** Pattern-based detection produces false positives. Review findings in context. The `MissingAuthDetector` in particular uses a heuristic lookahead window — global middleware that applies auth to all routes will not be detected statically and will produce findings that can be suppressed.
 
@@ -361,8 +433,9 @@ MCP Sentinel is a **static analysis tool**. It finds patterns in source code —
 See [ROADMAP.md](ROADMAP.md) for the full roadmap.
 
 - **v0.2** ✅ — SSRF, network binding, missing auth, full-schema tool poisoning
-- **v0.3** — Supply chain & package integrity (postmark-style exfiltration, npm postinstall shells, typosquatting)
-- **v0.4** — Rug pull detection, weak crypto, insecure deserialization
+- **v0.3** ✅ — Supply chain & package integrity (encoded payloads, install-time exec/network, exfiltration, BCC injection, typosquatting)
+- **v0.4** ✅ — Weak crypto (MD5/SHA-1, ECB, broken ciphers, insecure random) + insecure deserialization (pickle, yaml.load, ObjectInputStream, PHP unserialize)
+- **v0.5** — OWASP Agentic AI Top 10 mapping, multi-file taint analysis, MCP sampling audit
 
 ---
 

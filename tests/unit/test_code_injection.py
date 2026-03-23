@@ -360,7 +360,6 @@ def safe():
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires multi-line comment detection for /* ... */ blocks (Phase 4.2)")
 async def test_ignore_javascript_comments(detector):
     """Test that JavaScript comments are ignored."""
     content = """
@@ -461,7 +460,6 @@ function safe() {
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Fixture likely contains multi-line patterns requiring Phase 4.2")
 async def test_python_fixture_file(detector, python_fixture_path):
     """Test detection against Python fixture file."""
     content = python_fixture_path.read_text()

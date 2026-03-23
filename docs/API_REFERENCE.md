@@ -1,6 +1,6 @@
 # MCP Sentinel — Python API Reference
 
-**Version**: v0.2.0
+**Version**: v0.3.0
 
 MCP Sentinel v0.2.0 is a CLI tool. There is no REST API. This document covers the Python API for embedding the scanner programmatically in your own Python code.
 
@@ -193,6 +193,7 @@ if detector.is_applicable(Path("config.py")):
 | `mcp_sentinel.detectors.ssrf` | `SSRFDetector` |
 | `mcp_sentinel.detectors.network_binding` | `NetworkBindingDetector` |
 | `mcp_sentinel.detectors.missing_auth` | `MissingAuthDetector` |
+| `mcp_sentinel.detectors.supply_chain` | `SupplyChainDetector` |
 
 ### Detector base interface
 

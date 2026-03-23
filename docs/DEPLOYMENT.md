@@ -1,6 +1,6 @@
 # MCP Sentinel — Deployment Guide
 
-**Version**: v0.2.0
+**Version**: v0.4.0
 
 MCP Sentinel is a command-line tool. There is no server to deploy, no database to provision, and no API to host. You install it wherever you need to run scans: a developer laptop, a CI runner, or a Docker container.
 

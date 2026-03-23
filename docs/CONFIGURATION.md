@@ -1,6 +1,6 @@
 # MCP Sentinel — Configuration Guide
 
-**Version**: v0.2.0
+**Version**: v0.4.0
 
 MCP Sentinel is configured entirely through environment variables. There is no config file required — sane defaults work out of the box.
 
@@ -16,7 +16,7 @@ MCP Sentinel is configured entirely through environment variables. There is no c
 | `CACHE_TTL` | `3600` | File result cache TTL in seconds (0 = disabled) |
 | `ENVIRONMENT` | `development` | Runtime environment: `development`, `production`, `testing` |
 
-That's it. MCP Sentinel v0.2.0 is a local CLI tool — no database, no API server, no external services, no AI provider keys required.
+That's it. MCP Sentinel v0.4.0 is a local CLI tool — no database, no API server, no external services, no AI provider keys required.
 
 ---
 
