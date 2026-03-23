@@ -1,7 +1,7 @@
 # MCP Sentinel — Architecture
 
 **Version**: v0.4.0
-**Status**: 12 detectors, 502 tests, static engine
+**Status**: 12 detectors, 525 tests, static engine
 
 ---
 
@@ -301,7 +301,7 @@ tests/
 └── test_caching.py                  # 1 cache test
 ```
 
-**Total: 334 tests** — see [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md) for per-test documentation.
+**Total: 525 tests** — see [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md) for per-test documentation.
 
 All detector tests follow the same structure:
 - Detection tests (positive cases)

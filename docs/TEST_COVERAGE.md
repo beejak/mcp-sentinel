@@ -1,6 +1,6 @@
 # MCP Sentinel v0.4.0 — Test Coverage
 
-**Total: 502 passed, 4 xfailed (documented), 0 failed**
+**Total: 525 passed, 4 xfailed (documented), 0 failed**
 **Python:** 3.9, 3.10, 3.11, 3.12
 **Last run:** 2026-03-23
 
@@ -10,8 +10,8 @@
 
 | Test File | Tests | Status | What It Covers |
 |---|---|---|---|
-| `tests/unit/test_insecure_deserialization.py` | 45 | 45 pass | InsecureDeserializationDetector — new in v0.4.0 |
-| `tests/unit/test_weak_crypto.py` | 48 | 48 pass | WeakCryptoDetector — new in v0.4.0 |
+| `tests/unit/test_insecure_deserialization.py` | 54 | 54 pass | InsecureDeserializationDetector — new in v0.4.0 |
+| `tests/unit/test_weak_crypto.py` | 60 | 60 pass | WeakCryptoDetector — new in v0.4.0 |
 | `tests/unit/test_supply_chain.py` | 75 | 75 pass | SupplyChainDetector — new in v0.3.0 |
 | `tests/unit/test_ssrf_detector.py` | 25 | 25 pass | SSRFDetector — new in v0.2.0 |
 | `tests/unit/test_network_binding.py` | 22 | 22 pass | NetworkBindingDetector — new in v0.2.0 |
@@ -88,8 +88,20 @@
 | `test_vulnerability_engine_field` | `v.engine == "static"` |
 | `test_line_number_accuracy` | Line number points to the flagged line |
 | `test_code_snippet_captured` | Code snippet contains the matched expression |
+| `test_detect_random_randrange` | `random.randrange(...)` → HIGH |
+| `test_detect_random_uniform` | `random.uniform(...)` → HIGH |
+| `test_detect_random_choices` | `random.choices(...)` for passwords → HIGH |
+| `test_detect_random_sample` | `random.sample(...)` → HIGH |
+| `test_detect_blowfish_new` | `Blowfish.new(key, ...)` → HIGH |
+| `test_detect_des3_new` | `DES3.new(key, ...)` → HIGH |
+| `test_detect_createcipheriv_des` | `createCipheriv('des', ...)` → HIGH |
+| `test_detect_createcipheriv_blowfish` | `createCipheriv('bf-cbc', ...)` → HIGH |
+| `test_detect_bcrypt_low_rounds` | `bcrypt.hashpw(..., rounds=4)` → MEDIUM |
+| `test_multiple_weaknesses_same_file` | MD5 + insecure random + ECB all found in one file |
+| `test_not_applicable_php` | `.php` files excluded |
+| `test_not_applicable_ruby` | `.rb` files excluded |
 
-### InsecureDeserializationDetector (45 tests)
+### InsecureDeserializationDetector (54 tests)
 
 | Test | What It Verifies |
 |---|---|
@@ -138,6 +150,15 @@
 | `test_vulnerability_has_mitre_attack` | All findings have `mitre_attack_ids` |
 | `test_vulnerability_detector_field` | `v.detector == "InsecureDeserializationDetector"` |
 | `test_vulnerability_engine_field` | `v.engine == "static"` |
+| `test_detect_pickle_unpickler` | `pickle.Unpickler(f).load()` → CRITICAL |
+| `test_detect_underscore_pickle_loads` | `_pickle.loads(data)` → CRITICAL |
+| `test_detect_shelve_user_controlled_path` | `shelve.open(user_db_path)` variable path → HIGH |
+| `test_detect_jsonpickle_unpickler_decode` | `jsonpickle.unpickler.decode(payload)` → CRITICAL |
+| `test_detect_vm_run_in_this_context` | `vm.runInThisContext(userCode)` → CRITICAL |
+| `test_detect_java_object_input_stream_variable` | `ObjectInputStream ois = new ObjectInputStream(...)` → CRITICAL |
+| `test_multiple_deser_same_file` | pickle + yaml.load + marshal all detected in one file |
+| `test_not_applicable_ruby` | `.rb` files excluded |
+| `test_not_applicable_shell` | `.sh` files excluded |
 
 ---
 

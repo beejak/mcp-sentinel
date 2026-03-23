@@ -17,6 +17,7 @@ import pytest
 from pathlib import Path
 
 from mcp_sentinel.detectors.weak_crypto import WeakCryptoDetector
+from mcp_sentinel.models.vulnerability import Severity
 
 
 @pytest.fixture
@@ -346,3 +347,97 @@ async def test_code_snippet_captured(detector):
     content = "hashlib.sha1(secret_key).hexdigest()"
     vulns = await detector.detect(Path("auth.py"), content)
     assert any("sha1" in v.code_snippet.lower() for v in vulns)
+
+
+# ============================================================================
+# Edge Case / Variant Coverage
+# ============================================================================
+
+
+async def test_detect_random_randrange(detector):
+    """random.randrange() — same insecure Mersenne Twister PRNG."""
+    content = "session_id = random.randrange(1000000)"
+    vulns = await detector.detect(Path("auth.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.HIGH
+
+
+async def test_detect_random_uniform(detector):
+    """random.uniform() for security use is insecure."""
+    content = "token = random.uniform(0, 1)"
+    vulns = await detector.detect(Path("auth.py"), content)
+    assert len(vulns) >= 1
+
+
+async def test_detect_random_choices(detector):
+    """random.choices() used for password generation is insecure."""
+    content = "password = ''.join(random.choices(string.ascii_letters, k=16))"
+    vulns = await detector.detect(Path("auth.py"), content)
+    assert len(vulns) >= 1
+
+
+async def test_detect_random_sample(detector):
+    """random.sample() is not cryptographically secure."""
+    content = "token_chars = random.sample(ALPHABET, 32)"
+    vulns = await detector.detect(Path("auth.py"), content)
+    assert len(vulns) >= 1
+
+
+async def test_detect_blowfish_new(detector):
+    """Blowfish.new() — 64-bit block size enables birthday attacks."""
+    content = "cipher = Blowfish.new(key, Blowfish.MODE_CBC, iv)"
+    vulns = await detector.detect(Path("crypto.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.HIGH
+
+
+async def test_detect_des3_new(detector):
+    """DES3.new() (Triple DES) — deprecated per NIST SP 800-131A."""
+    content = "cipher = DES3.new(key, DES3.MODE_CBC)"
+    vulns = await detector.detect(Path("crypto.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.HIGH
+
+
+async def test_detect_createcipheriv_des(detector):
+    """Node.js createCipheriv with 'des' should be flagged."""
+    content = "const cipher = crypto.createCipheriv('des', key, iv);"
+    vulns = await detector.detect(Path("crypto.js"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.HIGH
+
+
+async def test_detect_createcipheriv_blowfish(detector):
+    """Node.js createCipheriv with blowfish ('bf-cbc') should be flagged."""
+    content = "const enc = crypto.createCipheriv('bf-cbc', key, iv);"
+    vulns = await detector.detect(Path("crypto.js"), content)
+    assert len(vulns) >= 1
+
+
+async def test_detect_bcrypt_low_rounds(detector):
+    """bcrypt with rounds=4 is too weak — below recommended cost factor 12."""
+    content = "hashed = bcrypt.hashpw(password, bcrypt.gensalt(rounds=4))"
+    vulns = await detector.detect(Path("auth.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.MEDIUM
+
+
+async def test_multiple_weaknesses_same_file(detector):
+    """Multiple weak crypto patterns in one file all detected independently."""
+    content = (
+        "h = hashlib.md5(password)\n"
+        "token = random.randint(0, 999999)\n"
+        "cipher = AES.new(key, AES.MODE_ECB)\n"
+    )
+    vulns = await detector.detect(Path("bad_crypto.py"), content)
+    assert len(vulns) >= 3
+
+
+async def test_not_applicable_php(detector):
+    """.php files are excluded — no PHP crypto patterns covered."""
+    assert not detector.is_applicable(Path("server.php"))
+
+
+async def test_not_applicable_ruby(detector):
+    """.rb files are excluded."""
+    assert not detector.is_applicable(Path("server.rb"))

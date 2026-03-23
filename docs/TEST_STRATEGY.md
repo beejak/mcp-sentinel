@@ -1,7 +1,7 @@
 # MCP Sentinel — Test Strategy
 
 **Version**: v0.4.0
-**Total tests**: 502 (495 unit, 7 integration)
+**Total tests**: 525 (518 unit, 7 integration)
 
 ---
 
@@ -23,9 +23,9 @@
 MCP Sentinel uses an **async-first testing strategy** driven by `pytest-asyncio`. All detector tests are async — they mirror the async `detect()` interface exactly, which means tests run at the same concurrency level as production.
 
 **v0.4.0 test status:**
-- 502 tests collected
-- 496 pass, 4 xfail (documented multi-line taint tracking gaps)
-- 2 XPASS (tracked — patterns improved beyond original xfail expectation)
+- 525 tests collected
+- 521 pass, 4 xfail (documented multi-line taint tracking gaps)
+- 0 XPASS (previously 2 XPASS tests promoted to regular passing tests)
 - 0 failures
 - ~87% overall coverage (detector logic is well covered; CLI and reporting paths have lower coverage)
 
@@ -41,7 +41,7 @@ Full test inventory: [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md)
        /────\  Full pipeline: scan dir, find secrets,
       /      \ risk score, severity filtering
      /────────\
-    /          \ Unit (488)
+    /          \ Unit (511)
    /            \ Per-detector detection, false positives,
   /              \ applicability, metadata quality
  /────────────────\
@@ -124,8 +124,8 @@ open(x)
 | `NetworkBindingDetector` | 22 | ~70% | New in v0.2.0 |
 | `MissingAuthDetector` | 19 | ~65% | New in v0.2.0 |
 | `SupplyChainDetector` | 75 | ~80% | New in v0.3.0 |
-| `WeakCryptoDetector` | 48 | ~80% | New in v0.4.0 |
-| `InsecureDeserializationDetector` | 45 | ~80% | New in v0.4.0 |
+| `WeakCryptoDetector` | 60 | ~82% | New in v0.4.0 |
+| `InsecureDeserializationDetector` | 54 | ~82% | New in v0.4.0 |
 | `MultiEngineScanner` | 11 | ~60% | Orchestration logic |
 | `StaticAnalysisEngine` | 6 | ~55% | Engine dispatch |
 | `Settings/Config` | 5 | 100% | Full coverage |

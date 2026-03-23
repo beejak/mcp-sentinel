@@ -20,6 +20,7 @@ import pytest
 from pathlib import Path
 
 from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
+from mcp_sentinel.models.vulnerability import Severity
 
 
 @pytest.fixture
@@ -344,3 +345,77 @@ async def test_vulnerability_engine_field(detector):
     content = "obj = pickle.loads(data)"
     vulns = await detector.detect(Path("server.py"), content)
     assert all(v.engine == "static" for v in vulns)
+
+
+# ============================================================================
+# Edge Case / Variant Coverage
+# ============================================================================
+
+
+async def test_detect_pickle_unpickler(detector):
+    """pickle.Unpickler() is equally dangerous as pickle.loads()."""
+    content = "obj = pickle.Unpickler(f).load()"
+    vulns = await detector.detect(Path("server.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.CRITICAL
+
+
+async def test_detect_underscore_pickle_loads(detector):
+    """_pickle.loads() (C accelerator module) carries the same RCE risk."""
+    content = "obj = _pickle.loads(data)"
+    vulns = await detector.detect(Path("server.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.CRITICAL
+
+
+async def test_detect_shelve_user_controlled_path(detector):
+    """shelve.open() with a variable path — attacker could control the db file."""
+    content = "db = shelve.open(user_db_path)"
+    vulns = await detector.detect(Path("storage.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.HIGH
+
+
+async def test_detect_jsonpickle_unpickler_decode(detector):
+    """jsonpickle.unpickler.decode() is a direct RCE vector."""
+    content = "obj = jsonpickle.unpickler.decode(payload)"
+    vulns = await detector.detect(Path("api.py"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.CRITICAL
+
+
+async def test_detect_vm_run_in_this_context(detector):
+    """vm.runInThisContext() executes code in the live V8 context — no sandbox."""
+    content = "const result = vm.runInThisContext(userCode);"
+    vulns = await detector.detect(Path("eval_service.js"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.CRITICAL
+
+
+async def test_detect_java_object_input_stream_variable(detector):
+    """ObjectInputStream typed variable declaration is also caught."""
+    content = "ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());"
+    vulns = await detector.detect(Path("Server.java"), content)
+    assert len(vulns) >= 1
+    assert vulns[0].severity == Severity.CRITICAL
+
+
+async def test_multiple_deser_same_file(detector):
+    """Multiple deserialization patterns in one file are all detected."""
+    content = (
+        "obj = pickle.loads(data)\n"
+        "cfg = yaml.load(stream)\n"
+        "raw = marshal.loads(payload)\n"
+    )
+    vulns = await detector.detect(Path("server.py"), content)
+    assert len(vulns) >= 3
+
+
+async def test_not_applicable_ruby(detector):
+    """.rb files are excluded."""
+    assert not detector.is_applicable(Path("app.rb"))
+
+
+async def test_not_applicable_shell(detector):
+    """.sh files are excluded."""
+    assert not detector.is_applicable(Path("deploy.sh"))
