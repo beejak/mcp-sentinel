@@ -1,99 +1,166 @@
-# MCP Sentinel - Deployment Guide
+# MCP Sentinel — Deployment Guide
 
-This document outlines the steps to deploy MCP Sentinel in various environments.
+**Version**: v0.2.0
 
-## Prerequisites
+MCP Sentinel is a command-line tool. There is no server to deploy, no database to provision, and no API to host. You install it wherever you need to run scans: a developer laptop, a CI runner, or a Docker container.
 
-- **Docker** (v20.10+)
-- **Docker Compose** (v2.0+)
-- **Python** (3.9+) - *If running bare metal*
+---
 
-## Docker Deployment (Recommended)
+## Installation
 
-The easiest way to run MCP Sentinel is via Docker.
-
-### 1. Build the Image
+### pip (recommended)
 
 ```bash
-docker build -t mcp-sentinel:latest .
+pip install mcp-sentinel
 ```
 
-### 2. Configure Environment
-
-Create a `.env` file based on the example in `CONFIGURATION.md`.
+Or pin to a specific version:
 
 ```bash
-cp .env.example .env
-# Edit .env with your keys and settings
+pip install mcp-sentinel==0.2.0
 ```
 
-### 3. Run with Docker Compose
+### From source
 
 ```bash
-docker-compose up -d
-```
-
-This will start:
-- **API Server**: http://localhost:8000
-- **PostgreSQL**: Database
-- **Redis**: Cache & Message Broker
-
-## Bare Metal Deployment
-
-### 1. Install Dependencies
-
-```bash
-# System dependencies (Ubuntu/Debian)
-sudo apt-get install -y build-essential python3-dev libpq-dev
-
-# Install Poetry
-curl -sSL https://install.python-poetry.org | python3 -
-```
-
-### 2. Install Project
-
-```bash
-git clone https://github.com/your-org/mcp-sentinel.git
+git clone https://github.com/beejak/mcp-sentinel.git
 cd mcp-sentinel
-poetry install
+pip install -e .
 ```
 
-### 3. Database Setup
+### With dev dependencies (for running tests)
 
 ```bash
-# Ensure PostgreSQL is running and create database
-createdb mcp_sentinel
+pip install -e ".[dev]"
 ```
 
-### 4. Run Server
+### Verify installation
 
 ```bash
-poetry run uvicorn mcp_sentinel.api.main:app --host 0.0.0.0 --port 8000
+mcp-sentinel --version
+mcp-sentinel --help
 ```
 
-## Cloud Deployment
+---
 
-### AWS (ECS/Fargate)
+## Python version requirements
 
-1. Push Docker image to ECR.
-2. Create a Task Definition using the image.
-3. Configure environment variables in the Task Definition (use Secrets Manager for keys).
-4. Launch Service behind an Application Load Balancer.
+| Python | Supported |
+|---|---|
+| 3.9 | Yes |
+| 3.10 | Yes |
+| 3.11 | Yes (recommended) |
+| 3.12 | Yes |
+| 3.8 and below | No |
 
-### Kubernetes (Helm)
+---
 
-*Coming soon: Official Helm chart.*
-
-Current approach:
-1. Create `Deployment` and `Service` manifests.
-2. Use `ConfigMap` for non-sensitive config and `Secret` for API keys.
-3. Apply manifests: `kubectl apply -f k8s/`
-
-## Verification
-
-After deployment, verify health:
+## Running a scan
 
 ```bash
-curl http://localhost:8000/health
-# Output: {"status": "ok", ...}
+# Scan a directory, print to terminal
+mcp-sentinel scan /path/to/mcp-server
+
+# Write SARIF output for GitHub Code Scanning
+mcp-sentinel scan /path/to/mcp-server \
+  --output sarif \
+  --json-file results.sarif
+
+# Write JSON output for scripting
+mcp-sentinel scan /path/to/mcp-server \
+  --output json \
+  --json-file results.json
+
+# Only report critical findings
+mcp-sentinel scan /path/to/mcp-server --severity critical
+```
+
+---
+
+## Docker
+
+MCP Sentinel has no official Docker image, but it's trivial to containerize:
+
+```dockerfile
+FROM python:3.11-slim
+
+RUN pip install mcp-sentinel
+
+ENTRYPOINT ["mcp-sentinel"]
+```
+
+Build and run:
+
+```bash
+docker build -t mcp-sentinel .
+
+# Scan a local directory by mounting it
+docker run --rm \
+  -v /path/to/mcp-server:/target:ro \
+  mcp-sentinel scan /target \
+    --output sarif \
+    --json-file /dev/stdout \
+    --no-progress
+```
+
+---
+
+## CI/CD
+
+See [`docs/CI_CD_INTEGRATION.md`](CI_CD_INTEGRATION.md) for ready-to-use configs for:
+
+- GitHub Actions
+- GitLab CI
+- Jenkins
+- Azure DevOps
+- CircleCI
+- Bitbucket Pipelines
+
+Short version for any CI system:
+
+```bash
+pip install mcp-sentinel
+mcp-sentinel scan . --output sarif --json-file results.sarif --no-progress
+```
+
+---
+
+## Virtualenv / isolation
+
+MCP Sentinel has no optional runtime dependencies beyond what's listed in `pyproject.toml`. It's safe to install in a shared virtualenv alongside your MCP server dependencies.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install mcp-sentinel
+mcp-sentinel scan .
+```
+
+---
+
+## Ignoring paths
+
+Create a `.sentinelignore` file at the root of your project with paths to exclude (`.gitignore` syntax):
+
+```
+node_modules/
+.venv/
+__pycache__/
+*.min.js
+dist/
+build/
+```
+
+---
+
+## Configuration
+
+All configuration is via environment variables. See [`docs/CONFIGURATION.md`](CONFIGURATION.md) for the full reference.
+
+Key variables:
+
+```bash
+LOG_LEVEL=info          # debug | info | warning | error
+MAX_WORKERS=4           # concurrent file workers
+CACHE_TTL=3600          # cache TTL in seconds (0 = disabled)
 ```

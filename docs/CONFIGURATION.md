@@ -1,82 +1,119 @@
-# MCP Sentinel - Configuration Guide
+# MCP Sentinel — Configuration Guide
 
-This guide details all available configuration options for MCP Sentinel. Configuration can be managed via environment variables or a `.env` file.
+**Version**: v0.2.0
+
+MCP Sentinel is configured entirely through environment variables. There is no config file required — sane defaults work out of the box.
+
+---
 
 ## Environment Variables
 
-### General Settings
-
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `ENVIRONMENT` | `development` | execution environment (development/production/testing) |
-| `LOG_LEVEL` | `info` | Logging verbosity (debug/info/warning/error) |
+|---|---|---|
+| `ENABLE_STATIC_ANALYSIS` | `true` | Enable the static pattern-matching engine |
+| `LOG_LEVEL` | `info` | Logging verbosity: `debug`, `info`, `warning`, `error` |
+| `MAX_WORKERS` | `4` | Number of concurrent file scanning workers |
+| `CACHE_TTL` | `3600` | File result cache TTL in seconds (0 = disabled) |
+| `ENVIRONMENT` | `development` | Runtime environment: `development`, `production`, `testing` |
 
-### API Settings
+That's it. MCP Sentinel v0.2.0 is a local CLI tool — no database, no API server, no external services, no AI provider keys required.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `API_HOST` | `0.0.0.0` | Host interface to bind the API server |
-| `API_PORT` | `8000` | Port to listen on |
-| `API_WORKERS` | `4` | Number of worker processes |
+---
 
-### Database Settings
+## Setting Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `postgresql+asyncpg://...` | Connection string for PostgreSQL |
-| `DB_ECHO` | `False` | Enable SQL query logging |
-| `DB_POOL_SIZE` | `5` | Connection pool size |
-| `DB_MAX_OVERFLOW` | `10` | Max overflow connections |
-
-### Redis & Celery
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis connection string |
-| `CELERY_BROKER_URL` | `redis://localhost:6379/1` | Celery broker URL |
-| `CELERY_RESULT_BACKEND` | `redis://localhost:6379/2` | Celery result backend |
-
-### AI Provider Settings
-
-| Variable | Description |
-|----------|-------------|
-| `OPENAI_API_KEY` | API Key for OpenAI |
-| `OPENAI_MODEL` | Model to use (default: `gpt-4-turbo-preview`) |
-| `ANTHROPIC_API_KEY` | API Key for Anthropic |
-| `ANTHROPIC_MODEL` | Model to use (default: `claude-3-5-sonnet-20241022`) |
-| `GOOGLE_API_KEY` | API Key for Google Gemini |
-| `OLLAMA_BASE_URL` | Base URL for Ollama (default: `http://localhost:11434`) |
-
-### Engine Settings
-
-Toggle specific analysis engines.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ENABLE_STATIC_ANALYSIS` | `True` | Enable regex/pattern matching |
-| `ENABLE_SEMANTIC_ANALYSIS` | `True` | Enable AST/Data flow analysis |
-| `ENABLE_SAST` | `True` | Enable external SAST tools (Bandit, etc.) |
-| `ENABLE_AI_ANALYSIS` | `True` | Enable LLM-based analysis |
-| `ENABLE_THREAT_INTEL` | `True` | Enable threat intelligence lookups |
-
-## Security Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SECRET_KEY` | *dev-secret* | Secret key for JWT signing (CHANGE IN PROD!) |
-| `ALGORITHM` | `HS256` | JWT signing algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Token expiration time |
-
-## Example .env File
+### Shell / `.env` file
 
 ```bash
-ENVIRONMENT=production
-LOG_LEVEL=warning
-
-API_PORT=8080
-
-DATABASE_URL=postgresql+asyncpg://user:pass@db:5432/sentinel
-
-ANTHROPIC_API_KEY=sk-ant-...
-ENABLE_AI_ANALYSIS=True
+export LOG_LEVEL=debug
+export MAX_WORKERS=8
+export CACHE_TTL=0  # disable caching during development
 ```
+
+Or in a `.env` file in the project root (loaded automatically):
+
+```bash
+ENABLE_STATIC_ANALYSIS=true
+LOG_LEVEL=info
+MAX_WORKERS=4
+CACHE_TTL=3600
+ENVIRONMENT=production
+```
+
+### CI/CD pipelines
+
+Set as pipeline environment variables. Example (GitHub Actions):
+
+```yaml
+env:
+  LOG_LEVEL: warning
+  MAX_WORKERS: 8
+```
+
+---
+
+## CLI Flags
+
+Environment variables set defaults. CLI flags override them per-run:
+
+```
+mcp-sentinel scan <target> [OPTIONS]
+
+Options:
+  --output [terminal|json|sarif]  Output format (default: terminal)
+  --json-file <path>              Write JSON or SARIF output to this file
+  --severity [critical|high|medium|low|info]
+                                  Filter findings by minimum severity
+  --no-progress                   Suppress progress bar (useful in CI)
+  --log-level [debug|info|warning|error]
+                                  Override LOG_LEVEL for this run
+  --log-file <path>               Write logs to file in addition to stderr
+```
+
+---
+
+## Variable Details
+
+### `ENABLE_STATIC_ANALYSIS`
+
+Controls whether the static analysis engine runs. Setting to `false` disables all scanning — useful for testing the CLI itself without running detectors.
+
+```bash
+ENABLE_STATIC_ANALYSIS=false mcp-sentinel scan .   # no findings, instant
+```
+
+### `LOG_LEVEL`
+
+Controls verbosity of log output to stderr.
+
+- `debug` — full internal trace, file-by-file processing
+- `info` — scan progress and summary (default)
+- `warning` — only warnings and errors
+- `error` — only errors
+
+### `MAX_WORKERS`
+
+Number of files processed concurrently. Increasing this speeds up scans on large codebases but uses more memory.
+
+Recommended values:
+- Laptop/desktop: `4` (default)
+- CI runner (2-core): `4`
+- CI runner (8-core): `8–16`
+
+### `CACHE_TTL`
+
+MCP Sentinel caches scan results per file using an MD5 hash of file content. If a file hasn't changed since the last scan, its cached result is reused.
+
+- `0` — disable cache entirely
+- `3600` — cache results for 1 hour (default)
+- `86400` — cache results for 24 hours
+
+Cache is stored in `.sentinel/cache.json` relative to the working directory.
+
+### `ENVIRONMENT`
+
+Affects log formatting:
+
+- `development` — human-readable log lines
+- `production` — structured JSON log lines (better for log aggregators)
+- `testing` — minimal output

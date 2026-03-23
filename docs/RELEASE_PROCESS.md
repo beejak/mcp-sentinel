@@ -1,375 +1,290 @@
-# Release Process Documentation
+# MCP Sentinel — Release Process
 
-**Version**: 1.0.0
-**Last Updated**: 2026-01-06
-**Repository**: mcp-sentinel-python
-
-This document defines the standard release process for MCP Sentinel Python Edition, ensuring consistent, high-quality releases with comprehensive documentation and performance tracking.
+**Version**: v0.2.0
 
 ---
 
 ## Table of Contents
 
-1. [Release Workflow Overview](#release-workflow-overview)
+1. [Release Workflow](#release-workflow)
 2. [Pre-Release Requirements](#pre-release-requirements)
-3. [Performance Delta Documentation](#performance-delta-documentation)
-4. [Code Quality & Sanitization](#code-quality--sanitization)
-5. [Creating a Release](#creating-a-release)
-6. [Post-Release Verification](#post-release-verification)
-7. [Release Checklist Template](#release-checklist-template)
+3. [Creating a Release](#creating-a-release)
+4. [Post-Release Verification](#post-release-verification)
+5. [Release Checklist Template](#release-checklist-template)
+6. [Emergency Hotfix Process](#emergency-hotfix-process)
 
 ---
 
-## Release Workflow Overview
-
-### Standard Release Lifecycle
+## Release Workflow
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                  RELEASE WORKFLOW                             │
-├──────────────────────────────────────────────────────────────┤
-│                                                               │
-│  1. Development Phase                                         │
-│     └─> Feature implementation on feature branch             │
-│                                                               │
-│  2. Pre-Release Quality Assurance                             │
-│     ├─> Run QA checklist (docs/QA_CHECKLIST.md)              │
-│     ├─> Code sanitization & cleanup                          │
-│     ├─> Performance benchmarking                             │
-│     └─> Documentation updates                                │
-│                                                               │
-│  3. Performance Delta Documentation                           │
-│     ├─> Compare with previous release                        │
-│     ├─> Document improvements/regressions                    │
-│     └─> Update CHANGELOG.md with metrics                     │
-│                                                               │
-│  4. Create Pull Request                                       │
-│     ├─> Comprehensive PR description                         │
-│     ├─> Include performance comparison                       │
-│     └─> Link to related issues                               │
-│                                                               │
-│  5. Merge to Main                                             │
-│     └─> After approval and CI passing                        │
-│                                                               │
-│  6. Create Git Tag                                            │
-│     ├─> Follow semantic versioning                           │
-│     ├─> Include release notes in tag message               │
-│     └─> Push to remote repository                            │
-│                                                               │
-│  7. GitHub Release                                            │
-│     ├─> Create release from tag                              │
-│     ├─> Upload release assets (wheels, tarballs)           │
-│     ├─> Write comprehensive release notes                   │
-│     └─> Publish to PyPI if applicable                      │
-│                                                               │
-│  8. Post-Release Verification                               │
-│     ├─> Verify installation works                          │
-│     ├─> Check documentation is accessible                    │
-│     └─> Monitor for issues                                  │
-└──────────────────────────────────────────────────────────────┘
+Feature branch development
+         │
+         ▼
+  Pull Request to master
+  └─> CI must pass (all 334 tests, lint, self-scan)
+         │
+         ▼
+  Merge to master
+         │
+         ▼
+  Pre-release verification (this doc)
+         │
+         ▼
+  Bump version in pyproject.toml + __init__.py
+         │
+         ▼
+  Update CHANGELOG.md
+         │
+         ▼
+  Commit + annotated git tag (vX.Y.Z)
+         │
+         ▼
+  GitHub Release (from tag)
+         │
+         ▼
+  PyPI publish (if applicable)
+         │
+         ▼
+  Post-release smoke test
 ```
 
 ---
 
 ## Pre-Release Requirements
 
-### Code Quality Gates
+### Quality gates
 
-**Must Pass Before Release:**
-1. **All tests pass** (`poetry run pytest`)
-2. **Type checking passes** (`poetry run mypy src/`)
-3. **Linting passes** (`poetry run ruff check src/`)
-4. **Formatting passes** (`poetry run black --check src/`)
-5. **Security scan passes** (`poetry run bandit -r src/`)
-6. **Documentation builds** (`mkdocs build` if applicable)
-
-### Documentation Requirements
-
-**Required Documentation:**
-- [ ] CHANGELOG.md updated with version entry
-- [ ] README.md current (no outdated references)
-- [ ] API documentation updated (if changed)
-- [ ] Configuration examples current
-- [ ] Migration guide (if breaking changes)
-
-### Version Consistency Check
+All must pass before tagging:
 
 ```bash
-# Check version in pyproject.toml
-grep '^version =' pyproject.toml
+# 1. Full test suite
+pytest tests/ -v
 
-# Check for old version references
-grep -r "0\.[0-9]\.[0-9]" README.md docs/ --exclude-dir=__pycache__
+# 2. Type checking
+mypy src/mcp_sentinel --ignore-missing-imports
 
-# Verify no hardcoded version in code
-grep -r "__version__" src/ | head -5
+# 3. Linting
+ruff check src/
+
+# 4. Security scan of own source
+bandit -r src/
+
+# 5. Self-scan with MCP Sentinel
+mcp-sentinel scan src/ --output json --json-file self-scan.json --no-progress
 ```
 
----
+### Documentation requirements
 
-## Performance Delta Documentation
+- [ ] `CHANGELOG.md` has entry for this version
+- [ ] `README.md` reflects current feature set and version badge
+- [ ] `docs/TEST_COVERAGE.md` matches actual test suite
+- [ ] `docs/CONFIGURATION.md` lists only real env vars
+- [ ] `docs/CI_CD_INTEGRATION.md` uses correct CLI flags
+- [ ] No docs reference removed features (AI engine, SAST, HTML output, Poetry, etc.)
 
-### Benchmarking Requirements
+### Version consistency
 
-**Performance Metrics to Track:**
-1. **Scan Speed**: Time to scan 1000 files
-2. **Memory Usage**: Peak memory during scan
-3. **Binary Size**: Package/installation size
-4. **API Latency**: Response time for API endpoints
-5. **Test Execution Time**: Full test suite duration
+```bash
+# Check pyproject.toml version
+grep '^version' pyproject.toml
 
-### Performance Comparison Template
+# Check __init__.py version
+grep '__version__' src/mcp_sentinel/__init__.py
 
-```markdown
-## Performance Comparison: v{OLD} → v{NEW}
-
-| Metric | v{OLD} | v{NEW} | Delta | % Change |
-|--------|--------|--------|--------|----------|
-| Scan Speed (1000 files) | 4.2s | 3.8s | -0.4s | -9.5% |
-| Memory Usage (peak) | 85MB | 92MB | +7MB | +8.2% |
-| Package Size | 2.1MB | 2.3MB | +0.2MB | +9.5% |
-| Test Suite Time | 45s | 42s | -3s | -6.7% |
-
-**Summary**: Performance improved in scan speed and test execution, with minor increases in memory and package size.
+# Scan all docs for stale version strings
+grep -r "v0\.1\." docs/ README.md
 ```
 
----
-
-## Code Quality & Sanitization
-
-### Pre-Release Cleanup Checklist
-
-**Code Sanitization:**
-- [ ] Remove debug print statements
-- [ ] Remove TODO comments (or convert to issues)
-- [ ] Remove commented-out code
-- [ ] Update docstrings for accuracy
-- [ ] Check for hardcoded secrets/credentials
-- [ ] Verify error messages are user-friendly
-- [ ] Check logging levels (no excessive debug logging)
-
-**Security Review:**
-- [ ] Run security scanner (bandit)
-- [ ] Check for potential injection vulnerabilities
-- [ ] Verify input validation
-- [ ] Check file path handling
-- [ ] Review dependency vulnerabilities (`poetry audit`)
-
-### Code Quality Metrics
-
-**Target Metrics:**
-- Test coverage: ≥90% for critical modules
-- Type coverage: 100% for public APIs
-- Cyclomatic complexity: ≤10 for functions
-- No functions >50 lines (preferably)
-- Docstring coverage: 100% for public APIs
+Both `pyproject.toml` and `src/mcp_sentinel/__init__.py` must have the same version.
 
 ---
 
 ## Creating a Release
 
-### Step 1: Final Verification
+### Step 1: Final verification
 
 ```bash
-# 1. Ensure working directory is clean
-git status
+git status              # working tree must be clean
+git log --oneline -5    # confirm latest commits look right
 
-# 2. Run full test suite
-poetry run pytest
-
-# 3. Run quality checks
-poetry run ruff check src/
-poetry run black --check src/
-poetry run mypy src/
-
-# 4. Security scan
-poetry run bandit -r src/
-
-# 5. Build package
-poetry build
+pytest tests/ -v        # all tests pass
+ruff check src/         # linting clean
 ```
 
-### Step 2: Version Bump
+### Step 2: Bump version
+
+Edit both files to the new version (e.g., `0.3.0`):
 
 ```bash
-# Update version in pyproject.toml
-# Use semantic versioning (MAJOR.MINOR.PATCH)
+# pyproject.toml
+sed -i 's/version = "0\.2\.0"/version = "0.3.0"/' pyproject.toml
 
-# Example: Bump minor version
-sed -i 's/version = "0.1.0"/version = "0.2.0"/' pyproject.toml
+# src/mcp_sentinel/__init__.py
+sed -i 's/__version__ = ".*"/__version__ = "0.3.0"/' src/mcp_sentinel/__init__.py
 
-# Verify change
-grep '^version =' pyproject.toml
+# Verify
+grep '^version' pyproject.toml
+grep '__version__' src/mcp_sentinel/__init__.py
 ```
 
-### Step 3: Update Documentation
+### Step 3: Update CHANGELOG.md
 
-```bash
-# Update CHANGELOG.md
-# Add new version section with changes
+Add a new section at the top:
 
-# Update any version references in README
-# Update API documentation if needed
+```markdown
+## v0.3.0 — YYYY-MM-DD
+
+### New
+- ...
+
+### Fixed
+- ...
+
+### Changed
+- ...
 ```
 
-### Step 4: Commit and Tag
+### Step 4: Commit and tag
 
 ```bash
-# Commit version changes
-git add pyproject.toml CHANGELOG.md README.md
-git commit -m "Release v0.2.0 - [Brief description of changes]"
+git add pyproject.toml src/mcp_sentinel/__init__.py CHANGELOG.md
+git commit -m "Release v0.3.0"
 
-# Create annotated tag
-git tag -a v0.2.0 -m "Release v0.2.0 - [Detailed release notes]"
+git tag -a v0.3.0 -m "v0.3.0 — [one-line summary of changes]"
+git push origin master
+git push origin v0.3.0
+```
 
-# Push to remote
-git push origin main
-git push origin v0.2.0
+### Step 5: GitHub Release
+
+1. Go to repository → Releases → Draft a new release
+2. Select the tag `v0.3.0`
+3. Title: `v0.3.0 — [summary]`
+4. Body: paste relevant CHANGELOG section
+5. Attach wheel/tarball if publishing
+
+### Step 6: PyPI (if applicable)
+
+```bash
+pip install build twine
+
+python -m build          # creates dist/mcp_sentinel-0.3.0-py3-none-any.whl
+twine check dist/*
+twine upload dist/*      # requires PyPI credentials
+```
+
+Post-publish smoke test:
+
+```bash
+pip install mcp-sentinel==0.3.0
+mcp-sentinel --version   # should print v0.3.0
+mcp-sentinel scan .
 ```
 
 ---
 
 ## Post-Release Verification
 
-### Installation Testing
-
 ```bash
-# Test installation from PyPI (if published)
-pip install mcp-sentinel==0.2.0
+# Install from PyPI (or local wheel) in a clean virtualenv
+python -m venv /tmp/test-env
+source /tmp/test-env/bin/activate
+pip install mcp-sentinel==0.3.0
 
-# Test basic functionality
+# Verify version
 mcp-sentinel --version
-mcp-sentinel scan /path/to/test/project
 
-# Test with different output formats
-mcp-sentinel scan /path/to/project --output json
+# Smoke test scan
+mcp-sentinel scan /path/to/sample-mcp-server
+
+# JSON output
+mcp-sentinel scan /path/to/sample-mcp-server --output json --json-file /tmp/test.json
+python3 -c "import json; d=json.load(open('/tmp/test.json')); print(len(d['vulnerabilities']), 'findings')"
+
+# SARIF output
+mcp-sentinel scan /path/to/sample-mcp-server --output sarif --json-file /tmp/test.sarif
+python3 -c "import json; d=json.load(open('/tmp/test.sarif')); print('SARIF version:', d.get('version', '?'))"
 ```
-
-### Documentation Verification
-
-- [ ] README.md renders correctly on GitHub
-- [ ] All links work (no 404s)
-- [ ] Code examples are valid
-- [ ] Installation instructions work
-- [ ] API documentation is accessible
-
-### Issue Monitoring
-
-**Post-Release Monitoring:**
-- Monitor GitHub issues for bug reports
-- Check download statistics (if available)
-- Monitor CI/CD pipeline health
-- Watch for security vulnerability reports
 
 ---
 
 ## Release Checklist Template
 
-### Pre-Release Checklist
+Copy this for each release:
 
-**Code Quality:**
-- [ ] All tests pass (`poetry run pytest`)
-- [ ] Type checking passes (`poetry run mypy src/`)
-- [ ] Linting passes (`poetry run ruff check src/`)
-- [ ] Formatting passes (`poetry run black --check src/`)
-- [ ] Security scan passes (`poetry run bandit -r src/`)
-
-**Documentation:**
-- [ ] CHANGELOG.md updated
-- [ ] README.md current
-- [ ] Version references updated
-- [ ] API documentation current
-
-**Version Management:**
-- [ ] Version bumped in pyproject.toml
-- [ ] No hardcoded version strings in code
-- [ ] Git history clean (no WIP commits)
-
-### Release Execution
-
-**Tag Creation:**
-- [ ] Create annotated tag
-- [ ] Tag message includes release summary
-- [ ] Push tag to remote
-
-**GitHub Release:**
-- [ ] Create release from tag
-- [ ] Upload release assets (if applicable)
-- [ ] Write comprehensive release notes
-- [ ] Set as "Latest Release"
-
-### Post-Release
-
-**Verification:**
-- [ ] Installation works
-- [ ] Basic functionality works
-- [ ] Documentation accessible
-- [ ] No critical issues reported
-
----
-
-## Common Issues & Solutions
-
-### Issue: Tests Pass Locally but Fail in CI
-**Solution**: Ensure consistent environment (Python version, dependencies)
-```bash
-# Lock dependencies
-poetry lock --no-update
-
-# Test in clean environment
-poetry install --no-dev
 ```
+### Pre-release
 
-### Issue: Version Conflicts
-**Solution**: Use semantic versioning consistently
-```bash
-# Check current version
-grep '^version =' pyproject.toml
+Code quality:
+[ ] pytest tests/ — 0 failures
+[ ] mypy src/mcp_sentinel — clean
+[ ] ruff check src/ — clean
+[ ] bandit -r src/ — clean
+[ ] mcp-sentinel scan src/ — no regressions
 
-# Update all references
-find . -name "*.md" -exec grep -l "old_version" {} \;
-```
+Version:
+[ ] pyproject.toml version bumped
+[ ] src/mcp_sentinel/__init__.py version bumped
+[ ] versions match
 
-### Issue: Documentation Out of Sync
-**Solution**: Automate documentation updates
-```bash
-# Generate API docs (if using tools)
-poetry run pdoc src/mcp_sentinel --output-dir docs/api
+Documentation:
+[ ] CHANGELOG.md updated
+[ ] README.md badges/version current
+[ ] docs/TEST_COVERAGE.md matches test suite
 
-# Check for broken links
-poetry run pytest-check-links docs/
+### Release execution
+
+[ ] Commit: "Release vX.Y.Z"
+[ ] Annotated tag: vX.Y.Z
+[ ] Push tag to remote
+[ ] GitHub Release created
+[ ] PyPI publish (if applicable)
+
+### Post-release
+
+[ ] pip install mcp-sentinel==X.Y.Z works
+[ ] mcp-sentinel --version shows correct version
+[ ] Basic scan completes successfully
+[ ] No critical issues reported within 24h
 ```
 
 ---
 
 ## Emergency Hotfix Process
 
-**When Critical Bug Found in Release:**
+For critical bugs found after release:
 
-1. **Assess Severity** (within 1 hour)
-   - Determine impact and affected users
-   - Check if workaround exists
+**1. Assess** (within 1 hour)
+- Does it affect all users or a specific configuration?
+- Is there a workaround?
 
-2. **Create Hotfix Branch**
-   ```bash
-   git checkout -b hotfix/v0.2.1
-   ```
+**2. Create hotfix branch**
 
-3. **Fix and Test** (within 4 hours)
-   - Minimal fix, no new features
-   - Full test suite must pass
-   - Security scan must pass
+```bash
+git checkout -b hotfix/v0.2.1 v0.2.0
+```
 
-4. **Accelerated Release** (within 8 hours)
-   - Skip non-critical documentation updates
-   - Focus on fix verification
-   - Communicate clearly in release notes
+**3. Fix, test, scan**
 
-5. **Post-Hotfix Review**
-   - Document root cause
-   - Update tests to prevent recurrence
-   - Review release process if needed
+```bash
+# Minimal fix — no new features
+pytest tests/ -v           # must pass
+mcp-sentinel scan src/     # no new self-scan regressions
+```
 
----
+**4. Bump patch version, tag, release**
 
-**Remember**: A delayed release with excellent quality beats a rushed release with issues. Take time to verify each step, but don't let perfect be the enemy of good.
+```bash
+# Bump: 0.2.0 → 0.2.1
+git commit -m "Hotfix v0.2.1 — [one-line description]"
+git tag -a v0.2.1 -m "v0.2.1 — [description]"
+git push origin hotfix/v0.2.1
+git push origin v0.2.1
+# Merge hotfix back to master
+```
+
+**5. Post-hotfix**
+- Document root cause in CHANGELOG
+- Add regression test to prevent recurrence
+- Review if detection in CI could have caught this earlier
