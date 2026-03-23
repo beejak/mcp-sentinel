@@ -1,7 +1,7 @@
 # MCP Sentinel — Architecture
 
-**Version**: v0.3.0
-**Status**: 10 detectors, 409 tests, static engine
+**Version**: v0.4.0
+**Status**: 12 detectors, 502 tests, static engine
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Overview
 
-MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.3.0 is intentionally focused: one engine (static), ten detectors, no external service dependencies.
+MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.4.0 is intentionally focused: one engine (static), twelve detectors, no external service dependencies.
 
 ### Key design decisions
 
@@ -74,7 +74,9 @@ src/mcp_sentinel/
 │   ├── ssrf.py                  # SSRFDetector
 │   ├── network_binding.py       # NetworkBindingDetector
 │   ├── missing_auth.py          # MissingAuthDetector
-│   └── supply_chain.py          # SupplyChainDetector
+│   ├── supply_chain.py          # SupplyChainDetector
+│   ├── weak_crypto.py           # WeakCryptoDetector
+│   └── insecure_deserialization.py  # InsecureDeserializationDetector
 │
 ├── models/
 │   ├── vulnerability.py         # Vulnerability dataclass
@@ -157,7 +159,7 @@ class BaseDetector:
         """Analyze content and return any found vulnerabilities."""
 ```
 
-### Detector scope (v0.3.0)
+### Detector scope (v0.4.0)
 
 | Detector | Languages / File Types | Patterns |
 |---|---|---|
@@ -171,6 +173,8 @@ class BaseDetector:
 | `NetworkBindingDetector` | Python, Go, JS, YAML, `.env` | `host="0.0.0.0"`, `:8080` shorthand, `BIND_HOST=0.0.0.0` |
 | `MissingAuthDetector` | Python, JS, TS, JSON | Sensitive routes/tools without auth decorators/middleware |
 | `SupplyChainDetector` | Python, JS, TS, Shell, manifests | Encoded payloads, install-time exec/network, exfiltration, BCC injection, typosquatting |
+| `WeakCryptoDetector` | Python, JS, TS, Java, Go | MD5/SHA-1, insecure PRNG, ECB mode, deprecated ciphers, static IV, weak KDF |
+| `InsecureDeserializationDetector` | Python, JS, TS, Java, PHP | pickle, yaml.load, marshal, eval-as-parser, jsonpickle, ObjectInputStream, unserialize |
 
 ### Adding a new detector
 

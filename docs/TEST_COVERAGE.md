@@ -1,6 +1,6 @@
-# MCP Sentinel v0.3.0 — Test Coverage
+# MCP Sentinel v0.4.0 — Test Coverage
 
-**Total: 409 passed, 4 xfailed (documented), 0 failed**
+**Total: 502 passed, 4 xfailed (documented), 0 failed**
 **Python:** 3.9, 3.10, 3.11, 3.12
 **Last run:** 2026-03-23
 
@@ -10,6 +10,8 @@
 
 | Test File | Tests | Status | What It Covers |
 |---|---|---|---|
+| `tests/unit/test_insecure_deserialization.py` | 45 | 45 pass | InsecureDeserializationDetector — new in v0.4.0 |
+| `tests/unit/test_weak_crypto.py` | 48 | 48 pass | WeakCryptoDetector — new in v0.4.0 |
 | `tests/unit/test_supply_chain.py` | 75 | 75 pass | SupplyChainDetector — new in v0.3.0 |
 | `tests/unit/test_ssrf_detector.py` | 25 | 25 pass | SSRFDetector — new in v0.2.0 |
 | `tests/unit/test_network_binding.py` | 22 | 22 pass | NetworkBindingDetector — new in v0.2.0 |
@@ -29,6 +31,113 @@
 | `tests/unit/core/test_config.py` | 5 | 5 pass | Configuration/settings |
 | `tests/integration/test_scanner.py` | 7 | 7 pass | End-to-end scan pipeline |
 | `tests/test_caching.py` | 1 | 1 pass | MD5-based file cache |
+
+---
+
+## v0.4.0 New Detector Tests
+
+### WeakCryptoDetector (48 tests)
+
+| Test | What It Verifies |
+|---|---|
+| `test_detector_name` | `detector.name == "WeakCryptoDetector"` |
+| `test_detector_enabled_by_default` | `detector.enabled is True` |
+| `test_applicable_python` | `.py` in scope |
+| `test_applicable_javascript` | `.js` in scope |
+| `test_applicable_typescript` | `.ts` in scope |
+| `test_applicable_java` | `.java` in scope |
+| `test_applicable_go` | `.go` in scope |
+| `test_not_applicable_yaml` | `.yaml` excluded |
+| `test_not_applicable_markdown` | `.md` excluded |
+| `test_not_applicable_json` | `.json` excluded |
+| `test_detect_hashlib_md5` | `hashlib.md5()` → HIGH |
+| `test_detect_hashlib_sha1` | `hashlib.sha1()` → HIGH |
+| `test_detect_crypto_create_hash_md5` | `crypto.createHash('md5')` → HIGH |
+| `test_detect_crypto_create_hash_sha1` | `crypto.createHash('sha1')` → HIGH |
+| `test_detect_java_message_digest_md5` | `MessageDigest.getInstance("MD5")` → HIGH |
+| `test_detect_java_message_digest_sha1` | `MessageDigest.getInstance("SHA-1")` → HIGH |
+| `test_broken_hash_severity_is_high` | broken_hash severity == "high" |
+| `test_no_false_positive_md5_for_checksum` | `checksum = hashlib.md5(data).hexdigest()` suppressed |
+| `test_no_false_positive_md5_for_etag` | `etag = hashlib.md5(content).hexdigest()` suppressed |
+| `test_detect_random_random` | `random.random()` → HIGH |
+| `test_detect_random_randint` | `random.randint(...)` → HIGH |
+| `test_detect_random_choice_token` | `random.choice(...)` for tokens → HIGH |
+| `test_detect_math_random_js` | `Math.random()` → HIGH |
+| `test_insecure_random_severity_is_high` | insecure_random severity == "high" |
+| `test_no_false_positive_import_random` | `import random` alone not flagged |
+| `test_detect_aes_mode_ecb` | `AES.new(key, AES.MODE_ECB)` → HIGH |
+| `test_detect_mode_ecb_constant` | `Cipher.getInstance("AES/ECB/PKCS5Padding")` → HIGH |
+| `test_detect_createcipheriv_ecb` | `createCipheriv("aes-128-ecb", ...)` → HIGH |
+| `test_ecb_severity_is_high` | ecb_mode severity == "high" |
+| `test_detect_des_new` | `DES.new(key)` → HIGH |
+| `test_detect_rc4` | `ARC4.new(key)` → HIGH |
+| `test_detect_java_des` | `Cipher.getInstance("DES/...")` → HIGH |
+| `test_detect_createcipheriv_rc4` | `createCipheriv("rc4", ...)` → HIGH |
+| `test_deprecated_cipher_severity_is_high` | deprecated_cipher severity == "high" |
+| `test_detect_static_iv_zeros` | `iv = b'\x00' * 16` → HIGH |
+| `test_detect_hardcoded_iv_hex_string` | `nonce = bytes.fromhex("0000000000000000")` → HIGH |
+| `test_detect_pbkdf2_low_iterations` | `pbkdf2_hmac(..., iterations=1000)` → MEDIUM |
+| `test_weak_kdf_severity_is_medium` | weak_kdf severity == "medium" |
+| `test_no_false_positive_comment_line` | Commented-out hash calls not flagged |
+| `test_no_false_positive_test_word` | Lines with `test` suppressed |
+| `test_empty_file` | Empty file produces no findings |
+| `test_vulnerability_has_cwe` | All findings have a `cwe_id` |
+| `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
+| `test_vulnerability_has_references` | All findings have references |
+| `test_vulnerability_detector_field` | `v.detector == "WeakCryptoDetector"` |
+| `test_vulnerability_engine_field` | `v.engine == "static"` |
+| `test_line_number_accuracy` | Line number points to the flagged line |
+| `test_code_snippet_captured` | Code snippet contains the matched expression |
+
+### InsecureDeserializationDetector (45 tests)
+
+| Test | What It Verifies |
+|---|---|
+| `test_detector_name` | `detector.name == "InsecureDeserializationDetector"` |
+| `test_detector_enabled_by_default` | `detector.enabled is True` |
+| `test_applicable_python` | `.py` in scope |
+| `test_applicable_javascript` | `.js` in scope |
+| `test_applicable_typescript` | `.ts` in scope |
+| `test_applicable_java` | `.java` in scope |
+| `test_applicable_php` | `.php` in scope |
+| `test_not_applicable_go` | `.go` excluded |
+| `test_not_applicable_yaml` | `.yaml` excluded |
+| `test_not_applicable_markdown` | `.md` excluded |
+| `test_detect_pickle_loads` | `pickle.loads(data)` → CRITICAL |
+| `test_detect_pickle_load_file` | `pickle.load(f)` → CRITICAL |
+| `test_detect_cpickle_loads` | `cPickle.loads(data)` → CRITICAL |
+| `test_pickle_line_number_accuracy` | Line number points to the `pickle.loads` line |
+| `test_pickle_code_snippet_captured` | Code snippet contains `pickle` |
+| `test_detect_yaml_load_no_loader` | `yaml.load(data)` with no Loader → CRITICAL |
+| `test_detect_yaml_load_full_loader` | `yaml.load(data, Loader=yaml.FullLoader)` → CRITICAL |
+| `test_no_false_positive_yaml_safe_load_function` | `yaml.safe_load(data)` not flagged |
+| `test_no_false_positive_yaml_safeloader_arg` | `yaml.load(data, Loader=yaml.SafeLoader)` not flagged |
+| `test_detect_marshal_loads` | `marshal.loads(data)` → CRITICAL |
+| `test_detect_marshal_load` | `marshal.load(f)` → CRITICAL |
+| `test_detect_eval_on_request_data` | `eval(request.body)` → CRITICAL |
+| `test_detect_eval_on_body` | `eval(data)` → CRITICAL |
+| `test_no_false_positive_eval_string_literal` | `eval("1 + 1")` not flagged |
+| `test_detect_jsonpickle_decode` | `jsonpickle.decode(data)` → CRITICAL |
+| `test_detect_java_object_input_stream` | `new ObjectInputStream(...)` → CRITICAL |
+| `test_detect_java_read_object` | `.readObject()` → CRITICAL |
+| `test_detect_xstream` | `new XStream()` → CRITICAL |
+| `test_java_object_stream_not_flagged_in_python` | Java patterns don't fire on `.py` files |
+| `test_detect_php_unserialize` | `unserialize($_POST[...])` → CRITICAL |
+| `test_php_unserialize_not_flagged_in_python` | PHP patterns don't fire on `.py` files |
+| `test_detect_vm_run_in_context` | `vm.runInContext(code, ctx)` → CRITICAL |
+| `test_detect_vm_run_in_new_context` | `vm.runInNewContext(code, sandbox)` → CRITICAL |
+| `test_detect_node_eval_body` | `eval(req.body)` in Node.js → CRITICAL |
+| `test_no_false_positive_comment` | Commented-out deserialization calls not flagged |
+| `test_no_false_positive_test_context` | Lines with standalone `test` suppressed |
+| `test_empty_file` | Empty file produces no findings |
+| `test_shelve_hardcoded_path_suppressed` | `shelve.open("fixed_path.db")` not flagged |
+| `test_vulnerability_type_is_insecure_deserialization` | `v.vuln_type == VulnerabilityType.INSECURE_DESERIALIZATION` |
+| `test_vulnerability_has_cwe` | All findings have a `cwe_id` |
+| `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
+| `test_vulnerability_has_references` | All findings have references |
+| `test_vulnerability_has_mitre_attack` | All findings have `mitre_attack_ids` |
+| `test_vulnerability_detector_field` | `v.detector == "InsecureDeserializationDetector"` |
+| `test_vulnerability_engine_field` | `v.engine == "static"` |
 
 ---
 
@@ -319,6 +428,10 @@ python -m pytest tests/ -v
 
 # Specific detector
 python -m pytest tests/unit/test_ssrf_detector.py -v
+
+# v0.4.0 new detectors (93 tests)
+python -m pytest tests/unit/test_weak_crypto.py \
+                 tests/unit/test_insecure_deserialization.py -v
 
 # v0.3.0 new detector (75 tests)
 python -m pytest tests/unit/test_supply_chain.py -v

@@ -1,7 +1,7 @@
 # MCP Sentinel — Test Strategy
 
-**Version**: v0.3.0
-**Total tests**: 409 (402 unit, 7 integration)
+**Version**: v0.4.0
+**Total tests**: 502 (495 unit, 7 integration)
 
 ---
 
@@ -22,9 +22,9 @@
 
 MCP Sentinel uses an **async-first testing strategy** driven by `pytest-asyncio`. All detector tests are async — they mirror the async `detect()` interface exactly, which means tests run at the same concurrency level as production.
 
-**v0.3.0 test status:**
-- 409 tests collected
-- 405 pass, 4 xfail (documented multi-line taint tracking gaps)
+**v0.4.0 test status:**
+- 502 tests collected
+- 496 pass, 4 xfail (documented multi-line taint tracking gaps)
 - 2 XPASS (tracked — patterns improved beyond original xfail expectation)
 - 0 failures
 - ~87% overall coverage (detector logic is well covered; CLI and reporting paths have lower coverage)
@@ -41,7 +41,7 @@ Full test inventory: [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md)
        /────\  Full pipeline: scan dir, find secrets,
       /      \ risk score, severity filtering
      /────────\
-    /          \ Unit (327)
+    /          \ Unit (488)
    /            \ Per-detector detection, false positives,
   /              \ applicability, metadata quality
  /────────────────\
@@ -124,6 +124,8 @@ open(x)
 | `NetworkBindingDetector` | 22 | ~70% | New in v0.2.0 |
 | `MissingAuthDetector` | 19 | ~65% | New in v0.2.0 |
 | `SupplyChainDetector` | 75 | ~80% | New in v0.3.0 |
+| `WeakCryptoDetector` | 48 | ~80% | New in v0.4.0 |
+| `InsecureDeserializationDetector` | 45 | ~80% | New in v0.4.0 |
 | `MultiEngineScanner` | 11 | ~60% | Orchestration logic |
 | `StaticAnalysisEngine` | 6 | ~55% | Engine dispatch |
 | `Settings/Config` | 5 | 100% | Full coverage |
@@ -182,6 +184,9 @@ tests/
 ├── unit/
 │   ├── core/
 │   │   └── test_config.py
+│   ├── test_weak_crypto.py
+│   ├── test_insecure_deserialization.py
+│   ├── test_supply_chain.py
 │   ├── test_ssrf_detector.py
 │   ├── test_network_binding.py
 │   ├── test_missing_auth.py
@@ -218,6 +223,10 @@ pytest tests/unit/ -v
 
 # Specific detector
 pytest tests/unit/test_ssrf_detector.py -v
+
+# v0.4.0 new detectors only
+pytest tests/unit/test_weak_crypto.py \
+       tests/unit/test_insecure_deserialization.py -v
 
 # v0.2.0 new detectors only
 pytest tests/unit/test_ssrf_detector.py \

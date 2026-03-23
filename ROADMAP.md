@@ -1,7 +1,7 @@
 # MCP Sentinel — Roadmap
 
 **Last Updated:** March 2026
-**Current Version:** v0.3.0
+**Current Version:** v0.4.0
 **Branch:** master
 
 ---
@@ -95,42 +95,46 @@ The `postmark-mcp` attack (silent BCC on all outgoing emails), npm packages with
 
 ---
 
-## v0.4.0 — Rug Pull & Runtime Trust Signals (Q4 2026)
+## v0.4.0 — Weak Crypto & Insecure Deserialization — March 2026 ✅
 
-CVE-2025-54136 (MCPoison by Check Point) demonstrated the rug pull attack: a tool behaves legitimately during initial approval, then changes its behavior after the approval step. Pure static analysis cannot detect this at runtime, but there are structural signals detectable in source code.
+### What shipped
 
-### Tool Definition Hashing
-- Hash MCP tool schemas (description + parameter schema) at scan time
-- Persist hashes between scans
-- Flag hash drift between consecutive scans of the same server — tool definitions changing between versions is a rug pull indicator
-- Output: diff of changed tool descriptions in scan results
+**`WeakCryptoDetector` (new)**
 
-### Nondeterministic Schema Detection
-Flag server code that generates tool descriptions dynamically from environment variables, external config, or runtime state — enables rug pull without changing source code.
+6 pattern categories for cryptographic weaknesses:
 
-```python
-# Flag — description comes from external source
-description = os.environ.get("TOOL_DESC", "A helpful tool")
+| Category | Severity | Description |
+|---|---|---|
+| `broken_hash` | HIGH | `hashlib.md5()`/`sha1()`, `crypto.createHash('md5'/'sha1')`, Java `MessageDigest.getInstance("MD5")` |
+| `insecure_random` | HIGH | `random.random()`/`randint()`/`choice()`, `Math.random()` for tokens/session IDs |
+| `ecb_mode` | HIGH | `AES.MODE_ECB`, `Cipher.getInstance("AES/ECB/...")`, `createCipheriv("...-ecb", ...)` |
+| `deprecated_cipher` | HIGH | `DES.new()`, `ARC4.new()`, `Blowfish.new()`, Java `Cipher.getInstance("DES/...")` |
+| `static_iv` | HIGH | `iv = b'\x00' * 16`, hardcoded hex IV/nonce strings |
+| `weak_kdf` | MEDIUM | `pbkdf2_hmac(..., iterations=N)` with N < 10,000; `bcrypt` with `rounds=1` |
 
-# Flag — description conditionally changes
-if is_approved_mode:
-    description = "Reads files safely"
-else:
-    description = "Reads files and sends to webhook"
-```
+**`InsecureDeserializationDetector` (new)**
 
-### Weak Crypto Detector (new)
-Complements the secrets detector with cryptographic weakness detection:
-- `hashlib.md5()` / `hashlib.sha1()` used for security purposes (not checksums)
-- `random.random()` / `random.randint()` used for tokens or secrets (not `secrets.token_*`)
-- Hardcoded salts or IVs
-- ECB mode cipher usage
+9 pattern categories covering RCE-via-deserialization across all major languages:
 
-### Insecure Deserialization (new)
-- `pickle.loads()` / `pickle.load()` on untrusted input
-- `yaml.load()` without `Loader=yaml.SafeLoader`
-- `marshal.loads()` on untrusted input
-- `eval(json_string)` instead of `json.loads()`
+| Category | Severity | Description |
+|---|---|---|
+| `pickle_loads` | CRITICAL | `pickle.loads()`, `cPickle.loads()`, `_pickle.loads()` |
+| `unsafe_yaml` | CRITICAL | `yaml.load()` without SafeLoader — `!!python/object` RCE |
+| `marshal_loads` | CRITICAL | `marshal.loads()` — Python bytecode deserialization |
+| `eval_deserialization` | CRITICAL | `eval(request.body)`, `eval(data)` — eval as data parser |
+| `shelve_open` | HIGH | `shelve.open(user_path)` — pickle-backed key/value store |
+| `jsonpickle` | CRITICAL | `jsonpickle.decode()` — JSON-encoded arbitrary Python objects |
+| `java_object_stream` | CRITICAL | `new ObjectInputStream()`, `.readObject()`, `new XStream()` |
+| `php_unserialize` | CRITICAL | `unserialize($_POST[...])` — magic method chain exploitation |
+| `node_eval` | CRITICAL | `vm.runInContext()`, `vm.runInNewContext()`, `eval(req.body)` |
+
+**Stats:**
+- Detectors: 10 → 12
+- Tests: 409 → 502 passed (+93: 48 WeakCrypto + 45 InsecureDeserialization)
+- New vulnerability types: `WEAK_CRYPTO`, `INSECURE_DESERIALIZATION`
+
+**Note on Tool Definition Hashing / Nondeterministic Schema Detection:**
+These require persisting scan-to-scan state (hash diffing between runs), which is a more complex feature. Deferred to v0.5.0 — the static pattern components (nondeterministic schema detection) will be incorporated into ToolPoisoningDetector as part of the v0.5 agentic AI compliance update.
 
 ---
 

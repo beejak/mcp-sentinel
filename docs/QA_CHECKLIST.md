@@ -1,6 +1,6 @@
 # MCP Sentinel — QA Checklist
 
-**Version**: v0.2.0
+**Version**: v0.4.0
 
 ---
 
@@ -38,7 +38,7 @@
    /────────────\
 ```
 
-**Current distribution (v0.2.0):**
+**Current distribution (v0.4.0):**
 - Unit tests: 327 (96%)
 - Integration tests: 7 (2%)
 - Other (caching, CLI): 6 (2%)
@@ -104,7 +104,7 @@ For each of the 9 detectors, verify:
 
 - [ ] `mcp-sentinel --help` renders correctly
 - [ ] `mcp-sentinel scan --help` renders correctly
-- [ ] `mcp-sentinel --version` shows `v0.2.0`
+- [ ] `mcp-sentinel --version` shows `v0.4.0`
 - [ ] `mcp-sentinel scan .` completes without error on this repo
 - [ ] `--output terminal` produces readable terminal output
 - [ ] `--output json --json-file out.json` produces valid JSON
