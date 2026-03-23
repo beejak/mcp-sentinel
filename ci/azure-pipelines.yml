@@ -1,0 +1,124 @@
+# MCP Sentinel — Azure DevOps Pipelines
+# Copy to azure-pipelines.yml in your repository root
+#
+# Usage:
+#   1. Go to Azure DevOps → Pipelines → New pipeline
+#   2. Select your repository and "Existing Azure Pipelines YAML file"
+#   3. Point to azure-pipelines.yml
+#
+# SARIF results are published to the Security tab via the
+# PublishBuildArtifacts task (Azure DevOps Security Code Scanning extension
+# required to view inline annotations).
+
+trigger:
+  branches:
+    include:
+      - main
+      - master
+      - develop
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  pythonVersion: '3.11'
+  pipCacheDir: $(Pipeline.Workspace)/.pip
+
+stages:
+
+# ── Test ─────────────────────────────────────────────────────────────────────
+- stage: Test
+  displayName: Test Suite
+  jobs:
+  - job: pytest
+    displayName: pytest (Python ${{ variables.pythonVersion }})
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: $(pythonVersion)
+      displayName: Set Python version
+
+    - task: Cache@2
+      inputs:
+        key: 'pip | "$(Agent.OS)" | pyproject.toml'
+        restoreKeys: pip | "$(Agent.OS)"
+        path: $(pipCacheDir)
+      displayName: Cache pip packages
+
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+      displayName: Install dependencies
+
+    - script: |
+        mkdir -p reports
+        python -m pytest tests/ \
+          --junitxml=reports/junit.xml \
+          --cov=src/mcp_sentinel \
+          --cov-report=xml:reports/coverage.xml \
+          -v
+      displayName: Run tests
+
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: JUnit
+        testResultsFiles: reports/junit.xml
+        failTaskOnFailedTests: true
+      displayName: Publish test results
+      condition: always()
+
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: Cobertura
+        summaryFileLocation: reports/coverage.xml
+      displayName: Publish coverage
+      condition: always()
+
+# ── Security Scan ─────────────────────────────────────────────────────────────
+- stage: SecurityScan
+  displayName: Security Scan
+  dependsOn: Test
+  condition: succeededOrFailed()
+  jobs:
+  - job: sentinel
+    displayName: MCP Sentinel scan
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: $(pythonVersion)
+
+    - script: |
+        pip install -e .
+      displayName: Install MCP Sentinel
+
+    - script: |
+        mkdir -p reports
+        mcp-sentinel scan . \
+          --output sarif \
+          --json-file reports/sentinel.sarif \
+          --no-progress || true
+        mcp-sentinel scan . \
+          --output json \
+          --json-file reports/sentinel.json \
+          --no-progress || true
+      displayName: Run MCP Sentinel scan
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: reports/sentinel.sarif
+        ArtifactName: CodeAnalysisLogs
+      displayName: Publish SARIF
+      condition: always()
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: reports/sentinel.json
+        ArtifactName: mcp-sentinel-results
+      displayName: Publish JSON results
+      condition: always()

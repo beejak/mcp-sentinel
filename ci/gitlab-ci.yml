@@ -1,0 +1,96 @@
+# MCP Sentinel — GitLab CI/CD
+# Copy to .gitlab-ci.yml in your repository root
+#
+# Usage:
+#   Place this file at the root of your MCP server repository as .gitlab-ci.yml
+#   Push to GitLab and the pipeline runs automatically on every MR and push.
+
+image: python:3.11-slim
+
+stages:
+  - install
+  - lint
+  - test
+  - scan
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: pip-$CI_COMMIT_REF_SLUG
+  paths:
+    - .cache/pip
+    - .venv/
+
+before_script:
+  - python -m venv .venv
+  - source .venv/bin/activate
+  - pip install --upgrade pip
+  - pip install -e ".[dev]"
+
+# ── Lint ────────────────────────────────────────────────────────────────────
+lint:
+  stage: lint
+  script:
+    - ruff check src/ --output-format=gitlab || true
+    - mypy src/mcp_sentinel --ignore-missing-imports || true
+  allow_failure: true
+
+# ── Tests ───────────────────────────────────────────────────────────────────
+test:
+  stage: test
+  script:
+    - mkdir -p reports
+    - python -m pytest tests/
+        --junitxml=reports/junit.xml
+        --cov=src/mcp_sentinel
+        --cov-report=xml:reports/coverage.xml
+        --cov-report=term
+        -v
+  artifacts:
+    when: always
+    reports:
+      junit: reports/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: reports/coverage.xml
+    paths:
+      - reports/
+    expire_in: 7 days
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
+
+# ── Security scan ───────────────────────────────────────────────────────────
+security-scan:
+  stage: scan
+  script:
+    - mkdir -p reports
+    - mcp-sentinel scan . --output sarif --json-file reports/sentinel.sarif --no-progress || true
+    - mcp-sentinel scan . --output json  --json-file reports/sentinel.json  --no-progress || true
+  artifacts:
+    when: always
+    reports:
+      sast: reports/sentinel.sarif
+    paths:
+      - reports/sentinel.sarif
+      - reports/sentinel.json
+    expire_in: 30 days
+
+# ── Scan a specific target (manual trigger) ─────────────────────────────────
+scan-target:
+  stage: scan
+  when: manual
+  variables:
+    SCAN_TARGET: "."
+    SEVERITY_FILTER: ""
+  script:
+    - mkdir -p reports
+    - mcp-sentinel scan "$SCAN_TARGET"
+        --output sarif
+        --json-file reports/sentinel.sarif
+        --no-progress
+        $SEVERITY_FILTER
+  artifacts:
+    when: always
+    paths:
+      - reports/sentinel.sarif
+    expire_in: 7 days
