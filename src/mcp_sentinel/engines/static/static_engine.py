@@ -1,13 +1,16 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-Pattern-based detectors:
+Pattern-based detectors (v0.2):
 - SecretsDetector
 - CodeInjectionDetector
 - PromptInjectionDetector
-- ToolPoisoningDetector
+- ToolPoisoningDetector  (enhanced: full-schema poisoning, sensitive path targeting)
 - ConfigSecurityDetector
 - PathTraversalDetector
+- SSRFDetector           (new: unvalidated URL args, cloud metadata, redirect params)
+- NetworkBindingDetector (new: 0.0.0.0 binding across Python/JS/Go/Java/config)
+- MissingAuthDetector    (new: routes/endpoints without auth decorators or middleware)
 """
 
 import asyncio
@@ -23,9 +26,12 @@ logger = logging.getLogger(__name__)
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
+from mcp_sentinel.detectors.missing_auth import MissingAuthDetector
+from mcp_sentinel.detectors.network_binding import NetworkBindingDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
+from mcp_sentinel.detectors.ssrf import SSRFDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType, ScanProgress
 from mcp_sentinel.models.vulnerability import Vulnerability
@@ -48,7 +54,7 @@ class StaticAnalysisEngine(BaseEngine):
         Initialize the static analysis engine.
 
         Args:
-            detectors: List of detectors to use. If None, uses all 8 default detectors.
+            detectors: List of detectors to use. If None, uses all 9 default detectors.
             enabled: Whether engine is enabled
         """
         super().__init__(
@@ -73,6 +79,9 @@ class StaticAnalysisEngine(BaseEngine):
             ToolPoisoningDetector(),
             ConfigSecurityDetector(),
             PathTraversalDetector(),
+            SSRFDetector(),
+            NetworkBindingDetector(),
+            MissingAuthDetector(),
         ]
 
     async def scan_file(
