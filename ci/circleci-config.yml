@@ -1,0 +1,73 @@
+# MCP Sentinel — CircleCI
+# Copy to .circleci/config.yml in your repository root
+#
+# Usage:
+#   mkdir -p .circleci && cp ci/circleci-config.yml .circleci/config.yml
+#   Commit and push — CircleCI picks it up automatically.
+
+version: 2.1
+
+orbs:
+  python: circleci/python@2.1.1
+
+executors:
+  python-executor:
+    docker:
+      - image: cimg/python:3.11
+    resource_class: medium
+
+jobs:
+
+  test:
+    executor: python-executor
+    steps:
+      - checkout
+      - python/install-packages:
+          pkg-manager: pip
+          pip-dependency-file: pyproject.toml
+          args: "-e .[dev]"
+      - run:
+          name: Run tests
+          command: |
+            mkdir -p reports
+            python -m pytest tests/ \
+              --junitxml=reports/junit.xml \
+              --cov=src/mcp_sentinel \
+              --cov-report=xml:reports/coverage.xml \
+              -v
+      - store_test_results:
+          path: reports/junit.xml
+      - store_artifacts:
+          path: reports/
+          destination: test-reports
+
+  security-scan:
+    executor: python-executor
+    steps:
+      - checkout
+      - python/install-packages:
+          pkg-manager: pip
+          args: "-e ."
+      - run:
+          name: Run MCP Sentinel scan
+          command: |
+            mkdir -p reports
+            mcp-sentinel scan . \
+              --output sarif \
+              --json-file reports/sentinel.sarif \
+              --no-progress || true
+            mcp-sentinel scan . \
+              --output json \
+              --json-file reports/sentinel.json \
+              --no-progress || true
+      - store_artifacts:
+          path: reports/
+          destination: security-reports
+
+workflows:
+  build-test-scan:
+    jobs:
+      - test
+      - security-scan:
+          requires:
+            - test
