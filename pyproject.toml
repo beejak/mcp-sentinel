@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "mcp-sentinel"
 version = "4.1.0"
-description = "Enterprise-grade security scanner for Model Context Protocol (MCP) servers"
+description = "Security scanner for Model Context Protocol (MCP) servers"
 authors = ["MCP Sentinel Team <team@mcp-sentinel.dev>"]
 license = "MIT"
 readme = "README.md"
@@ -21,113 +21,34 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.9"
 
-# Core Framework
-fastapi = "^0.109.0"
+# Core
 pydantic = "^2.5.0"
 pydantic-settings = "^2.1.0"
-sqlalchemy = {extras = ["asyncio"], version = "^2.0.23"}
-alembic = "^1.13.0"
 
-# Async & Performance
-uvicorn = {extras = ["standard"], version = "^0.26.0"}
+# Async & File I/O
 aiofiles = "^23.2.1"
-aiohttp = "^3.9.1"
-aiocache = "^0.12.2"
-asyncpg = "^0.29.0"
-msgpack = "^1.0.7"
 
-# AI/ML Integration
-langchain = "^0.1.0"
-langchain-openai = "^0.0.2"
-langchain-anthropic = "^0.0.1"
-langchain-google-genai = "^0.0.5"
-anthropic = "^0.8.1"
-openai = "^1.6.1"
-transformers = "^4.36.2"
-sentence-transformers = "^5.1.0"  # Fixed: Update to match installed 5.1.2 (was ^2.2.2)
-chromadb = "~1.4.0"  # Fixed: Update to match installed 1.4.1 (was ^0.4.22)
-
-# Code Analysis
-tree-sitter = ">=0.20.0"
-tree-sitter-python = ">=0.20.0"
-tree-sitter-javascript = ">=0.20.0"
-tree-sitter-typescript = ">=0.20.0"
-libcst = "^1.1.0"
-semgrep = "^1.55.2"  # Fixed: Uncommented (semgrep_adapter.py requires this)
-bandit = "^1.7.6"
-
-# API & Microservices
-strawberry-graphql = {extras = ["fastapi"], version = "^0.217.1"}
-celery = {extras = ["redis"], version = "^5.3.4"}
-redis = "^5.0.1"
-grpcio = "^1.60.0"
-grpcio-tools = "^1.60.0"
-
-# Database & Storage
-psycopg2-binary = "^2.9.9"
-boto3 = "^1.34.19"
-elasticsearch = "^8.11.1"
-
-# Security & Auth
-python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
-python-multipart = "^0.0.6"
-cryptography = "^41.0.7"
-hvac = "^2.1.0"
+# CLI & Output
+click = "^8.1.7"
+rich = "^13.7.0"
+questionary = "^2.0.1"
+python-dotenv = "^1.0.0"
 
 # Testing & Quality
 pytest = "^7.4.4"
-pytest-asyncio = "~0.23.3"  # Fixed: Pin to 0.23.x (installed 1.2.0 violates ^0.23.3)
+pytest-asyncio = "~0.23.3"
 pytest-cov = "^4.1.0"
 pytest-mock = "^3.12.0"
 hypothesis = "^6.96.1"
-locust = "^2.20.0"
 mypy = "^1.8.0"
 black = "^23.12.1"
 ruff = "^0.1.11"
-
-# Enterprise Integrations
-jira = "^3.6.0"
-slack-sdk = "^3.26.1"
-PyGithub = "^2.1.1"
-gql = {extras = ["requests"], version = "^3.5.0"}
-python-gitlab = "^4.4.0"
-pdpyras = "^5.2.0"
-splunk-sdk = "^2.0.1"
-
-# Reporting & Analytics
-pandas = "^2.1.4"
-plotly = "^5.18.0"
-reportlab = "^4.0.9"
-openpyxl = "^3.1.2"
-jinja2 = "^3.1.3"
-weasyprint = "^60.2"
-markdown = "^3.5.2"
-
-# Monitoring & Observability
-prometheus-client = "^0.19.0"
-opentelemetry-api = "^1.22.0"
-opentelemetry-sdk = "^1.22.0"
-opentelemetry-instrumentation-fastapi = "^0.43b0"
-structlog = "^24.1.0"
-sentry-sdk = {extras = ["fastapi"], version = "^1.39.2"}
-datadog = "^0.49.1"
-
-# CLI & Utilities
-click = "^8.1.7"
-rich = "^13.7.0"
-tqdm = "^4.66.1"
-python-dotenv = "^1.0.0"
-pyyaml = "^6.0.1"
-requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.19.0"
 ipdb = "^0.13.13"
 pytest-watch = "^4.2.0"
 pre-commit = "^3.6.0"
-sphinx = "^7.2.6"
-sphinx-rtd-theme = "^2.0.0"
 
 [tool.poetry.scripts]
 mcp-sentinel = "mcp_sentinel.cli.main:cli"
@@ -138,7 +59,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 100
-target-version = ['py39']  # Fixed: Changed from py311 to match python = "^3.9"
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -156,7 +77,7 @@ extend-exclude = '''
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"  # Fixed: Changed from py311 to match python = "^3.9"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = [
@@ -178,7 +99,7 @@ ignore = [
 "__init__.py" = ["F401"]
 
 [tool.mypy]
-python_version = "3.9"  # Fixed: Changed from 3.11 to match python = "^3.9"
+python_version = "3.9"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -191,17 +112,6 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = false
-
-[[tool.mypy.overrides]]
-module = [
-    "tree_sitter.*",
-    "semgrep.*",
-    "bandit.*",
-    "jira.*",
-    "slack_sdk.*",
-    "pdpyras.*",
-]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"

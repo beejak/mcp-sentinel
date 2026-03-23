@@ -1,8 +1,7 @@
 """
-MCP Sentinel - Enterprise Security Scanner for Model Context Protocol Servers
+MCP Sentinel - Security Scanner for Model Context Protocol Servers
 
-A comprehensive security platform combining static analysis, semantic analysis,
-SAST, and AI-powered detection to identify vulnerabilities in MCP implementations.
+Static analysis tool for detecting vulnerabilities in MCP server code.
 """
 
 __version__ = "4.1.0"

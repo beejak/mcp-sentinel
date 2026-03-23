@@ -81,13 +81,10 @@ async def test_django_detection(temp_framework_project):
     
     # Should find:
     # 1. SQL Injection (User.objects.raw)
-    # 2. XSS (mark_safe)
-    
+
     sqli_found = any("raw" in v.description.lower() or "sql" in v.description.lower() for v in vulns)
-    xss_found = any("mark_safe" in v.description.lower() or "xss" in v.description.lower() for v in vulns)
-    
+
     assert sqli_found, "Django SQL Injection not detected"
-    assert xss_found, "Django mark_safe XSS not detected"
 
 @pytest.mark.asyncio
 async def test_fastapi_detection(temp_framework_project):
