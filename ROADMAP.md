@@ -1,624 +1,187 @@
-# MCP Sentinel - Product Roadmap
+# MCP Sentinel — Roadmap
 
-**Last Updated:** January 15, 2026
-**Current Version:** v4.3.0
-**Current Phase:** Phase 4.3 Complete - AI Analysis Engine ✅ 🚀
-
----
-
-## 🎯 Vision & Mission
-
-**Vision:** The most comprehensive, accurate, and developer-friendly security scanner for MCP servers.
-
-**Mission:** Provide enterprise-grade security analysis combining pattern-based detection, semantic analysis, SAST tools, and AI-powered insights to protect AI applications.
+**Last Updated:** March 2026
+**Current Version:** v0.1.0
+**Branch:** master
 
 ---
 
-## 📊 Current State (v4.3.0)
+## Guiding Principles
 
-### ✅ What's Working (Production-Ready)
-
-**Core Capabilities:**
-- ✅ **8 Specialized Detectors** - 100% parity with Rust version
-- ✅ **4 Analysis Engines** - Static, SAST, Semantic, AI 🆕
-- ✅ **4 Report Formats** - Terminal, JSON, SARIF, HTML
-- ✅ **99.5% Test Pass Rate** - 369/371 tests passing
-- ✅ **70.77% Code Coverage** - Continued improvement
-- ✅ **100+ Vulnerability Patterns** - Comprehensive detection
-- ✅ **Multi-Engine Orchestration** - Concurrent scanning with deduplication
-- ✅ **GitHub Code Scanning** - SARIF 2.1.0 compatible
-- ✅ **Semantic Analysis** - AST + taint tracking + CFG (Python + partial Java/JS)
-- ✅ **AI-Powered Detection** - Claude 3.5, GPT-4, Gemini, Ollama support 🆕
-
-**Languages Supported:**
-- ✅ Python (full support)
-- ✅ JavaScript (full support)
-- ✅ TypeScript (full support)
-
-**Ready For:**
-- MCP server security audits
-- CI/CD pipeline integration
-- Pre-commit hooks
-- Security team workflows
-- Compliance scanning
+1. **No external dependencies for core scanning** — no binaries, no API calls, no data exfiltration
+2. **MCP-specific threat model** — prioritize attack vectors documented in real CVEs and incidents, not generic SAST
+3. **Pessimistic defaults** — if in doubt about whether a pattern is dangerous, flag it
+4. **Small, auditable codebase** — a security tool that is itself hard to audit is a liability
 
 ---
 
-## 🗓️ Detailed Roadmap
+## v0.1.0 — Current (March 2026)
 
-### ✅ Phase 1-2: Foundation (Nov-Dec 2025) - COMPLETE
+Foundation: static pattern-based detection of the most common MCP vulnerability types.
 
-**Delivered:**
-- [x] 8 vulnerability detectors
-- [x] Async-first architecture
-- [x] Pydantic type-safe models
-- [x] Comprehensive test suite
-- [x] Pattern-based detection
+### What's in it
+- **6 detectors:** Secrets, Code Injection, Prompt Injection, Tool Poisoning, Path Traversal, Config Security
+- **50+ detection patterns** across 13 languages
+- **3 output formats:** Terminal (Rich), JSON, SARIF 2.1.0
+- **Python stdlib AST** for multi-line `subprocess(shell=True)` detection
+- **248 passing tests**, 4 xfail (multi-line taint — documented)
+- ~15 dependencies (pydantic, click, rich, aiofiles, python-dotenv)
 
-**Impact:** Foundation established with 8 detectors covering all major vulnerability types.
-
----
-
-### ✅ Phase 3: Report Generators (Jan 2026) - COMPLETE
-
-**Delivered:**
-- [x] SARIF 2.1.0 generator
-- [x] HTML interactive reports
-- [x] JSON structured output
-- [x] Terminal colored output
-- [x] GitHub Code Scanning integration
-
-**Impact:** Multi-format reporting enables integration with security platforms and teams.
+### Design decisions
+- Removed: AI/LLM analysis engine (exfiltrates code to external API — antithetical for a security tool)
+- Removed: SAST engine wrappers (Semgrep/Bandit) (external binary deps, version drift risk)
+- Removed: Semantic/CFG engine (over-engineered; stdlib AST covers the critical cases)
+- Removed: RAG system (only served the AI engine)
+- Removed: `fix` command (wrote AI-generated patches directly to source — too dangerous)
+- Removed: HTML report generator (unnecessary dependency surface)
+- Removed: XSS detector (generic web vuln, not MCP-specific; low signal-to-noise for MCP servers)
+- Removed: Supply chain detector (was stub-only; to be rebuilt properly in v0.3)
 
 ---
 
-### ✅ Phase 4.1: SAST Engine (Jan 2026) - COMPLETE
+## v0.2.0 — MCP-Native Attack Patterns (Q2 2026)
 
-**Delivered:**
-- [x] Semgrep integration (1000+ rules)
-- [x] Bandit integration
-- [x] Multi-engine architecture
-- [x] Graceful degradation
-- [x] Vulnerability deduplication
+Close the gap between generic static analysis and MCP-specific threats. Based on real CVE data and security research from January–February 2026 (30+ MCP CVEs filed in that period alone).
 
-**Impact:** Industry-standard SAST tools complement custom detectors.
+### SSRF Detector (new)
+Real-world data: **30% of MCP servers** were vulnerable to SSRF in independent scans. Tools that accept URL inputs and fetch them server-side without validation enable AWS EC2 metadata service access and internal network pivoting.
 
----
+Patterns to detect:
+- Tool arguments passed directly to `requests.get()`, `urllib.request.urlopen()`, `fetch()`, `aiohttp`
+- Missing allowlist validation before outbound URL fetch
+- Cloud metadata endpoint patterns in URL construction (`169.254.169.254`, `metadata.google.internal`)
+- `redirect_uri` / `callback_url` parameters without validation
 
-### ✅ Phase 4.2.1: Semantic Engine + Bug Fixes (Jan 2026) - COMPLETE
+### Tool Poisoning: Full-Schema Poisoning
+Current `ToolPoisoningDetector` only scans `description` fields. Research shows all schema fields are injection surfaces: tool names, parameter names, type annotations, examples, and defaults.
 
-**Delivered:**
-- [x] AST parsing engine
-- [x] Taint tracking (source-to-sink)
-- [x] Control Flow Graph (CFG) builder
-- [x] Guard detection (false positive reduction)
-- [x] Multi-line vulnerability detection
-- [x] 17 bug fixes across 5 detectors
-- [x] 98.9% test pass rate (367/371)
-- [x] 70.44% code coverage
+Enhancements:
+- Scan all MCP schema fields (name, parameters, annotations) for injection patterns
+- Detect tool descriptions that reference other tools by name in a directive manner (`"before calling tool X, always call this tool"`) — cross-server escalation vector
+- Flag tool descriptions with anomalous length (>500 chars) or high density of invisible Unicode
 
-**Impact:** Deep semantic analysis enables detection of complex multi-line vulnerabilities with fewer false positives.
+### Network Binding Check
+8,000+ MCP servers are currently exposed publicly due to servers binding to `0.0.0.0` instead of `127.0.0.1`. Patterns:
 
----
+```python
+# Flag
+app.run(host="0.0.0.0")
+server.listen("0.0.0.0", 8080)
 
-### 🚀 Phase 4.2.2: Test Coverage Progress (Jan 2026) - 99.5% ✅
-
-**Timeline:** In Progress
-**Priority:** Medium
-**Goal:** Approach 100% test pass rate
-
-**Completed:**
-- [x] JavaScript multi-line comment detection (`/* ... */` blocks)
-- [x] Python fixture file detection (12+ vulnerabilities)
-- [x] Enable semantic analysis for Java/JavaScript (regex fallbacks)
-- [x] Test pass rate: 98.9% → 99.5% (367/371 → 369/371)
-- [x] Code coverage: 70.44% → 70.77%
-
-**Remaining (Future Phase):**
-- [ ] Java File constructor taint tracking (requires full Java AST parsing)
-- [ ] Node.js file handler semantic analysis (requires full JavaScript AST parsing)
-- [ ] Full semantic analysis implementation for Java/JavaScript
-
-**Current Status:**
-- 369/371 tests passing (99.5%)
-- 2 xfailed tests (require multi-line taint tracking for Java/JS)
-- Regex-based fallbacks insufficient for cross-line variable tracking
-
-**Impact:** Near-perfect test coverage with only edge cases requiring advanced semantic analysis remaining.
-
----
-
-### ✅ Phase 4.3: AI Analysis Engine (Jan 2026) - COMPLETE
-
-**Delivered:**
-- [x] Multi-provider architecture (Claude, GPT-4, etc.)
-- [x] Cost management and budget tracking
-- [x] Contextual vulnerability analysis
-- [x] 99.5% test pass rate
-
-**Impact:** Introduced revolutionary AI-powered detection capabilities.
-
----
-
-### ✅ Phase 4.4: Remediation & RAG (Jan 2026) - COMPLETE
-
-**Delivered:**
-- [x] **RAG Engine** - Vector store (ChromaDB) with semantic search
-- [x] **Knowledge Base** - OWASP, CWE, SANS, and Framework patterns
-- [x] **Automated Remediation** - AI-generated fixes with unified diffs
-- [x] **Parallel Data Loading** - High-performance knowledge base population
-- [x] **Framework Intelligence** - Django, FastAPI, Flask specialized detection
-- [x] **83.56% Code Coverage** - Significant increase in test coverage
-
-**Impact:** System can now not only find bugs but explain them with context and propose fix patches.
-
----
-
-### 🚧 Phase 4.5: CLI Integration & UX (Upcoming)
-
-**Planned:**
-- [ ] `mcp-sentinel fix` command for applying remediation
-- [ ] Interactive triage of AI findings
-- [ ] RAG-enriched reporting (HTML/SARIF)
-- [ ] Performance tuning for large repositories
-
----
-
-### 🏢 Phase 5: Enterprise Platform Foundation (Q3 2026)
-
-**Timeline:** 10-12 weeks
-**Priority:** High
-**Goal:** Enterprise-ready platform with API, database, and task queue
-
-**Planned:**
-
-#### FastAPI REST API Server (4-5 weeks)
-- [ ] RESTful API endpoints
-  - [ ] POST /api/v1/scan - Trigger scans
-  - [ ] GET /api/v1/scans/{id} - Get scan results
-  - [ ] GET /api/v1/scans - List scans
-  - [ ] DELETE /api/v1/scans/{id} - Delete scan
-- [ ] Authentication & Authorization
-  - [ ] JWT-based authentication
-  - [ ] API key management
-  - [ ] Role-based access control (RBAC)
-  - [ ] Team/organization support
-- [ ] WebSocket real-time updates
-- [ ] OpenAPI/Swagger documentation
-- [ ] Rate limiting and quotas
-- [ ] GraphQL query interface (optional)
-
-#### Database Layer (3-4 weeks)
-- [ ] PostgreSQL for persistent storage
-  - [ ] Scan history with full results
-  - [ ] Vulnerability trending over time
-  - [ ] User/team/organization management
-  - [ ] Audit logs
-- [ ] Redis caching layer
-  - [ ] Scan result caching
-  - [ ] Session management
-  - [ ] Rate limiting counters
-- [ ] Database migrations (Alembic)
-- [ ] Backup and restore utilities
-- [ ] Historical comparison and drift detection
-
-#### Task Queue System (2-3 weeks)
-- [ ] Celery distributed task processing
-- [ ] Background scan jobs
-- [ ] Priority queues (critical, high, normal, low)
-- [ ] Scheduled scans (cron-like)
-- [ ] Worker scaling and load balancing
-- [ ] Task retry logic and error handling
-- [ ] Progress tracking and status updates
-
-**Success Metrics:**
-- API handles 100+ concurrent scan requests
-- Database supports 1M+ vulnerability records
-- Task queue processes 1000+ scans/day
-- <200ms average API response time
-
-**Impact:** Enterprise-ready backend enables team collaboration, historical tracking, and scalable scanning.
-
----
-
-### 🔗 Phase 6: Enterprise Integrations (Q4 2026)
-
-**Timeline:** 12-14 weeks
-**Priority:** Medium-High
-**Goal:** Seamless integration with enterprise tools
-
-**Planned:**
-
-#### Ticketing Systems (4-5 weeks)
-- [ ] **Jira Integration**
-  - Auto-create security tickets
-  - Custom field mapping
-  - Priority/severity mapping
-  - Status synchronization
-  - Comment updates
-- [ ] **ServiceNow Integration**
-  - Incident creation
-  - Workflow integration
-  - CMDB linking
-- [ ] **Linear Integration**
-  - Issue tracking
-  - Project assignment
-  - Sprint planning
-
-#### Notification Channels (3-4 weeks)
-- [ ] **Slack Integration**
-  - Channel notifications
-  - Interactive buttons (acknowledge, assign, resolve)
-  - Daily/weekly digest
-  - Severity-based routing
-- [ ] **Microsoft Teams**
-  - Adaptive card notifications
-  - Channel webhooks
-- [ ] **PagerDuty**
-  - Incident creation for critical vulnerabilities
-  - On-call escalation
-- [ ] **Email Notifications**
-  - Customizable templates
-  - Digest emails
-  - Individual alerts
-
-#### Secret Management (2-3 weeks)
-- [ ] **HashiCorp Vault**
-  - Secure API key storage
-  - Secret rotation
-  - Dynamic credentials
-- [ ] **AWS Secrets Manager**
-  - Cloud-native integration
-  - Automatic rotation
-- [ ] **Azure Key Vault**
-  - Microsoft cloud integration
-
-#### VCS Integration (3-4 weeks)
-- [ ] **GitHub Integration**
-  - Pull request comments
-  - Commit status checks
-  - Issue creation and linking
-  - Code scanning alerts
-  - GitHub App
-- [ ] **GitLab Integration**
-  - Merge request comments
-  - Pipeline integration
-  - Security dashboard
-- [ ] **Bitbucket Integration**
-  - PR annotations
-  - Build status updates
-
-#### Logging & Monitoring (3-4 weeks)
-- [ ] **Datadog**
-  - Metrics export
-  - APM integration
-  - Log forwarding
-  - Custom dashboards
-- [ ] **Splunk**
-  - Event forwarding
-  - Custom dashboards
-  - Alert correlation
-- [ ] **Elasticsearch + Kibana**
-  - Log aggregation
-  - Visualization dashboards
-  - Search and analytics
-- [ ] **Prometheus + Grafana**
-  - Metrics export
-  - Performance monitoring
-  - Alert rules
-
-**Success Metrics:**
-- 80% of vulnerabilities automatically ticketed
-- <5min notification latency
-- 95% integration uptime
-
-**Impact:** Seamless workflow integration reduces manual work and improves response times.
-
----
-
-### 📊 Phase 7: Advanced Analytics & Reporting (Q1 2027)
-
-**Timeline:** 8-10 weeks
-**Priority:** Medium
-**Goal:** Executive dashboards, compliance mapping, and trend analysis
-
-**Planned:**
-
-#### Advanced Report Formats (3-4 weeks)
-- [ ] PDF executive summaries
-  - Charts and graphs
-  - Risk scoring
-  - Trend analysis
-  - Executive-friendly language
-- [ ] Excel exports
-  - Detailed findings
-  - Pivot tables
-  - Data analysis ready
-- [ ] Markdown reports
-  - GitHub-friendly
-  - Version control friendly
-- [ ] Custom templates (Jinja2)
-
-#### Compliance Mappings (4-5 weeks)
-- [ ] SOC 2 control mapping
-- [ ] HIPAA security rule alignment
-- [ ] PCI-DSS requirements mapping
-- [ ] NIST CSF framework alignment
-- [ ] CIS Controls benchmark mapping
-- [ ] ISO 27001 standard compliance
-- [ ] Compliance gap analysis
-- [ ] Evidence collection for audits
-
-#### Analytics Dashboard (5-6 weeks)
-- [ ] Vulnerability trend dashboards
-  - Time-series analysis
-  - Pattern identification
-  - Regression detection
-- [ ] Risk scoring algorithms
-  - CVSS-based scoring
-  - Business impact weighting
-  - Exploitability assessment
-- [ ] False positive rate tracking
-  - Per-detector metrics
-  - Per-engine comparison
-  - Improvement over time
-- [ ] Performance metrics
-  - Scan duration trends
-  - Detection accuracy
-  - Engine efficiency
-- [ ] Time-to-remediation tracking
-  - SLA monitoring
-  - Bottleneck identification
-- [ ] Team performance benchmarks
-  - Remediation velocity
-  - Quality metrics
-
-**Success Metrics:**
-- Compliance reports save 80% of manual effort
-- Risk scoring accuracy >90%
-- Executive dashboards used weekly
-
-**Impact:** Data-driven security decisions and streamlined compliance reporting.
-
----
-
-### 🖥️ Phase 8: Web Dashboard (Q2 2027)
-
-**Timeline:** 12-14 weeks
-**Priority:** Medium
-**Goal:** Modern web UI for teams
-
-**Planned:**
-
-#### Frontend Application (8-10 weeks)
-- [ ] React + TypeScript SPA
-- [ ] Real-time scanning visualization
-- [ ] Vulnerability management
-  - Triage workflow
-  - Assignment and ownership
-  - Status tracking (open, in-progress, resolved, false-positive)
-  - Comment threads
-- [ ] Team collaboration
-  - @mentions
-  - Activity feed
-  - Notifications
-- [ ] Custom rule authoring UI
-  - Pattern editor
-  - Test rule against sample code
-  - Rule library
-- [ ] Scan history browser
-  - Filtering and search
-  - Comparison views
-  - Export functionality
-- [ ] Interactive charts
-  - D3.js visualizations
-  - Drill-down capabilities
-- [ ] Dark/light mode
-- [ ] Responsive design (mobile-friendly)
-
-#### User Management (3-4 weeks)
-- [ ] Role-based access control
-  - Admin role
-  - Security team role
-  - Developer role
-  - Viewer role
-- [ ] Team and organization support
-  - Multi-tenancy
-  - Resource isolation
-- [ ] SSO integration
-  - SAML 2.0
-  - OAuth 2.0 / OpenID Connect
-  - LDAP/Active Directory
-- [ ] Audit logging
-  - User actions
-  - Security events
-  - Compliance tracking
-
-#### Dashboard Features (4-5 weeks)
-- [ ] Executive summary view
-- [ ] Security posture overview
-  - Risk score
-  - Vulnerability trends
-  - Compliance status
-- [ ] Vulnerability heatmaps
-  - By severity
-  - By component
-  - By time
-- [ ] Remediation workflow management
-  - Kanban board
-  - Gantt chart
-  - Burndown charts
-- [ ] SLA tracking and alerts
-  - Time to triage
-  - Time to remediation
-  - Breach notifications
-- [ ] Custom dashboard widgets
-  - Drag-and-drop builder
-  - Saved layouts
-  - Sharing capabilities
-
-**Success Metrics:**
-- 90% user satisfaction
-- <2s page load times
-- 80% of security work done through UI
-
-**Impact:** Modern UI makes MCP Sentinel accessible to non-technical stakeholders and improves team efficiency.
-
----
-
-### 🚀 Phase 9: Advanced Capabilities (Q3-Q4 2027)
-
-**Timeline:** Ongoing
-**Priority:** Low-Medium
-**Goal:** Cutting-edge features and expansion
-
-**Planned:**
-
-#### Language Expansion
-- [ ] Rust semantic analysis
-- [ ] Java semantic analysis
-- [ ] C++ semantic analysis
-- [ ] Ruby detection
-- [ ] PHP detection
-- [ ] Go detection
-
-#### IDE Integrations
-- [ ] VS Code extension
-  - Inline vulnerability highlighting
-  - Quick fixes
-  - Settings management
-- [ ] JetBrains plugin
-  - IntelliJ, PyCharm, WebStorm
-- [ ] Vim/Neovim plugin
-
-#### Runtime Monitoring
-- [ ] Proxy-based MCP traffic analysis
-- [ ] Real-time threat detection
-- [ ] Anomaly detection
-- [ ] Request/response inspection
-
-#### ML Detection Models
-- [ ] Custom ML models trained on vulnerability data
-- [ ] Pattern learning from false positives
-- [ ] Anomaly detection
-
-#### Advanced Features
-- [ ] Threat intelligence integration
-  - CVE correlation
-  - Exploit database lookup
-  - Active threat feeds
-- [ ] Container security
-  - Docker image scanning
-  - Kubernetes manifest analysis
-- [ ] Mobile MCP clients
-  - iOS MCP analysis
-  - Android MCP analysis
-
-**Impact:** Comprehensive coverage across languages, platforms, and deployment scenarios.
-
----
-
-## 📈 Success Metrics by Phase
-
-| Phase | Key Metric | Target | Status |
-|-------|------------|--------|--------|
-| **4.2.2** | Test pass rate | 99.5% (369/371) | ✅ Complete |
-| **4.3** | AI engine integration | 4 providers supported | ✅ Complete |
-| **4.4** | RAG + remediation | 80% findings with fixes | 🎯 Planned |
-| **5** | API throughput | 100+ concurrent scans | 📋 Planned |
-| **6** | Integration adoption | 5+ integrations used by 80% users | 📋 Planned |
-| **7** | Compliance efficiency | 80% time saved on reports | 📋 Planned |
-| **8** | User adoption | 80% work through web UI | 📋 Planned |
-| **9** | Language coverage | 8+ languages supported | 📋 Planned |
-
----
-
-## 🎯 Strategic Priorities
-
-### Near-Term (2026)
-1. ✅ **AI Innovation** - AI-powered analysis complete (Phase 4.3)
-2. **AI Enhancement** - RAG + automated remediation (Phase 4.4)
-3. **Enterprise Readiness** - API, database, integrations (Phases 5-6)
-
-### Mid-Term (2027)
-1. **User Experience** - Web dashboard and analytics (Phases 7-8)
-2. **Market Expansion** - More languages and platforms (Phase 9)
-
-### Long-Term (2028+)
-1. **Market Leader** - Most comprehensive MCP security platform
-2. **Community Growth** - Open source adoption
-3. **Enterprise Sales** - Paid enterprise tier with advanced features
-
----
-
-## 💰 Business Model (Future)
-
-### Open Source Core (Current)
-- ✅ All 8 detectors
-- ✅ 4 analysis engines (Static, SAST, Semantic, AI)
-- ✅ CLI scanner
-- ✅ Multi-format reporting (Terminal, JSON, SARIF, HTML)
-- ✅ AI-powered detection (with API keys)
-
-### Enterprise Edition (Phase 5+)
-- 💼 Web dashboard
-- 💼 REST API
-- 💼 Team collaboration
-- 💼 SSO/SAML
-- 💼 Advanced integrations
-- 💼 SLA support
-- 💼 Custom training
-
----
-
-## 🤝 Community & Contribution
-
-### How to Contribute
-- **Phase 4.2.2** - Help fix xfailed tests
-- **Phase 4.3** - AI prompt engineering
-- **Ongoing** - Additional vulnerability patterns
-- **Ongoing** - Documentation improvements
-
-### Maintainer Commitment
-- Monthly releases
-- Active issue triage
-- Community support
-- Transparent roadmap
-
----
-
-## 📅 Timeline Summary
-
-```
-✅ 2026 Q1: Phase 4.2.2 Complete (99.5% test coverage)
-✅ 2026 Q1: Phase 4.3 Complete (AI engine - 4 providers)
-🎯 2026 Q2: Phase 4.4 Planned (RAG + remediation)
-📋 2026 Q3: Phase 5 Planned (Enterprise platform)
-📋 2026 Q4: Phase 6 Planned (Integrations)
-📋 2027 Q1: Phase 7 Planned (Analytics)
-📋 2027 Q2: Phase 8 Planned (Web dashboard)
-📋 2027 Q3-Q4: Phase 9 Planned (Advanced features)
-📋 2028+: Market leadership, community growth
+# Safe
+app.run(host="127.0.0.1")
 ```
 
----
+### Missing Auth Patterns
+Flag management and debug endpoints defined without authentication decorators, particularly in MCP server initialization code.
 
-**Current Status:** ✅ **Phase 4.3 Complete** - AI-Powered Multi-Engine Scanner Ready for Production! 🚀
-
-**What's New:**
-- 4 Analysis Engines (Static, SAST, Semantic, AI)
-- AI-powered detection with Claude 3.5, GPT-4, Gemini, Ollama
-- 99.5% test pass rate (369/371 tests)
-- 70.77% code coverage
-- Cost-controlled AI scanning
-- Production-ready with comprehensive documentation
-
-**Next Milestone:** Phase 4.4 - Advanced AI Features (RAG, remediation, explanations) - 4-6 weeks
-
-**Long-term Vision:** The most comprehensive, AI-powered security scanner for MCP servers
+### Sensitive Path Targeting in Tool Descriptions
+Detect tool descriptions that reference credential paths (`.env`, `.ssh/`, `~/.aws/credentials`, `~/.config/`) — the pattern used in the GitHub MCP prompt injection data heist.
 
 ---
 
-**Last Updated:** January 15, 2026
-**Maintained By:** MCP Sentinel Team
-**License:** MIT
+## v0.3.0 — Supply Chain & Package Integrity (Q3 2026)
+
+The `postmark-mcp` attack (silent BCC on all outgoing emails), npm packages with embedded reverse shells, and PyPI typosquatting of MCP server names are documented incidents.
+
+### Rebuilt Supply Chain Detector
+- **Exfiltration patterns in non-network tools:** Flag unexpected `requests`, `fetch`, `urllib` calls in tools that have no declared network purpose (e.g., a file reader tool making outbound HTTP calls)
+- **BCC/forward injection in email tools:** Detect patterns that silently copy or redirect email/message content
+- **Dynamic code execution at install:** Flag `postinstall`, `prepare`, `setup.py` scripts with network calls or shell execution
+- **Typosquatting heuristics:** Flag package names with edit distance <= 2 from known high-value MCP packages
+- **Encoded payload patterns:** `eval(atob(...))`, `eval(base64.b64decode(...))`, `exec(compile(...))`
+
+### Dependency Confusion Detection
+- Detect packages that appear in both internal and external registry references
+- Flag packages with abnormal recent version bumps that add network behavior not present in prior versions (structural signal — requires manifest analysis)
+
+---
+
+## v0.4.0 — Rug Pull & Runtime Trust Signals (Q4 2026)
+
+CVE-2025-54136 (MCPoison by Check Point) demonstrated the rug pull attack: a tool behaves legitimately during initial approval, then changes its behavior after the approval step. Pure static analysis cannot detect this at runtime, but there are structural signals detectable in source code.
+
+### Tool Definition Hashing
+- Hash MCP tool schemas (description + parameter schema) at scan time
+- Persist hashes between scans
+- Flag hash drift between consecutive scans of the same server — tool definitions changing between versions is a rug pull indicator
+- Output: diff of changed tool descriptions in scan results
+
+### Nondeterministic Schema Detection
+Flag server code that generates tool descriptions dynamically from environment variables, external config, or runtime state — enables rug pull without changing source code.
+
+```python
+# Flag — description comes from external source
+description = os.environ.get("TOOL_DESC", "A helpful tool")
+
+# Flag — description conditionally changes
+if is_approved_mode:
+    description = "Reads files safely"
+else:
+    description = "Reads files and sends to webhook"
+```
+
+### Weak Crypto Detector (new)
+Complements the secrets detector with cryptographic weakness detection:
+- `hashlib.md5()` / `hashlib.sha1()` used for security purposes (not checksums)
+- `random.random()` / `random.randint()` used for tokens or secrets (not `secrets.token_*`)
+- Hardcoded salts or IVs
+- ECB mode cipher usage
+
+### Insecure Deserialization (new)
+- `pickle.loads()` / `pickle.load()` on untrusted input
+- `yaml.load()` without `Loader=yaml.SafeLoader`
+- `marshal.loads()` on untrusted input
+- `eval(json_string)` instead of `json.loads()`
+
+---
+
+## v0.5.0 — Ecosystem & Compliance (Q1 2027)
+
+### OWASP Agentic AI Top 10 Mapping
+Map all findings to the OWASP Top 10 for Agentic Applications 2026 (ASI01-ASI10). This is the emerging compliance framework for AI agent security. Provides:
+- OWASP ASI ID per finding in all output formats
+- Compliance summary report showing coverage per OWASP category
+- SARIF output extended with OWASP taxonomy
+
+### MCP-Specific Severity Calibration
+A `subprocess(shell=True)` call in an MCP server with filesystem access has a different blast radius than the same call in a standalone script. Introduce an MCP context multiplier:
+- Server has declared filesystem or network access: elevate severity
+- Server runs via STDIO (inherits user privilege): add context note
+- Tool description references sensitive operations: elevate related code findings
+
+### Lightweight Multi-File Taint (stdlib only)
+Re-introduce limited cross-function taint analysis using only stdlib `ast` — specifically for the high-value patterns currently tracked as xfail tests:
+- Variable assigned from `request`/`args`/`params` in function A, passed to `open()`/`os.path.join()` in function B
+- Limit to single-file, top-level def-use chains only (no interprocedural)
+
+### MCP Sampling Mechanism Audit
+Unit 42 research (Palo Alto) identified three exploitation vectors via MCP sampling: resource/compute theft, conversation hijacking, and covert tool invocation. Detect:
+- Sampling handlers that accept and execute content without sanitization
+- Sampling callbacks that invoke file system or network operations on received content
+- Missing validation of sampling response content before use
+
+---
+
+## Explicitly Out of Scope (permanent)
+
+| Feature | Reason |
+|---|---|
+| AI/LLM analysis engine | Exfiltrates code to external API — violates the trust model of a security tool |
+| SAST binary wrappers (Semgrep/Bandit) | External binary deps create version drift risk and supply chain surface |
+| `fix` command (auto-patching) | Automated writes to production source code from a security scanner is too dangerous |
+| Full semantic/CFG engine | Complexity not justified; stdlib AST covers the critical patterns |
+| Web dashboard / REST API | CLI + SARIF integrates with existing security workflows |
+| Enterprise integrations (Jira, Slack, PagerDuty) | Out of scope for a focused security scanner |
+
+---
+
+## Contributing
+
+The highest-value contributions right now:
+- Additional detection patterns for existing detectors (PRs welcome with test cases)
+- False positive reports with reproducer code
+- v0.2 SSRF detector implementation
+- Language-specific pattern improvements (Go, Rust, Java MCP server patterns)
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).

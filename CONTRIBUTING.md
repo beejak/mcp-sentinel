@@ -19,29 +19,23 @@ This project adheres to a code of conduct. By participating, you are expected to
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- Poetry 1.7+
+- Python 3.9+
 - Git
 
 ### Setup Development Environment
 
 1. Fork and clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/mcp-sentinel-python.git
-cd mcp-sentinel-python
+git clone https://github.com/YOUR_USERNAME/mcp-sentinel.git
+cd mcp-sentinel
 ```
 
 2. Install dependencies:
 ```bash
-poetry install --with dev
+pip install -e ".[dev]"
 ```
 
-3. Install pre-commit hooks:
-```bash
-poetry run pre-commit install
-```
-
-4. Create a branch for your feature:
+3. Create a branch for your feature:
 ```bash
 git checkout -b feature/your-feature-name
 ```
@@ -51,41 +45,31 @@ git checkout -b feature/your-feature-name
 ### Running the Scanner
 
 ```bash
-# Run from source
-poetry run mcp-sentinel scan /path/to/project
-
-# Or use python -m
-poetry run python -m mcp_sentinel scan /path/to/project
+mcp-sentinel scan /path/to/project
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-poetry run pytest
+python -m pytest tests/ -v
 
 # Run with coverage
-poetry run pytest --cov=mcp_sentinel --cov-report=html
+python -m pytest --cov=mcp_sentinel --cov-report=html
 
 # Run specific test file
-poetry run pytest tests/unit/test_secrets_detector.py
-
-# Run tests in watch mode
-poetry run pytest-watch
+python -m pytest tests/unit/test_secrets_detector.py
 ```
 
 ### Code Quality
 
 ```bash
 # Format code
-poetry run black src/ tests/
-poetry run ruff --fix src/ tests/
+black src/ tests/
+ruff check --fix src/ tests/
 
 # Type checking
-poetry run mypy src/
-
-# Security scanning
-poetry run bandit -r src/
+mypy src/
 ```
 
 ## Testing
@@ -178,10 +162,10 @@ def example_function(param1: str, param2: int) -> bool:
 
 ### Before Submitting
 
-1. ✅ Run tests: `poetry run pytest`
-2. ✅ Check code style: `poetry run black --check src/ tests/`
-3. ✅ Check linting: `poetry run ruff check src/ tests/`
-4. ✅ Check types: `poetry run mypy src/`
+1. ✅ Run tests: `python -m pytest tests/ -v`
+2. ✅ Check code style: `black --check src/ tests/`
+3. ✅ Check linting: `ruff check src/ tests/`
+4. ✅ Check types: `mypy src/`
 5. ✅ Update documentation if needed
 6. ✅ Add tests for new functionality
 
@@ -252,20 +236,9 @@ class MyDetector(BaseDetector):
         return vulnerabilities
 ```
 
-## Adding New Integrations
-
-To add a new enterprise integration:
-
-1. Create directory: `src/mcp_sentinel/integrations/my_integration/`
-2. Implement the integration class
-3. Add configuration to `core/config.py`
-4. Add tests
-5. Document usage
-
 ## Questions?
 
 - Open an issue for bugs or feature requests
-- Join our Discord for discussions
 - Check existing issues and PRs first
 
-Thank you for contributing to MCP Sentinel! 🎉
+Thank you for contributing to MCP Sentinel!
