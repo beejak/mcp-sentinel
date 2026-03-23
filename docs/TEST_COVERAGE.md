@@ -1,6 +1,6 @@
 # MCP Sentinel v0.3.0 — Test Coverage
 
-**Total: 383 passed, 4 xfailed (documented), 0 failed**
+**Total: 409 passed, 4 xfailed (documented), 0 failed**
 **Python:** 3.9, 3.10, 3.11, 3.12
 **Last run:** 2026-03-23
 
@@ -10,7 +10,7 @@
 
 | Test File | Tests | Status | What It Covers |
 |---|---|---|---|
-| `tests/unit/test_supply_chain.py` | 49 | 49 pass | SupplyChainDetector — new in v0.3.0 |
+| `tests/unit/test_supply_chain.py` | 75 | 75 pass | SupplyChainDetector — new in v0.3.0 |
 | `tests/unit/test_ssrf_detector.py` | 25 | 25 pass | SSRFDetector — new in v0.2.0 |
 | `tests/unit/test_network_binding.py` | 22 | 22 pass | NetworkBindingDetector — new in v0.2.0 |
 | `tests/unit/test_missing_auth.py` | 19 | 19 pass | MissingAuthDetector — new in v0.2.0 |
@@ -34,7 +34,7 @@
 
 ## v0.3.0 New Detector Tests
 
-### SupplyChainDetector (49 tests)
+### SupplyChainDetector (75 tests)
 
 | Test | What It Verifies |
 |---|---|
@@ -87,6 +87,33 @@
 | `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
 | `test_vulnerability_detector_field` | `v.detector == "SupplyChainDetector"` |
 | `test_vulnerability_engine_field` | `v.engine == "static"` |
+| `test_detect_urlsafe_b64decode` | `eval(base64.urlsafe_b64decode(...))` → CRITICAL |
+| `test_detect_codecs_decode` | `eval(codecs.decode(..., 'base64'))` → CRITICAL |
+| `test_detect_marshal_loads_base64` | `marshal.loads(base64.b64decode(...))` → CRITICAL |
+| `test_detect_exec_compile_base64` | `exec(compile(base64.b64decode(...), ...))` → CRITICAL |
+| `test_detect_bcc_add_header` | `msg.add_header('Bcc', 'spy@...')` → HIGH |
+| `test_detect_npm_preinstall_hook` | `"preinstall": "curl ... \| bash"` → HIGH |
+| `test_detect_index_url_config_override` | `index-url = https://my.private-registry.io/` in pip.conf → MEDIUM |
+| `test_detect_npm_registry_json_field` | `"registry": "https://npm.attacker-corp.io/"` → MEDIUM |
+| `test_detect_fetch_with_readfile` | `fetch(url, {body: fs.readFileSync(...)})` → CRITICAL |
+| `test_detect_urllib_in_setup_py` | `urllib.request.urlopen(...)` in setup.py → CRITICAL |
+| `test_no_false_positive_base64_decode_without_eval` | `base64.b64decode(...)` alone not flagged |
+| `test_no_false_positive_pypi_index_url` | `--index-url https://pypi.org/simple/` not flagged |
+| `test_no_false_positive_pythonhosted` | `--extra-index-url https://files.pythonhosted.org/` not flagged |
+| `test_encoded_payload_severity_is_critical` | Encoded payload severity == CRITICAL |
+| `test_install_script_network_severity_is_critical` | Network call in setup.py == CRITICAL |
+| `test_covert_exfiltration_severity_is_critical` | Exfiltration severity == CRITICAL |
+| `test_typosquat_mongose` | `require("mongose")` → HIGH |
+| `test_typosquat_reqests` | `import reqests` → HIGH |
+| `test_multiple_categories_same_file` | Multiple categories detected in one file |
+| `test_empty_file` | Empty file produces no findings |
+| `test_blank_lines_only` | Blank-only content produces no findings |
+| `test_comment_only_file` | Comment-only content produces no findings |
+| `test_applicable_to_bash_extension` | `.bash` in scope |
+| `test_applicable_to_jsx` | `.jsx` in scope |
+| `test_applicable_to_tsx` | `.tsx` in scope |
+| `test_applicable_to_setup_cfg` | `setup.cfg` in scope |
+| `test_applicable_to_pipfile` | `Pipfile` in scope |
 
 ---
 
@@ -293,7 +320,7 @@ python -m pytest tests/ -v
 # Specific detector
 python -m pytest tests/unit/test_ssrf_detector.py -v
 
-# v0.3.0 new detector only
+# v0.3.0 new detector (75 tests)
 python -m pytest tests/unit/test_supply_chain.py -v
 
 # v0.2.0 new detectors

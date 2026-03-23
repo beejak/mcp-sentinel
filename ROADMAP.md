@@ -90,7 +90,7 @@ The `postmark-mcp` attack (silent BCC on all outgoing emails), npm packages with
 
 **Stats:**
 - Detectors: 9 → 10
-- Tests: 334 → 383 passed, 4 xfail, 0 failed
+- Tests: 334 → 409 passed, 4 xfail, 0 failed
 - New vulnerability type: `SUPPLY_CHAIN` (was stub in models — now active)
 
 ---

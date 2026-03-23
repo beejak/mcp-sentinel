@@ -1,7 +1,7 @@
 # MCP Sentinel — Architecture
 
 **Version**: v0.3.0
-**Status**: 10 detectors, 383 tests, static engine
+**Status**: 10 detectors, 409 tests, static engine
 
 ---
 

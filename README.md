@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Tests](https://img.shields.io/badge/tests-383%20passing-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
+[![Tests](https://img.shields.io/badge/tests-409%20passing-brightgreen.svg)](https://github.com/beejak/mcp-sentinel)
 [![Version](https://img.shields.io/badge/version-v0.3.0-blue.svg)](https://github.com/beejak/mcp-sentinel/releases)
 
 </div>
@@ -28,7 +28,7 @@
 | | v0.1.0 | v0.2.0 | v0.3.0 |
 |---|---|---|---|
 | **Detectors** | 6 | 9 (+3) | 10 (+1) |
-| **Tests passing** | 248 | 334 (+86) | 383 (+49) |
+| **Tests passing** | 248 | 334 (+86) | 409 (+75) |
 | **Coverage** | ~82% | 86.47% | ~87% |
 | **VulnerabilityTypes** | 10 | 13 | 14 (+SUPPLY_CHAIN) |
 
@@ -348,7 +348,7 @@ black --check src/
 mypy src/
 ```
 
-**Test suite:** 383 passing, 4 xfail (multi-line taint patterns that require semantic analysis — documented in `tests/unit/test_path_traversal.py`)
+**Test suite:** 409 passing, 4 xfail (multi-line taint patterns that require semantic analysis — documented in `tests/unit/test_path_traversal.py`)
 
 ---
 

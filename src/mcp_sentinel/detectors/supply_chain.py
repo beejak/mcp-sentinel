@@ -139,7 +139,7 @@ class SupplyChainDetector(BaseDetector):
                 ),
                 # DNS exfiltration pattern (encoding data in DNS lookups)
                 re.compile(
-                    r"socket\.(gethostbyname|getaddrinfo)\s*\([^)]*(?:\+|format|f['\"])",
+                    r"socket\.(gethostbyname|getaddrinfo)\s*\([^\n]*?(?:\+|format|f['\"])",
                     re.IGNORECASE,
                 ),
                 # JavaScript: fetch/axios with env vars in body
@@ -261,14 +261,8 @@ class SupplyChainDetector(BaseDetector):
         lines = content.split("\n")
 
         # Determine context for smarter detection
-        is_install_script = file_path.name.lower() in {
-            "setup.py", "setup.cfg",
-        }
+        is_install_script = file_path.name.lower() in {"setup.py", "setup.cfg"}
         is_package_json = file_path.name.lower() == "package.json"
-        is_manifest = file_path.name.lower() in {
-            "requirements.txt", "requirements-dev.txt", "pyproject.toml",
-            "pipfile", ".npmrc", "pip.conf", "pip.ini",
-        }
 
         for line_num, line in enumerate(lines, start=1):
             stripped = line.strip()
@@ -318,8 +312,11 @@ class SupplyChainDetector(BaseDetector):
         self, line: str, category: str, file_path: Path
     ) -> bool:
         """Suppress common false positives."""
-        if self._FP_WORDS.search(line):
-            return True
+        # Dependency confusion and typosquat patterns use URLs/package names that
+        # can legitimately contain words like "example" or "test" — skip generic check.
+        if category not in ("dependency_confusion", "known_typosquat"):
+            if self._FP_WORDS.search(line):
+                return True
 
         # base64.b64decode for legitimate data (not wrapped in eval/exec) — handled by pattern
         # BCC in test files / documentation — handled by _FP_WORDS above
