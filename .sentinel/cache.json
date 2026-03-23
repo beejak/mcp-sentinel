@@ -13877,5 +13877,2768 @@
         "threat_intel": null
       }
     ]
+  },
+  "/tmp/tmpw72jk530.py": {
+    "hash": "3253b41059cac6e987c5a5e9233ea5d0",
+    "timestamp": "2026-03-23T15:14:29.482400",
+    "vulnerabilities": []
+  },
+  "/tmp/tmp1f24ub_v.py": {
+    "hash": "3253b41059cac6e987c5a5e9233ea5d0",
+    "timestamp": "2026-03-23T15:15:09.901558",
+    "vulnerabilities": []
+  },
+  "/tmp/tmp1mhpk0s2/views.py": {
+    "hash": "c88c18110d2bf370437354470c0d87fc",
+    "timestamp": "2026-03-23T15:15:10.104738",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.089911",
+        "type": "code_injection",
+        "title": "SQL Injection via Django raw()",
+        "description": "Django User.objects.raw() used with f-string. This allows direct SQL injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp1mhpk0s2/views.py",
+        "line_number": 8,
+        "line_end": null,
+        "code_snippet": "users = User.objects.raw(f\"SELECT * FROM users WHERE id = {user_id}\")",
+        "cwe_id": "CWE-89",
+        "cvss_score": 9.8,
+        "remediation": "1. Use Django ORM methods (filter, get) instead of raw SQL\n2. If raw SQL is needed, use parameterized queries: raw('sql %s', [params])\n3. NEVER use f-strings or format() to build SQL queries",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/89.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.089968",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpxccfarxg/main.py": {
+    "hash": "78580d73dc62e38653bae34fde416aca",
+    "timestamp": "2026-03-23T15:15:10.160289",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.156713",
+        "type": "config_security",
+        "title": "Config: Debug Mode Enabled",
+        "description": "Detected debug mode enabled: 'reload=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpxccfarxg/main.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "uvicorn.run(\"main:app\", reload=True)",
+        "cwe_id": "CWE-489",
+        "cvss_score": 7.5,
+        "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+        "fixed_code": "uvicorn.run(\"main:app\", reload=os.getenv('DEBUG', 'False').lower() == 'true')",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.156770",
+        "mitre_attack_ids": [
+          "T1082",
+          "T1592"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpto8gd2vh/app.py": {
+    "hash": "69b59e77c49e70484ee596908a35f572",
+    "timestamp": "2026-03-23T15:15:10.217861",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.214458",
+        "type": "config_security",
+        "title": "Config: Weak Session/Secret Configuration",
+        "description": "Detected weak secret configuration: 'config['SECRET_KEY'] = 'dev''. Weak or default secret keys allow attackers to forge sessions, decrypt data, and bypass authentication. Insecure cookie settings enable session theft.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpto8gd2vh/app.py",
+        "line_number": 8,
+        "line_end": null,
+        "code_snippet": "app.config['SECRET_KEY'] = 'dev'",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Use strong, randomly generated secret keys (32+ bytes)\n2. Store secrets in environment variables, not code\n3. Set SESSION_COOKIE_SECURE=True (HTTPS only)\n4. Set SESSION_COOKIE_HTTPONLY=True (prevent XSS)\n5. Set SESSION_COOKIE_SAMESITE='Lax' or 'Strict'\n6. Rotate secrets regularly\n7. Use secret management tools (Vault, AWS Secrets Manager)",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.214516",
+        "mitre_attack_ids": [
+          "T1078",
+          "T1539"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.214639",
+        "type": "config_security",
+        "title": "Config: Debug Mode Enabled",
+        "description": "Detected debug mode enabled: 'debug=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpto8gd2vh/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "app.run(debug=True)",
+        "cwe_id": "CWE-489",
+        "cvss_score": 7.5,
+        "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+        "fixed_code": "app.run(debug=os.getenv('DEBUG', 'False').lower() == 'true')",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.214648",
+        "mitre_attack_ids": [
+          "T1082",
+          "T1592"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.214679",
+        "type": "config_security",
+        "title": "Config: Debug Mode Enabled",
+        "description": "Detected debug mode enabled: 'app.run(debug=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpto8gd2vh/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "app.run(debug=True)",
+        "cwe_id": "CWE-489",
+        "cvss_score": 7.5,
+        "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+        "fixed_code": "app.run(debug=os.getenv('DEBUG', 'False').lower() == 'true')",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.214683",
+        "mitre_attack_ids": [
+          "T1082",
+          "T1592"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp1_mrzwlj/app.js": {
+    "hash": "c7b45eb7417bac9bd7f4b8391eee53c1",
+    "timestamp": "2026-03-23T15:15:10.304398",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.289369",
+        "type": "secret_exposure",
+        "title": "Hardcoded Anthropic API Key",
+        "description": "Anthropic Claude API Key found: sk-ant-a...********. This grants access to Claude AI models.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmp1_mrzwlj/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.289412",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.289505",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmp1_mrzwlj/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.289510",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp1_mrzwlj/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:15:10.319599",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.289275",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp1_mrzwlj/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.289326",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.289394",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmp1_mrzwlj/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.289399",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.289479",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmp1_mrzwlj/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.289483",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.29278",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp1_mrzwlj/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.292828",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.292876",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp1_mrzwlj/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.292881",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpzsbuw1uf/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:15:10.400336",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.366808",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpzsbuw1uf/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.366861",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.366928",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpzsbuw1uf/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.366933",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.367002",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpzsbuw1uf/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.367005",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.370146",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpzsbuw1uf/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.370199",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.370252",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpzsbuw1uf/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.370257",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp07_g2ui9/app.js": {
+    "hash": "c7b45eb7417bac9bd7f4b8391eee53c1",
+    "timestamp": "2026-03-23T15:15:10.482981",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.461909",
+        "type": "secret_exposure",
+        "title": "Hardcoded Anthropic API Key",
+        "description": "Anthropic Claude API Key found: sk-ant-a...********. This grants access to Claude AI models.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmp07_g2ui9/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.461959",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.462051",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmp07_g2ui9/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.462056",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp07_g2ui9/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:15:10.499667",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.462128",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp07_g2ui9/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.462172",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.462247",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmp07_g2ui9/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.462253",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.462339",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmp07_g2ui9/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.462343",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.466708",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp07_g2ui9/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.466753",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.466788",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp07_g2ui9/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.466792",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpb292017u/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:15:10.766686",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.740577",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpb292017u/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.740638",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.740712",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpb292017u/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.740718",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.740807",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpb292017u/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.740811",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.748637",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpb292017u/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.748683",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.748723",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpb292017u/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.748728",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpb292017u/app.js": {
+    "hash": "c7b45eb7417bac9bd7f4b8391eee53c1",
+    "timestamp": "2026-03-23T15:15:10.816153",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.732946",
+        "type": "secret_exposure",
+        "title": "Hardcoded Anthropic API Key",
+        "description": "Anthropic Claude API Key found: sk-ant-a...********. This grants access to Claude AI models.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpb292017u/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.733010",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278910.733137",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpb292017u/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.733145",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/home/user/mcp-sentinel/test.py": {
+    "hash": "806e7a4da29457d3887f18e0590678ff",
+    "timestamp": "2026-03-23T15:15:10.921398",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278910.904946",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "test.py",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "AWS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_KEY = os.getenv(\"AWS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:10.905001",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp4j0g074c/app.py": {
+    "hash": "d55ec351c42dbc5743af5689086bac8a",
+    "timestamp": "2026-03-23T15:15:11.181303",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278911.163407",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp4j0g074c/app.py",
+        "line_number": 5,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.163464",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278911.166927",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp4j0g074c/app.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "os.system(f\"cat {user_input}\")",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.166978",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpdkf1ys01/script.js": {
+    "hash": "2e0a269eea45fc2d870026b219818dac",
+    "timestamp": "2026-03-23T15:15:11.240060",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278911.224912",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpdkf1ys01/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.224970",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278911.225055",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpdkf1ys01/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.225060",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpdkf1ys01/app.py": {
+    "hash": "d55ec351c42dbc5743af5689086bac8a",
+    "timestamp": "2026-03-23T15:15:11.255866",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278911.225021",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpdkf1ys01/app.py",
+        "line_number": 5,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.225071",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278911.228589",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpdkf1ys01/app.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "os.system(f\"cat {user_input}\")",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.228642",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp2j6j7cex/script.js": {
+    "hash": "2e0a269eea45fc2d870026b219818dac",
+    "timestamp": "2026-03-23T15:15:11.313981",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278911.298806",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmp2j6j7cex/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.298856",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278911.298954",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmp2j6j7cex/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.298959",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp2j6j7cex/app.py": {
+    "hash": "d55ec351c42dbc5743af5689086bac8a",
+    "timestamp": "2026-03-23T15:15:11.333572",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774278911.298656",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp2j6j7cex/app.py",
+        "line_number": 5,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.298710",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774278911.304167",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmp2j6j7cex/app.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "os.system(f\"cat {user_input}\")",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:15:11.304444",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmprsls24eh.py": {
+    "hash": "3253b41059cac6e987c5a5e9233ea5d0",
+    "timestamp": "2026-03-23T15:16:58.091198",
+    "vulnerabilities": []
+  },
+  "/tmp/tmpx20t0mg5/views.py": {
+    "hash": "c88c18110d2bf370437354470c0d87fc",
+    "timestamp": "2026-03-23T15:16:58.342220",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.326304",
+        "type": "code_injection",
+        "title": "SQL Injection via Django raw()",
+        "description": "Django User.objects.raw() used with f-string. This allows direct SQL injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpx20t0mg5/views.py",
+        "line_number": 8,
+        "line_end": null,
+        "code_snippet": "users = User.objects.raw(f\"SELECT * FROM users WHERE id = {user_id}\")",
+        "cwe_id": "CWE-89",
+        "cvss_score": 9.8,
+        "remediation": "1. Use Django ORM methods (filter, get) instead of raw SQL\n2. If raw SQL is needed, use parameterized queries: raw('sql %s', [params])\n3. NEVER use f-strings or format() to build SQL queries",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/89.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.326369",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmp5lk0g9h8/main.py": {
+    "hash": "78580d73dc62e38653bae34fde416aca",
+    "timestamp": "2026-03-23T15:16:58.401618",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.39813",
+        "type": "config_security",
+        "title": "Config: Debug Mode Enabled",
+        "description": "Detected debug mode enabled: 'reload=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmp5lk0g9h8/main.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "uvicorn.run(\"main:app\", reload=True)",
+        "cwe_id": "CWE-489",
+        "cvss_score": 7.5,
+        "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+        "fixed_code": "uvicorn.run(\"main:app\", reload=os.getenv('DEBUG', 'False').lower() == 'true')",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.398191",
+        "mitre_attack_ids": [
+          "T1082",
+          "T1592"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpmqf7_cmc/app.py": {
+    "hash": "69b59e77c49e70484ee596908a35f572",
+    "timestamp": "2026-03-23T15:16:58.461249",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.457399",
+        "type": "config_security",
+        "title": "Config: Weak Session/Secret Configuration",
+        "description": "Detected weak secret configuration: 'config['SECRET_KEY'] = 'dev''. Weak or default secret keys allow attackers to forge sessions, decrypt data, and bypass authentication. Insecure cookie settings enable session theft.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpmqf7_cmc/app.py",
+        "line_number": 8,
+        "line_end": null,
+        "code_snippet": "app.config['SECRET_KEY'] = 'dev'",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Use strong, randomly generated secret keys (32+ bytes)\n2. Store secrets in environment variables, not code\n3. Set SESSION_COOKIE_SECURE=True (HTTPS only)\n4. Set SESSION_COOKIE_HTTPONLY=True (prevent XSS)\n5. Set SESSION_COOKIE_SAMESITE='Lax' or 'Strict'\n6. Rotate secrets regularly\n7. Use secret management tools (Vault, AWS Secrets Manager)",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.457460",
+        "mitre_attack_ids": [
+          "T1078",
+          "T1539"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.457629",
+        "type": "config_security",
+        "title": "Config: Debug Mode Enabled",
+        "description": "Detected debug mode enabled: 'debug=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpmqf7_cmc/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "app.run(debug=True)",
+        "cwe_id": "CWE-489",
+        "cvss_score": 7.5,
+        "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+        "fixed_code": "app.run(debug=os.getenv('DEBUG', 'False').lower() == 'true')",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.457637",
+        "mitre_attack_ids": [
+          "T1082",
+          "T1592"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.457657",
+        "type": "config_security",
+        "title": "Config: Debug Mode Enabled",
+        "description": "Detected debug mode enabled: 'app.run(debug=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpmqf7_cmc/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "app.run(debug=True)",
+        "cwe_id": "CWE-489",
+        "cvss_score": 7.5,
+        "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+        "fixed_code": "app.run(debug=os.getenv('DEBUG', 'False').lower() == 'true')",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://owasp.org/www-project-secure-configuration-guide/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+          "https://cwe.mitre.org/data/definitions/16.html",
+          "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+        ],
+        "metadata": {},
+        "detector": "ConfigSecurityDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.457660",
+        "mitre_attack_ids": [
+          "T1082",
+          "T1592"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpja0j0s9m/app.js": {
+    "hash": "c7b45eb7417bac9bd7f4b8391eee53c1",
+    "timestamp": "2026-03-23T15:16:58.554623",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.539762",
+        "type": "secret_exposure",
+        "title": "Hardcoded Anthropic API Key",
+        "description": "Anthropic Claude API Key found: sk-ant-a...********. This grants access to Claude AI models.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpja0j0s9m/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.539824",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.539933",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpja0j0s9m/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.539939",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpja0j0s9m/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:16:58.571970",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.539841",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpja0j0s9m/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.539890",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.539963",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpja0j0s9m/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.539974",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.540055",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpja0j0s9m/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.540059",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.543088",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpja0j0s9m/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.543131",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.54323",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpja0j0s9m/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.543237",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpwauh456j/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:16:58.651079",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.614668",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpwauh456j/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.614727",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.614811",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpwauh456j/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.614817",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.614888",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpwauh456j/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.614891",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.618431",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpwauh456j/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.618537",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.618631",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpwauh456j/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.618643",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpu4rx446d/app.js": {
+    "hash": "c7b45eb7417bac9bd7f4b8391eee53c1",
+    "timestamp": "2026-03-23T15:16:58.718034",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.703223",
+        "type": "secret_exposure",
+        "title": "Hardcoded Anthropic API Key",
+        "description": "Anthropic Claude API Key found: sk-ant-a...********. This grants access to Claude AI models.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpu4rx446d/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.703279",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.703382",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpu4rx446d/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.703388",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpu4rx446d/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:16:58.735306",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.703071",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpu4rx446d/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.703131",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.703281",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpu4rx446d/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.703294",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.703377",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpu4rx446d/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.703381",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.706574",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpu4rx446d/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.706619",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.706678",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpu4rx446d/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.706683",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpkxz2zrz5/app.js": {
+    "hash": "c7b45eb7417bac9bd7f4b8391eee53c1",
+    "timestamp": "2026-03-23T15:16:58.839299",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.824242",
+        "type": "secret_exposure",
+        "title": "Hardcoded Anthropic API Key",
+        "description": "Anthropic Claude API Key found: sk-ant-a...********. This grants access to Claude AI models.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpkxz2zrz5/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.824288",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.824383",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpkxz2zrz5/app.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.824388",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpkxz2zrz5/app.py": {
+    "hash": "b58ab08dace7f447acf181b5809c2340",
+    "timestamp": "2026-03-23T15:16:58.896128",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279018.822652",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpkxz2zrz5/app.py",
+        "line_number": 6,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.822700",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.822787",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpkxz2zrz5/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "API_KEY = os.getenv(\"API_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.822799",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.822885",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: API_KEY ...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpkxz2zrz5/app.py",
+        "line_number": 7,
+        "line_end": null,
+        "code_snippet": "API_KEY = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.822889",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.82582",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpkxz2zrz5/app.py",
+        "line_number": 12,
+        "line_end": null,
+        "code_snippet": "os.system(user_input)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.825865",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279018.825914",
+        "type": "code_injection",
+        "title": "Command Injection via subprocess.call(shell=True)",
+        "description": "subprocess.call() with shell=True detected. Using shell=True passes commands through the shell, enabling command injection if user input is included.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpkxz2zrz5/app.py",
+        "line_number": 11,
+        "line_end": null,
+        "code_snippet": "subprocess.call(f\"cat {user_input}\", shell=True)",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Use shell=False (default) with subprocess.call()\n2. Pass command as a list of arguments instead of string\n3. Example: subprocess.call(['ls', '-l']) instead of subprocess.call('ls -l', shell=True)\n4. If shell features are needed, use shlex.quote() for argument escaping",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:58.825918",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpn45i5w4y/app.py": {
+    "hash": "d55ec351c42dbc5743af5689086bac8a",
+    "timestamp": "2026-03-23T15:16:59.448207",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279019.43055",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpn45i5w4y/app.py",
+        "line_number": 5,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.430615",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279019.433876",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpn45i5w4y/app.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "os.system(f\"cat {user_input}\")",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.433928",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpswmfr2um/script.js": {
+    "hash": "2e0a269eea45fc2d870026b219818dac",
+    "timestamp": "2026-03-23T15:16:59.510807",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279019.49558",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpswmfr2um/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.495639",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279019.495756",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpswmfr2um/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.495762",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpswmfr2um/app.py": {
+    "hash": "d55ec351c42dbc5743af5689086bac8a",
+    "timestamp": "2026-03-23T15:16:59.532836",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279019.496061",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpswmfr2um/app.py",
+        "line_number": 5,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.496121",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279019.499049",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpswmfr2um/app.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "os.system(f\"cat {user_input}\")",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.499094",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpoj62fons/script.js": {
+    "hash": "2e0a269eea45fc2d870026b219818dac",
+    "timestamp": "2026-03-23T15:16:59.593177",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279019.577798",
+        "type": "secret_exposure",
+        "title": "Hardcoded OpenAI API Key",
+        "description": "OpenAI API Key found: sk-12345...********. This provides access to OpenAI's API services.",
+        "severity": "high",
+        "confidence": "high",
+        "file_path": "/tmp/tmpoj62fons/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": "const apiKey = os.getenv(\"APIKEY\");",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.577862",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279019.577982",
+        "type": "secret_exposure",
+        "title": "Hardcoded Generic API Key",
+        "description": "Generic API Key found: apiKey =...********. Hardcoded secrets pose a security risk.",
+        "severity": "medium",
+        "confidence": "medium",
+        "file_path": "/tmp/tmpoj62fons/script.js",
+        "line_number": 2,
+        "line_end": null,
+        "code_snippet": "const apiKey = \"sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ\";",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Immediately revoke this API key/token\n2. Remove the hardcoded credential from the source code\n3. Use environment variables or a secrets manager (e.g., HashiCorp Vault, AWS Secrets Manager)\n4. Rotate all credentials that may have been exposed\n5. Review access logs for unauthorized usage",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.577988",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      }
+    ]
+  },
+  "/tmp/tmpoj62fons/app.py": {
+    "hash": "d55ec351c42dbc5743af5689086bac8a",
+    "timestamp": "2026-03-23T15:16:59.611646",
+    "vulnerabilities": [
+      {
+        "id": "vuln-1774279019.577826",
+        "type": "secret_exposure",
+        "title": "Hardcoded AWS Access Key",
+        "description": "AWS Access Key found: AKIA1A2B...********. This grants programmatic access to AWS resources.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpoj62fons/app.py",
+        "line_number": 5,
+        "line_end": null,
+        "code_snippet": "AWS_ACCESS_KEY = \"AKIA1A2B3C4D5E6F7G8H\"",
+        "cwe_id": "CWE-798",
+        "cvss_score": 9.1,
+        "remediation": "1. Remove the hardcoded secret from source code\n2. Use environment variables or a secrets manager\n3. Rotate the exposed credential\n4. Implement secret scanning in CI/CD pipeline",
+        "fixed_code": "AWS_ACCESS_KEY = os.getenv(\"AWS_ACCESS_KEY\")",
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/798.html",
+          "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/"
+        ],
+        "metadata": {},
+        "detector": "SecretsDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.577874",
+        "mitre_attack_ids": [
+          "T1552.001"
+        ],
+        "threat_intel": null
+      },
+      {
+        "id": "vuln-1774279019.581174",
+        "type": "code_injection",
+        "title": "Command Injection via os.system()",
+        "description": "Direct command execution using os.system() detected. This allows execution of arbitrary shell commands and can lead to remote code execution if user input is not properly sanitized.",
+        "severity": "critical",
+        "confidence": "high",
+        "file_path": "/tmp/tmpoj62fons/app.py",
+        "line_number": 10,
+        "line_end": null,
+        "code_snippet": "os.system(f\"cat {user_input}\")",
+        "cwe_id": "CWE-78",
+        "cvss_score": 9.8,
+        "remediation": "1. Avoid os.system() for executing commands\n2. Use subprocess.run() with shell=False and list arguments\n3. Validate and sanitize all user inputs\n4. Use shlex.quote() for shell argument escaping if shell is necessary\n5. Consider using safer alternatives like pathlib for file operations",
+        "fixed_code": null,
+        "diff": null,
+        "remediation_steps": [],
+        "references": [
+          "https://cwe.mitre.org/data/definitions/78.html",
+          "https://owasp.org/www-community/attacks/Code_Injection",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Nodejs_Security_Cheat_Sheet.html"
+        ],
+        "metadata": {},
+        "detector": "CodeInjectionDetector",
+        "engine": "static",
+        "timestamp": "2026-03-23T15:16:59.581235",
+        "mitre_attack_ids": [
+          "T1059",
+          "T1059.006"
+        ],
+        "threat_intel": null
+      }
+    ]
   }
 }

@@ -13,8 +13,7 @@ from re import Pattern
 from typing import Dict, List, Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
-from mcp_sentinel.engines.semantic import SemanticEngine, get_semantic_engine
-from mcp_sentinel.engines.semantic.models import SinkType, TaintPath
+
 from mcp_sentinel.models.vulnerability import (
     Confidence,
     Severity,
@@ -34,27 +33,10 @@ class CodeInjectionDetector(BaseDetector):
     - JavaScript code execution (eval, Function constructor)
     """
 
-    def __init__(self, enable_semantic_analysis: bool = True):
-        """
-        Initialize the code injection detector.
-
-        Args:
-            enable_semantic_analysis: Enable semantic analysis for multi-line detection (default: True)
-        """
+    def __init__(self):
         super().__init__(name="CodeInjectionDetector", enabled=True)
         self.python_patterns: Dict[str, Pattern] = self._compile_python_patterns()
         self.javascript_patterns: Dict[str, Pattern] = self._compile_javascript_patterns()
-        self.enable_semantic_analysis = enable_semantic_analysis
-        self.semantic_engine: Optional[SemanticEngine] = None
-
-        # Initialize semantic engine if enabled
-        if self.enable_semantic_analysis:
-            try:
-                self.semantic_engine = get_semantic_engine()
-            except Exception:
-                # Graceful degradation if semantic engine fails to load
-                self.enable_semantic_analysis = False
-                self.semantic_engine = None
 
     def _compile_python_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for Python code injection detection."""
@@ -133,18 +115,17 @@ class CodeInjectionDetector(BaseDetector):
         if not file_type:
             file_type = self._guess_file_type(file_path)
 
-        # Phase 1: Pattern-based detection (fast)
         if file_type == "python":
             vulnerabilities.extend(self._detect_python_injection(file_path, content))
+            # AST pass to catch multi-line subprocess(shell=True) patterns
+            try:
+                tree = ast.parse(content, filename=str(file_path))
+                vulnerabilities.extend(self._detect_shell_true_ast(tree, file_path, content))
+            except SyntaxError:
+                pass
         elif file_type in ["javascript", "typescript"]:
             vulnerabilities.extend(self._detect_javascript_injection(file_path, content))
 
-        # Phase 2: Semantic analysis (accurate, multi-line)
-        if self._should_use_semantic_analysis(file_path, file_type):
-            semantic_vulns = self._semantic_analysis_detection(file_path, content, file_type)
-            vulnerabilities.extend(semantic_vulns)
-
-        # Phase 3: Deduplication
         return self._deduplicate_vulnerabilities(vulnerabilities)
 
     def _detect_python_injection(self, file_path: Path, content: str) -> list[Vulnerability]:
@@ -400,69 +381,57 @@ class CodeInjectionDetector(BaseDetector):
             mitre_attack_ids=["T1059", "T1059.006"],  # Command and Scripting Interpreter: Python
         )
 
+    def _detect_shell_true_ast(
+        self, tree: ast.AST, file_path: Path, content: str
+    ) -> list[Vulnerability]:
+        """Catch multi-line subprocess calls with shell=True using stdlib AST."""
+        vulnerabilities: list[Vulnerability] = []
+
+        class ShellTrueVisitor(ast.NodeVisitor):
+            def __init__(self):
+                self.nodes: list[ast.Call] = []
+
+            def visit_Call(self, node: ast.Call) -> None:
+                if (
+                    isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "subprocess"
+                    and node.func.attr in ("call", "run", "Popen")
+                ):
+                    for kw in node.keywords:
+                        if (
+                            kw.arg == "shell"
+                            and isinstance(kw.value, ast.Constant)
+                            and kw.value.value is True
+                        ):
+                            self.nodes.append(node)
+                self.generic_visit(node)
+
+        visitor = ShellTrueVisitor()
+        visitor.visit(tree)
+
+        lines = content.splitlines()
+        for node in visitor.nodes:
+            snippet = lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
+            attr = node.func.attr  # type: ignore[union-attr]
+            vuln = self._create_python_vulnerability(
+                pattern_name=f"subprocess_{attr.lower()}_shell",
+                file_path=file_path,
+                line_number=node.lineno,
+                code_snippet=snippet,
+            )
+            vulnerabilities.append(vuln)
+
+        return vulnerabilities
+
     def _deduplicate_vulnerabilities(self, vulnerabilities: list[Vulnerability]) -> list[Vulnerability]:
         """Deduplicate vulnerabilities based on location and type."""
         unique_vulns = {}
         for vuln in vulnerabilities:
-            # Create a unique key for the vulnerability (ignoring title to merge static/semantic)
             key = (vuln.file_path, vuln.line_number, vuln.type)
-
-            # If we already have this vulnerability, keep the one with higher confidence/severity
-            if key in unique_vulns:
-                existing = unique_vulns[key]
-                # Prefer semantic engine results as they are more accurate
-                if vuln.engine == "semantic" and existing.engine != "semantic":
-                    unique_vulns[key] = vuln
-                # Otherwise keep existing (first one found)
-            else:
+            if key not in unique_vulns:
                 unique_vulns[key] = vuln
-
         return list(unique_vulns.values())
-
-    def _convert_taint_path_to_vulnerability(
-        self, taint_path: TaintPath, file_path: Path, content: str
-    ) -> Vulnerability:
-        """Convert a semantic taint path to a vulnerability object."""
-        # Determine vulnerability type based on sink
-        title = "Code Injection (Semantic Analysis)"
-        description = f"Detected data flow from source '{taint_path.source.name}' to dangerous sink '{taint_path.sink.name}'."
-        cwe_id = "CWE-94" # Generic Code Injection
-
-        if taint_path.sink.sink_type == SinkType.COMMAND_EXECUTION:
-            title = "Command Injection (Semantic Analysis)"
-            cwe_id = "CWE-78"
-            description += " This allows execution of arbitrary system commands."
-        elif taint_path.sink.sink_type == SinkType.CODE_EVALUATION:
-            title = "Code Execution (Semantic Analysis)"
-            cwe_id = "CWE-95"
-            description += " This allows execution of arbitrary code."
-
-        # Get code snippet safely
-        code_snippet = ""
-        try:
-            lines = content.splitlines()
-            if 0 < taint_path.sink.lineno <= len(lines):
-                code_snippet = lines[taint_path.sink.lineno - 1].strip()
-        except Exception:
-            pass
-
-        return Vulnerability(
-            type=VulnerabilityType.CODE_INJECTION,
-            title=title,
-            description=description,
-            severity=Severity.CRITICAL,
-            confidence=Confidence.HIGH, # Semantic analysis is usually high confidence
-            file_path=str(file_path),
-            line_number=taint_path.sink.lineno,
-            code_snippet=code_snippet,
-            cwe_id=cwe_id,
-            cvss_score=9.8,
-            remediation="1. Validate and sanitize all user inputs\\n2. Avoid using dangerous functions like eval(), exec(), or shell=True\\n3. Use parameterized queries or safe APIs",
-            references=[],
-            detector=self.name,
-            engine="semantic",
-            mitre_attack_ids=["T1059"],
-        )
 
     def _guess_file_type(self, file_path: Path) -> Optional[str]:
         """Guess file type from extension."""
@@ -474,130 +443,6 @@ class CodeInjectionDetector(BaseDetector):
             ".tsx": "typescript",
         }
         return extension_map.get(file_path.suffix.lower())
-
-    def _should_use_semantic_analysis(self, file_path: Path, file_type: Optional[str]) -> bool:
-        """
-        Check if semantic analysis should be used.
-
-        Args:
-            file_path: Path to the file
-            file_type: File type (optional)
-
-        Returns:
-            True if semantic analysis should be used
-        """
-        if not self.enable_semantic_analysis or not self.semantic_engine:
-            return False
-
-        # Only use for Python files (JS/Java support in Phase 4.3)
-        if file_type:
-            return file_type == "python"
-
-        return file_path.suffix.lower() == ".py"
-
-    def _semantic_analysis_detection(
-        self, file_path: Path, content: str, file_type: Optional[str]
-    ) -> List[Vulnerability]:
-        """
-        Semantic analysis detection (Phase 2 - accurate, multi-line).
-
-        Uses AST parsing and taint tracking to detect vulnerabilities
-        that span multiple lines. Also detects dangerous patterns like
-        shell=True with AST analysis.
-
-        Args:
-            file_path: Path to the file
-            content: File content
-            file_type: File type (optional)
-
-        Returns:
-            List of vulnerabilities found by semantic analysis
-        """
-        if not self.semantic_engine:
-            return []
-
-        vulnerabilities: List[Vulnerability] = []
-
-        try:
-            # Run semantic analysis
-            language = file_type or "python"
-            semantic_result = self.semantic_engine.analyze(content, str(file_path), language)
-
-            # Convert taint paths to vulnerabilities
-            for taint_path in semantic_result.taint_paths:
-                # Only process code injection related sinks
-                if taint_path.sink.sink_type in [
-                    SinkType.COMMAND_EXECUTION,
-                    SinkType.CODE_EVALUATION,
-                ]:
-                    vuln = self._convert_taint_path_to_vulnerability(taint_path, file_path, content)
-                    vulnerabilities.append(vuln)
-
-            # Also check for shell=True in subprocess calls (even without taint tracking)
-            import ast
-
-            try:
-                tree = ast.parse(content, filename=str(file_path))
-                shell_true_vulns = self._detect_shell_true_with_ast(tree, file_path, content)
-                vulnerabilities.extend(shell_true_vulns)
-            except SyntaxError:
-                pass
-
-        except Exception:
-            # Graceful degradation - log error but don't crash
-            pass
-
-        return vulnerabilities
-
-    def _detect_shell_true_with_ast(
-        self, tree: "ast.AST", file_path: Path, content: str
-    ) -> list[Vulnerability]:
-        """
-        Detect subprocess calls with shell=True using AST analysis.
-
-        This catches multi-line patterns where shell=True is on a different
-        line than the subprocess call.
-
-        Args:
-            tree: Python AST
-            file_path: Path to file
-            content: File content
-
-        Returns:
-            List of vulnerabilities
-        """
-        vulnerabilities: list[Vulnerability] = []
-
-        class ShellTrueVisitor(ast.NodeVisitor):
-            def __init__(self):
-                self.vulns = []
-
-            def visit_Call(self, node):
-                # Check for subprocess.call/run/Popen
-                if isinstance(node.func, ast.Attribute):
-                    if isinstance(node.func.value, ast.Name) and node.func.value.id == "subprocess":
-                        if node.func.attr in ["call", "run", "Popen"]:
-                            # Check keywords for shell=True
-                            for keyword in node.keywords:
-                                if keyword.arg == "shell" and isinstance(keyword.value, ast.Constant) and keyword.value.value is True:
-                                    # Found shell=True
-                                    self.vulns.append(node)
-
-                self.generic_visit(node)
-
-        visitor = ShellTrueVisitor()
-        visitor.visit(tree)
-
-        for node in visitor.vulns:
-            vuln = self._create_python_vulnerability(
-                pattern_name=f"subprocess_{node.func.attr.lower()}_shell",
-                file_path=file_path,
-                line_number=node.lineno,
-                code_snippet=content.splitlines()[node.lineno - 1].strip(),
-            )
-            vulnerabilities.append(vuln)
-
-        return vulnerabilities
 
     def _create_javascript_vulnerability(
         self,

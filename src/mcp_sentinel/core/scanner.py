@@ -14,9 +14,7 @@ from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
-from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
-from mcp_sentinel.detectors.xss import XSSDetector
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
 
@@ -40,14 +38,12 @@ class Scanner:
         self.detectors = detectors or self._get_default_detectors()
 
     def _get_default_detectors(self) -> List[BaseDetector]:
-        """Get the default set of detectors (all 8 Phase 3 detectors)."""
+        """Get the default set of detectors."""
         return [
             SecretsDetector(),
             CodeInjectionDetector(),
             PromptInjectionDetector(),
             ToolPoisoningDetector(),
-            SupplyChainDetector(),
-            XSSDetector(),
             ConfigSecurityDetector(),
             PathTraversalDetector(),
         ]

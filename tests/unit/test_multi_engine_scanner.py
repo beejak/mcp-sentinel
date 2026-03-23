@@ -123,7 +123,7 @@ async def test_multi_engine_progress_callback(temp_project):
     # Check progress data
     for engine_name, progress in progress_updates:
         assert isinstance(engine_name, str)
-        assert progress.engine_type in [EngineType.STATIC, EngineType.SAST, EngineType.AI]
+        assert progress.engine_type == EngineType.STATIC
         assert progress.total_files >= 0
         assert progress.scanned_files >= 0
 

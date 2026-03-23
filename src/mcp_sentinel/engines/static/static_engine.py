@@ -1,13 +1,11 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-This engine wraps the 8 pattern-based detectors from Phase 3:
+Pattern-based detectors:
 - SecretsDetector
 - CodeInjectionDetector
 - PromptInjectionDetector
 - ToolPoisoningDetector
-- SupplyChainDetector
-- XSSDetector
 - ConfigSecurityDetector
 - PathTraversalDetector
 """
@@ -28,9 +26,7 @@ from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
-from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
-from mcp_sentinel.detectors.xss import XSSDetector
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType, ScanProgress
 from mcp_sentinel.models.vulnerability import Vulnerability
 
@@ -69,14 +65,12 @@ class StaticAnalysisEngine(BaseEngine):
         self.process_pool.shutdown()
 
     def _get_default_detectors(self) -> List[BaseDetector]:
-        """Get all 8 Phase 3 detectors."""
+        """Get default detectors."""
         return [
             SecretsDetector(),
             CodeInjectionDetector(),
             PromptInjectionDetector(),
             ToolPoisoningDetector(),
-            SupplyChainDetector(),
-            XSSDetector(),
             ConfigSecurityDetector(),
             PathTraversalDetector(),
         ]

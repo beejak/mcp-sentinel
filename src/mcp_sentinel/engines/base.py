@@ -1,7 +1,5 @@
 """
 Base engine interface for MCP Sentinel analysis engines.
-
-All analysis engines (Static, Semantic, SAST, AI) implement this interface.
 """
 
 from abc import ABC, abstractmethod
@@ -16,9 +14,6 @@ class EngineType(Enum):
     """Types of analysis engines."""
 
     STATIC = "static"
-    SEMANTIC = "semantic"
-    SAST = "sast"
-    AI = "ai"
 
 
 class EngineStatus(Enum):

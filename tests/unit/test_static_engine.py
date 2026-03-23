@@ -60,7 +60,7 @@ async def test_static_engine_initialization():
     assert engine.engine_type == EngineType.STATIC
     assert engine.enabled is True
     assert engine.status == EngineStatus.IDLE
-    assert len(engine.detectors) == 8
+    assert len(engine.detectors) == 6
 
 
 @pytest.mark.asyncio

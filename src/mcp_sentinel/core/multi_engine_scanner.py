@@ -1,8 +1,7 @@
 """
 Multi-Engine Scanner for MCP Sentinel.
 
-This scanner coordinates multiple analysis engines (Static, Semantic, SAST, AI)
-and aggregates their results.
+Coordinates the static analysis engine and aggregates results.
 """
 
 import asyncio
@@ -17,23 +16,17 @@ from typing import Dict, List, Optional, Set, Union
 import aiofiles
 from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.core.cache_manager import CacheManager
-from mcp_sentinel.engines.ai.ai_engine import AIEngine
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
-from mcp_sentinel.engines.sast import SASTEngine
 from mcp_sentinel.engines.static import StaticAnalysisEngine
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
-from mcp_sentinel.rag.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 
 
 class MultiEngineScanner:
     """
-    Multi-engine scanner that coordinates analysis across multiple engines.
-
-    Supports running Static, Semantic, SAST, and AI engines concurrently
-    and aggregates their findings.
+    Scanner that coordinates analysis engines and aggregates findings.
     """
 
     def __init__(
@@ -42,15 +35,7 @@ class MultiEngineScanner:
         enabled_engines: Optional[Set[EngineType]] = None,
         progress_callback: Optional[Callable[[str, ScanProgress], None]] = None,
     ):
-        """
-        Initialize the multi-engine scanner.
-
-        Args:
-            engines: List of engines to use. If None, uses Static engine only.
-            enabled_engines: Set of engine types to enable. If None, enables all provided engines.
-            progress_callback: Optional callback for progress updates (engine_name, progress)
-        """
-        self.engines = engines or self._get_default_engines()
+        self.engines = engines or [StaticAnalysisEngine(enabled=True)]
         self.enabled_engines = enabled_engines or {engine.engine_type for engine in self.engines}
         self.progress_callback = progress_callback
 
@@ -61,47 +46,15 @@ class MultiEngineScanner:
             if engine.engine_type in self.enabled_engines and engine.enabled
         ]
 
-        # Set up progress callbacks
         for engine in self.active_engines:
             engine.set_progress_callback(self._create_progress_callback(engine))
-            
-        # Initialize CacheManager
+
         self.cache_manager = CacheManager()
 
-    def _get_default_engines(self) -> List[BaseEngine]:
-        """
-        Get default engines.
-
-        Available engines:
-        - StaticAnalysisEngine - Pattern-based detection (8 detectors)
-        - SASTEngine - Semgrep + Bandit integration (Phase 4.1)
-        - AIAnalysisEngine - AI-powered detection with RAG (Phase 4.4)
-        """
-        engines = [
-            StaticAnalysisEngine(enabled=True),
-            SASTEngine(enabled=True),
-        ]
-
-        # Initialize AI Engine with RAG
-        try:
-            # Try to initialize vector store, but don't fail if it fails
-            # (e.g. missing dependencies or permissions)
-            vector_store = VectorStore()
-            engines.append(AIEngine(enabled=True, vector_store=vector_store))
-        except Exception as e:
-            # Fallback to AI Engine without RAG
-            logger.warning(f"Failed to initialize VectorStore for RAG: {e}")
-            engines.append(AIEngine(enabled=True))
-
-        return engines
-
     def _create_progress_callback(self, engine: BaseEngine) -> Callable[[ScanProgress], None]:
-        """Create a progress callback for a specific engine."""
-
         def callback(progress: ScanProgress):
             if self.progress_callback:
                 self.progress_callback(engine.name, progress)
-
         return callback
 
     async def scan(
@@ -112,41 +65,30 @@ class MultiEngineScanner:
         """
         Scan a directory or file using all enabled engines.
 
-        Engines run concurrently for maximum performance.
-
         Args:
             target_path: Path to directory or file to scan
             file_patterns: Optional glob patterns to filter files (directory scan only)
 
         Returns:
-            ScanResult with aggregated findings from all engines
+            ScanResult with aggregated findings
         """
         target_path = Path(target_path)
 
         if not target_path.exists():
             raise ScanError(f"Target path does not exist: {target_path}")
 
-        # Initialize scan result
-        scan_result = ScanResult(
-            target=str(target_path),
-            status="running",
-        )
-
+        scan_result = ScanResult(target=str(target_path), status="running")
         start_time = datetime.utcnow()
 
         try:
-            # Run all engines concurrently
             if target_path.is_file():
-                # Scan single file
                 async with aiofiles.open(target_path, encoding="utf-8", errors="ignore") as f:
                     content = await f.read()
-                
-                # Calculate hash and check cache
+
                 content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
                 cached_vulns = self.cache_manager.get_cached_results(target_path, content_hash)
-                
+
                 if cached_vulns is not None:
-                    # Return cached results
                     scan_result.vulnerabilities = cached_vulns
                     scan_result.status = "completed"
                     scan_result.completed_at = datetime.utcnow()
@@ -154,7 +96,7 @@ class MultiEngineScanner:
                         scan_result.completed_at - start_time
                     ).total_seconds()
                     scan_result.statistics.total_files = 1
-                    scan_result.statistics.scanned_files = 0 # Cached
+                    scan_result.statistics.scanned_files = 0
                     return scan_result
 
                 engine_tasks = [
@@ -162,45 +104,31 @@ class MultiEngineScanner:
                 ]
                 total_files = 1
             else:
-                # Scan directory
                 engine_tasks = [
                     engine.scan_directory(target_path, file_patterns) for engine in self.active_engines
                 ]
                 total_files = self._count_files(target_path, file_patterns)
 
-            # Gather results from all engines
             engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
-            # Process results from each engine
             all_vulnerabilities: List[Vulnerability] = []
-
             for idx, result in enumerate(engine_results):
                 engine = self.active_engines[idx]
-
                 if isinstance(result, Exception):
-                    # Log engine failure but continue
                     logger.error(f"Engine {engine.name} failed: {result}")
                     continue
-
-                # Add vulnerabilities from this engine
                 all_vulnerabilities.extend(result)
 
-            # Deduplicate vulnerabilities
             deduplicated = self._deduplicate_vulnerabilities(all_vulnerabilities)
 
-            # Update cache for single file
             if target_path.is_file():
                 self.cache_manager.update_cache(target_path, content_hash, deduplicated)
 
-            # Add to scan result
             for vuln in deduplicated:
                 scan_result.add_vulnerability(vuln)
 
-            # Update statistics
             scan_result.statistics.total_files = total_files
             scan_result.statistics.scanned_files = total_files
-
-            # Mark as completed
             scan_result.status = "completed"
             scan_result.completed_at = datetime.utcnow()
             scan_result.statistics.scan_duration_seconds = (
@@ -214,13 +142,6 @@ class MultiEngineScanner:
             scan_result.statistics.scan_duration_seconds = (
                 scan_result.completed_at - start_time
             ).total_seconds()
-            
-            # Re-raise to ensure CLI knows about failure
-            # But we want to return partial results if possible? 
-            # CLI expects result object, so better not raise unless catastrophic.
-            # But earlier code raised ScanError.
-            # Let's log and return failed result.
-            pass
 
         return scan_result
 
@@ -230,18 +151,7 @@ class MultiEngineScanner:
         content: Optional[str] = None,
         file_type: Optional[str] = None,
     ) -> List[Vulnerability]:
-        """
-        Scan a single file using all enabled engines.
-
-        Args:
-            file_path: Path to file to scan
-            content: File content (will be read if not provided)
-            file_type: File type (will be detected if not provided)
-
-        Returns:
-            Deduplicated list of vulnerabilities from all engines
-        """
-        # Read content if not provided
+        """Scan a single file using all enabled engines."""
         if content is None:
             try:
                 with open(file_path, encoding="utf-8", errors="ignore") as f:
@@ -250,82 +160,46 @@ class MultiEngineScanner:
                 logger.error(f"Error reading {file_path}: {e}")
                 return []
 
-        # Determine file type if not provided
         if file_type is None:
             file_type = self._determine_file_type(file_path)
 
-        # Run all engines concurrently on this file
         engine_tasks = [
             engine.scan_file(file_path, content, file_type)
             for engine in self.active_engines
             if engine.is_applicable(file_path, file_type)
         ]
 
-        # Gather results
         engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
-        # Aggregate vulnerabilities
         all_vulnerabilities: List[Vulnerability] = []
         for result in engine_results:
             if isinstance(result, Exception):
                 continue
             all_vulnerabilities.extend(result)
 
-        # Deduplicate and return
         return self._deduplicate_vulnerabilities(all_vulnerabilities)
 
     def _deduplicate_vulnerabilities(
         self,
         vulnerabilities: List[Vulnerability],
     ) -> List[Vulnerability]:
-        """
-        Deduplicate vulnerabilities from multiple engines.
-
-        Two vulnerabilities are considered duplicates if they have:
-        - Same file path
-        - Same line number
-        - Same vulnerability type
-        - Same title (or very similar)
-
-        When duplicates are found, we keep the one with highest confidence
-        and merge the engine information.
-
-        Args:
-            vulnerabilities: List of vulnerabilities from all engines
-
-        Returns:
-            Deduplicated list of vulnerabilities
-        """
-        # Group by dedup key
+        """Deduplicate vulnerabilities by (file, line, type, title)."""
         groups: dict = defaultdict(list)
 
         for vuln in vulnerabilities:
-            # Create deduplication key
-            key = (
-                vuln.file_path,
-                vuln.line_number,
-                vuln.type.value,
-                vuln.title,
-            )
+            key = (vuln.file_path, vuln.line_number, vuln.type.value, vuln.title)
             groups[key].append(vuln)
 
-        # For each group, keep the best vulnerability
         deduplicated: List[Vulnerability] = []
-
         for _key, group in groups.items():
             if len(group) == 1:
                 deduplicated.append(group[0])
             else:
-                # Multiple engines found same issue
-                # Keep the one with highest confidence
                 best = max(
                     group, key=lambda v: v.confidence.value if hasattr(v.confidence, "value") else 0
                 )
-
-                # Merge engine information
                 engines = {vuln.engine for vuln in group}
                 best.engine = ", ".join(sorted(engines))
-
                 deduplicated.append(best)
 
         return deduplicated
@@ -338,32 +212,14 @@ class MultiEngineScanner:
         """Count files that would be scanned."""
         if not file_patterns:
             file_patterns = [
-                "**/*.py",
-                "**/*.js",
-                "**/*.ts",
-                "**/*.tsx",
-                "**/*.jsx",
-                "**/*.go",
-                "**/*.java",
-                "**/*.yaml",
-                "**/*.yml",
-                "**/*.json",
-                "**/*.toml",
-                "**/*.sh",
-                "**/*.bash",
+                "**/*.py", "**/*.js", "**/*.ts", "**/*.tsx", "**/*.jsx",
+                "**/*.go", "**/*.java", "**/*.yaml", "**/*.yml",
+                "**/*.json", "**/*.toml", "**/*.sh", "**/*.bash",
             ]
 
         ignore_dirs = {
-            ".git",
-            ".venv",
-            "venv",
-            "node_modules",
-            "__pycache__",
-            ".pytest_cache",
-            "dist",
-            "build",
-            ".tox",
-            ".mypy_cache",
+            ".git", ".venv", "venv", "node_modules", "__pycache__",
+            ".pytest_cache", "dist", "build", ".tox", ".mypy_cache",
         }
 
         files = set()
@@ -379,19 +235,10 @@ class MultiEngineScanner:
     def _determine_file_type(self, file_path: Path) -> Optional[str]:
         """Determine the programming language/file type."""
         extension_map = {
-            ".py": "python",
-            ".js": "javascript",
-            ".jsx": "javascript",
-            ".ts": "typescript",
-            ".tsx": "typescript",
-            ".go": "go",
-            ".java": "java",
-            ".yaml": "yaml",
-            ".yml": "yaml",
-            ".json": "json",
-            ".toml": "toml",
-            ".sh": "shell",
-            ".bash": "shell",
+            ".py": "python", ".js": "javascript", ".jsx": "javascript",
+            ".ts": "typescript", ".tsx": "typescript", ".go": "go",
+            ".java": "java", ".yaml": "yaml", ".yml": "yaml",
+            ".json": "json", ".toml": "toml", ".sh": "shell", ".bash": "shell",
         }
         return extension_map.get(file_path.suffix.lower())
 
