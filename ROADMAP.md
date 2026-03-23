@@ -1,7 +1,7 @@
 # MCP Sentinel — Roadmap
 
 **Last Updated:** March 2026
-**Current Version:** v0.1.0
+**Current Version:** v0.2.0
 **Branch:** master
 
 ---
@@ -15,13 +15,13 @@
 
 ---
 
-## v0.1.0 — Current (March 2026)
+## v0.1.0 — March 2026 ✅
 
 Foundation: static pattern-based detection of the most common MCP vulnerability types.
 
-### What's in it
+### What shipped
 - **6 detectors:** Secrets, Code Injection, Prompt Injection, Tool Poisoning, Path Traversal, Config Security
-- **50+ detection patterns** across 13 languages
+- **50+ detection patterns** across Python, JS/TS, Go, Java, YAML, JSON
 - **3 output formats:** Terminal (Rich), JSON, SARIF 2.1.0
 - **Python stdlib AST** for multi-line `subprocess(shell=True)` detection
 - **248 passing tests**, 4 xfail (multi-line taint — documented)
@@ -39,44 +39,32 @@ Foundation: static pattern-based detection of the most common MCP vulnerability 
 
 ---
 
-## v0.2.0 — MCP-Native Attack Patterns (Q2 2026)
+## v0.2.0 — MCP-Native Attack Patterns — March 2026 ✅
 
-Close the gap between generic static analysis and MCP-specific threats. Based on real CVE data and security research from January–February 2026 (30+ MCP CVEs filed in that period alone).
+Closed the gap between generic static analysis and MCP-specific threats. Based on real CVE data and security research from January–February 2026 (30+ MCP CVEs filed in that period alone).
 
-### SSRF Detector (new)
-Real-world data: **30% of MCP servers** were vulnerable to SSRF in independent scans. Tools that accept URL inputs and fetch them server-side without validation enable AWS EC2 metadata service access and internal network pivoting.
+### What shipped
 
-Patterns to detect:
-- Tool arguments passed directly to `requests.get()`, `urllib.request.urlopen()`, `fetch()`, `aiohttp`
-- Missing allowlist validation before outbound URL fetch
-- Cloud metadata endpoint patterns in URL construction (`169.254.169.254`, `metadata.google.internal`)
-- `redirect_uri` / `callback_url` parameters without validation
+**`SSRFDetector` (new)**
+Real-world data: 30% of MCP servers were SSRF-vulnerable. Detects unvalidated URL variables passed to Python (`requests`, `httpx`, `aiohttp`, `urllib`), JavaScript (`fetch`, `axios`), Go (`http.Get`, `http.NewRequest`), and Java (`URL.openConnection`) HTTP clients. Hardcoded cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`) flagged CRITICAL. Redirect/callback URL parameters flagged MEDIUM.
 
-### Tool Poisoning: Full-Schema Poisoning
-Current `ToolPoisoningDetector` only scans `description` fields. Research shows all schema fields are injection surfaces: tool names, parameter names, type annotations, examples, and defaults.
+**`NetworkBindingDetector` (new)**
+Root cause of 8,000+ publicly exposed MCP servers. Detects `0.0.0.0` binding across Python Flask/uvicorn, Express/Node.js, Go `net.Listen`/`ListenAndServe` (including `:port` shorthand), Java `ServerSocket`, and config files (`.env`, YAML, TOML, ini).
 
-Enhancements:
-- Scan all MCP schema fields (name, parameters, annotations) for injection patterns
-- Detect tool descriptions that reference other tools by name in a directive manner (`"before calling tool X, always call this tool"`) — cross-server escalation vector
-- Flag tool descriptions with anomalous length (>500 chars) or high density of invisible Unicode
+**`MissingAuthDetector` (new)**
+Detects Flask/FastAPI routes without `@login_required`/`Depends(get_current_user)`, Express routes without auth middleware, sensitive path segments (`/admin`, `/debug`, `/internal`), and MCP tools exposing system operations without access checks. Uses ±5/3-line lookback/lookahead.
 
-### Network Binding Check
-8,000+ MCP servers are currently exposed publicly due to servers binding to `0.0.0.0` instead of `127.0.0.1`. Patterns:
+**`ToolPoisoningDetector` full-schema poisoning enhancements:**
+- Suspicious tool names (`always_run_first`, `override_*`, `hijack`)
+- Suspicious parameter names (`__instruction__`, `system_prompt`, `ai_directive`)
+- Cross-tool manipulation phrases ("before calling", "global rule", "always call this tool first")
+- Sensitive path targeting: `.env`, `.ssh/`, `~/.aws/credentials`, `/etc/passwd`, `id_rsa` → CRITICAL (the GitHub MCP data heist vector)
+- Anomalous description length (>500 chars)
 
-```python
-# Flag
-app.run(host="0.0.0.0")
-server.listen("0.0.0.0", 8080)
-
-# Safe
-app.run(host="127.0.0.1")
-```
-
-### Missing Auth Patterns
-Flag management and debug endpoints defined without authentication decorators, particularly in MCP server initialization code.
-
-### Sensitive Path Targeting in Tool Descriptions
-Detect tool descriptions that reference credential paths (`.env`, `.ssh/`, `~/.aws/credentials`, `~/.config/`) — the pattern used in the GitHub MCP prompt injection data heist.
+**Stats:**
+- Detectors: 6 → 9
+- Tests: 248 → 334 passed, 4 xfail, 0 failed
+- Coverage: 86.47%
 
 ---
 
@@ -181,7 +169,8 @@ Unit 42 research (Palo Alto) identified three exploitation vectors via MCP sampl
 The highest-value contributions right now:
 - Additional detection patterns for existing detectors (PRs welcome with test cases)
 - False positive reports with reproducer code
-- v0.2 SSRF detector implementation
+- v0.3 supply chain detector: exfiltration patterns, npm postinstall shells, typosquatting
 - Language-specific pattern improvements (Go, Rust, Java MCP server patterns)
+- MissingAuthDetector false positive reduction (class-level vs function-level auth)
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,11 +1,11 @@
 # MCP Sentinel - Architecture Documentation
 
-**Version**: v1.0.0-beta.5
-**Date**: 2026-01-25
-**Repository**: mcp-sentinel (Python Edition)
-**Status**: Phase 4.4 (RAG & Remediation Complete)
+**Version**: v0.2.0
+**Date**: 2026-03-23
+**Repository**: mcp-sentinel
+**Status**: v0.2.0 — 9 detectors, 334 tests
 
-This document outlines the architecture and technical design decisions for MCP Sentinel, focusing on the async-first approach, multi-engine analysis platform, RAG-enhanced intelligence, and automated remediation capabilities.
+This document outlines the architecture and technical design decisions for MCP Sentinel, focusing on the async-first approach, single-engine static analysis platform, and the MCP-specific detector suite.
 
 ---
 
@@ -705,94 +705,34 @@ class ExampleDetector(BaseDetector):
 
 ### Detector Details
 
+All detectors inherit from `BaseDetector` and implement `detect_sync`. Patterns are compiled once in `__init__`. Results are `Vulnerability` Pydantic objects.
+
 #### 1. SecretsDetector
+AWS/AI/VCS credentials, JWT tokens, private key PEM blocks, database URLs with embedded passwords. Applies to all code and config files.
 
-**Patterns**: 15+ secret types
-- AWS Access Keys, Secret Keys
-- OpenAI API keys
-- Anthropic API keys
-- JWT tokens
-- Private SSH keys
-- Generic API keys (high entropy)
+#### 2. CodeInjectionDetector
+`os.system()`, `subprocess(shell=True)`, `eval()`, `exec()`, `child_process.exec()`, SQL f-string formatting. Uses Python stdlib `ast` for multi-line `subprocess(shell=True)` detection.
 
-**Detection Methods**:
-- Regex patterns
-- Entropy analysis
-- Base64 detection
+#### 3. PromptInjectionDetector
+Role manipulation (`"you are now"`), jailbreak phrases (`"DAN mode"`), override directives (`"ignore previous instructions"`). Applies to JSON, YAML, Markdown, and code files.
 
-#### 2. PromptInjectionDetector
-
-**Categories**:
-- Jailbreak attempts
-- Role manipulation
-- System prompt exposure
-- Context injection
-
-**AI-Specific**: Designed for MCP/LLM security
-
-#### 3. CodeInjectionDetector
-
-**Languages**: Python, JavaScript, TypeScript
-
-**Python Patterns**:
-- `os.system()`
-- `subprocess.call/run/Popen()` with `shell=True`
-- `eval()`, `exec()`
-
-**JavaScript Patterns**:
-- `child_process.exec()`
-- `eval()`
-- `new Function()`
-
-**Semantic Analysis**: Tracks user input → command execution
-
-#### 4. XSSDetector
-
-**Categories** (18 patterns):
-- DOM-based XSS
-- Event handler injection
-- Framework-specific (React, Vue, Angular)
-- innerHTML/outerHTML manipulation
-- JavaScript URL injection
-- Style injection
+#### 4. ToolPoisoningDetector
+17 invisible Unicode character types, sensitive path targeting (`.env`, `.ssh/`, `~/.aws/credentials`, `/etc/passwd` → CRITICAL), behavior override phrases, cross-tool manipulation phrases ("before calling", "global rule"), suspicious tool/parameter names (`always_run_first`, `__instruction__`, `system_prompt`), anomalous description length (>500 chars).
 
 #### 5. PathTraversalDetector
-
-**Patterns**:
-- Directory traversal (`../`, `..\\`)
-- Zip Slip vulnerabilities
-- Unsafe file operations
-- Path joining without sanitization
-
-**Semantic Analysis**: Tracks request params → file operations
+`../` sequences, URL-encoded variants, `zipfile.extractall()` without path validation (Zip Slip), `open()` with unvalidated filename.
 
 #### 6. ConfigSecurityDetector
+`DEBUG=True`, open CORS (`*`), `SSL_VERIFY=False`, weak secret keys, exposed admin/debug endpoints.
 
-**Categories**:
-- Debug mode enabled
-- Weak authentication
-- CORS misconfiguration
-- Exposed endpoints
-- Rate limiting disabled
-- Insecure session config
+#### 7. SSRFDetector _(v0.2)_
+Unvalidated URL variables in Python HTTP clients (`requests`, `httpx`, `aiohttp`, `urllib`), JavaScript `fetch`/`axios`, Go `http.Get`/`http.NewRequest`, Java `URL.openConnection()`. Cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`) flagged CRITICAL. Redirect/callback URL parameters flagged MEDIUM.
 
-#### 7. SupplyChainDetector
+#### 8. NetworkBindingDetector _(v0.2)_
+Servers bound to `0.0.0.0` across Python (Flask/uvicorn/raw socket), JavaScript (Express), Go (`net.Listen`, `ListenAndServe`, including `:port` shorthand), Java (`ServerSocket`), and config files (`.env`, YAML, TOML, ini).
 
-**Package Managers**: npm, pip, cargo, go
-
-**Detection**:
-- Malicious install scripts
-- Dependency confusion
-- Typosquatting
-- Suspicious package patterns
-
-#### 8. ToolPoisoningDetector
-
-**AI-Specific Attacks**:
-- Unicode homoglyphs
-- Invisible characters
-- Right-to-left override
-- Zero-width characters
+#### 9. MissingAuthDetector _(v0.2)_
+Flask/FastAPI routes without `@login_required`/`Depends(get_current_user)`, Express routes without auth middleware, routes with sensitive path segments (`/admin`, `/debug`, `/internal`), MCP tools exposing system operations. Uses ±5/3-line lookback/lookahead window for auth patterns.
 
 ---
 
@@ -819,52 +759,26 @@ mcp-sentinel/
 │   │   ├── multi_engine_scanner.py  # Multi-engine orchestrator
 │   │   └── exceptions.py          # Custom exceptions
 │   │
-│   ├── detectors/                  # 8 specialized detectors
+│   ├── detectors/                  # 9 specialized detectors (v0.2)
 │   │   ├── __init__.py
 │   │   ├── base.py                # BaseDetector interface
 │   │   ├── secrets.py             # Secrets detector
 │   │   ├── prompt_injection.py    # Prompt injection
-│   │   ├── code_injection.py      # Code injection
-│   │   ├── xss.py                 # XSS detector
+│   │   ├── code_injection.py      # Code injection (+ stdlib AST)
 │   │   ├── path_traversal.py      # Path traversal
 │   │   ├── config_security.py     # Config security
-│   │   ├── supply_chain.py        # Supply chain
-│   │   └── tool_poisoning.py      # Tool poisoning
+│   │   ├── tool_poisoning.py      # Tool poisoning (full-schema)
+│   │   ├── ssrf.py                # SSRF (new v0.2)
+│   │   ├── network_binding.py     # Network binding (new v0.2)
+│   │   └── missing_auth.py        # Missing auth (new v0.2)
 │   │
-│   ├── engines/                    # 4 analysis engines
+│   ├── engines/                    # 1 analysis engine (static only)
 │   │   ├── __init__.py
 │   │   ├── base.py                # BaseEngine interface
 │   │   │
-│   │   ├── static/                # Static analysis engine
-│   │   │   ├── __init__.py
-│   │   │   └── static_engine.py
-│   │   │
-│   │   ├── sast/                  # SAST integration engine
-│   │   │   ├── __init__.py
-│   │   │   ├── sast_engine.py
-│   │   │   ├── semgrep_adapter.py
-│   │   │   └── bandit_adapter.py
-│   │   │
-│   │   ├── semantic/              # Semantic analysis engine
-│   │   │   ├── __init__.py
-│   │   │   ├── semantic_engine.py
-│   │   │   ├── ast_parser.py      # AST parsing
-│   │   │   ├── taint_tracker.py   # Taint tracking
-│   │   │   ├── cfg_builder.py     # Control flow graph
-│   │   │   └── models.py          # Data models
-│   │   │
-│   │   └── ai/                    # AI analysis engine (NEW!)
+│   │   └── static/                # Static analysis engine
 │   │       ├── __init__.py
-│   │       ├── ai_engine.py       # Main AI engine
-│   │       ├── prompts/           # Security analysis prompts
-│   │       │   └── __init__.py
-│   │       └── providers/         # AI provider implementations
-│   │           ├── __init__.py
-│   │           ├── base.py        # BaseAIProvider interface
-│   │           ├── anthropic_provider.py  # Claude integration
-│   │           ├── openai_provider.py     # GPT-4 (planned)
-│   │           ├── google_provider.py     # Gemini (planned)
-│   │           └── ollama_provider.py     # Local (planned)
+│   │       └── static_engine.py   # Runs all 9 detectors
 │   │
 │   ├── models/                     # Data models (Pydantic)
 │   │   ├── __init__.py
