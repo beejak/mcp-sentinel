@@ -1,10 +1,9 @@
 # MCP Sentinel User Guide
 
-**Version**: 3.0.0
-**Last Updated**: 2026-01-07
-**Status**: Phase 3 Complete - Enterprise Ready
+**Version**: 0.2.0
+**Last Updated**: 2026-03-23
 
-Welcome to MCP Sentinel! This guide will help you get started with scanning your MCP servers for security vulnerabilities.
+MCP Sentinel is a static security scanner for MCP servers. Pattern-based detection, no external binaries, no network calls, no data leaves your machine.
 
 ---
 
@@ -13,12 +12,12 @@ Welcome to MCP Sentinel! This guide will help you get started with scanning your
 1. [Quick Start](#quick-start)
 2. [Installation](#installation)
 3. [Basic Usage](#basic-usage)
-4. [Output Formats](#output-formats)
-5. [Interactive Remediation](#interactive-remediation)
-6. [Advanced Features](#advanced-features)
+4. [Detectors Reference](#detectors-reference)
+5. [Output Formats](#output-formats)
+6. [Severity Filtering](#severity-filtering)
 7. [Configuration](#configuration)
 8. [Integration with CI/CD](#integration-with-cicd)
-9. [Docker Deployment](#docker-deployment)
+9. [Programmatic Usage](#programmatic-usage)
 10. [Troubleshooting](#troubleshooting)
 11. [FAQ](#faq)
 
@@ -26,20 +25,24 @@ Welcome to MCP Sentinel! This guide will help you get started with scanning your
 
 ## Quick Start
 
-### Install and Run Your First Scan
-
 ```bash
-# Install with pip
-pip install mcp-sentinel
+# Install from source
+git clone https://github.com/beejak/mcp-sentinel.git
+cd mcp-sentinel
+pip install -e .
 
-# Run a basic scan
-mcp-sentinel scan /path/to/your/project
+# Scan a directory
+mcp-sentinel scan /path/to/your/mcp-server
 
-# Generate an HTML report
-mcp-sentinel scan /path/to/your/project --output html --json-file report.html
+# Scan current directory, show only critical and high
+mcp-sentinel scan . --severity critical --severity high
+
+# Export SARIF for GitHub Code Scanning
+mcp-sentinel scan . --output sarif --json-file results.sarif
+
+# Export JSON
+mcp-sentinel scan . --output json --json-file results.json
 ```
-
-That's it! You now have a comprehensive security report for your MCP server.
 
 ---
 
@@ -47,179 +50,142 @@ That's it! You now have a comprehensive security report for your MCP server.
 
 ### Prerequisites
 
-- **Python 3.11+** (we use modern Python features)
-- **pip** or **Poetry** for package management
+- Python 3.11+
+- pip
 
-### Option 1: Install from PyPI (Recommended)
-
-```bash
-pip install mcp-sentinel
-```
-
-### Option 2: Install from Source
+### From Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/beejak/mcp-sentinel.git
-cd mcp-sentinel/mcp-sentinel-python
-
-# Install with Poetry
-poetry install
-
-# Or install with pip
+cd mcp-sentinel
 pip install -e .
-```
 
-### Option 3: Use Docker
-
-```bash
-# Pull the image (when available)
-docker pull mcp-sentinel/scanner:latest
-
-# Or build locally
-docker build -t mcp-sentinel .
+# Or with dev dependencies
+pip install -e ".[dev]"
 ```
 
 ### Verify Installation
 
 ```bash
 mcp-sentinel --version
-# Output: mcp-sentinel, version 3.0.0
-
 mcp-sentinel --help
-# Shows all available commands
 ```
 
 ---
 
 ## Basic Usage
 
-### Scanning a Directory
+### Scan a Directory
 
 ```bash
-# Scan current directory
+# Scan the current directory
 mcp-sentinel scan .
-```
 
----
+# Scan a specific path
+mcp-sentinel scan /path/to/mcp-server
 
-## AI Analysis & Remediation
-
-MCP Sentinel v1.0.0-beta.5 introduces advanced AI capabilities powered by LLMs (Claude, GPT-4) and RAG (Retrieval-Augmented Generation).
-
-### AI-Powered Scanning
-
-To enable AI analysis, use the `--ai` flag. This will send detected vulnerabilities to the AI engine for deeper analysis and false positive reduction.
-
-```bash
-mcp-sentinel scan . --ai --provider anthropic
-```
-
-### Automated Remediation
-
-The AI engine can suggest fixes for detected vulnerabilities. These suggestions are generated as unified diffs that can be applied directly to your code.
-
-```bash
-# Scan and generate remediation suggestions
-mcp-sentinel scan . --ai --remediate
-```
-
-### Knowledge Base
-
-The system uses a local vector database (ChromaDB) to retrieve relevant security patterns (OWASP, CWE) to improve AI accuracy. The knowledge base is automatically populated on first run, but you can manually update it:
-
-```bash
-# Update the security knowledge base
-python populate_kb_script.py
-```
-```
-
----
-
-## RAG Knowledge System
-
-### What is RAG?
-Retrieval-Augmented Generation (RAG) enhances MCP Sentinel by retrieving relevant security knowledge from a vector database during scans. This allows the scanner to understand context and provide more accurate results.
-
-### Using the Knowledge Base
-
-The RAG system is enabled by default in Phase 4.4. It automatically loads:
-- **OWASP Top 10** (LLM, Web, API)
-- **CWE Top 25**
-- **Framework Security Patterns** (Django, Flask, FastAPI)
-
-### Managing Knowledge
-
-You can manage the knowledge base using the CLI (coming soon):
-
-```bash
-# Update knowledge base (Planned)
-mcp-sentinel knowledge update
-
-# Search for patterns (Planned)
-mcp-sentinel knowledge search "sql injection"
-```
-
----
-
-## Output Formats
-
-# Scan a specific directory
-mcp-sentinel scan /path/to/mcp/server
-
-# Scan with progress disabled (CI/CD)
+# Suppress progress bar (useful in scripts)
 mcp-sentinel scan . --no-progress
 ```
 
 ### Understanding the Output
 
-When you run a scan, MCP Sentinel will:
+When you run a scan, MCP Sentinel:
 
-1. **Discover Files**: Finds all relevant code files (Python, JavaScript, TypeScript, etc.)
-2. **Run Detectors**: Applies 8 specialized security detectors
-3. **Generate Report**: Creates a summary with findings organized by severity
+1. **Discovers files** — Python, JavaScript, TypeScript, Go, Java, YAML, JSON, config files
+2. **Runs 9 detectors** — each applicable to the file type being scanned
+3. **Generates a report** — severity breakdown, per-finding details, code snippets, remediation guidance
 
-**Terminal Output Includes:**
+**Terminal output includes:**
 - Scan summary (files scanned, vulnerabilities found, duration)
 - Severity breakdown (Critical, High, Medium, Low, Info)
-- Detailed findings with file locations and code snippets
-- Risk score (0-100 scale)
+- Detailed findings with file:line locations and code snippets
+- Risk score (0–100 scale, weighted by severity and confidence)
+
+---
+
+## Detectors Reference
+
+Nine detectors run against each file. Each detector is scoped to applicable file types (e.g., `NetworkBindingDetector` also runs against `.env` and YAML config files).
+
+### SecretsDetector
+Hardcoded credentials — AWS keys, AI provider keys (`sk-...`), GitHub tokens (`ghp_`), JWT tokens, private key PEM blocks, database connection strings with embedded passwords.
+
+### CodeInjectionDetector
+Command and code execution sinks: `os.system()`, `subprocess(shell=True)`, `eval()`, `exec()`, `child_process.exec()`, SQL string formatting with f-strings.
+
+Uses Python stdlib `ast` for multi-line `subprocess(shell=True)` detection (no external dependencies).
+
+### PromptInjectionDetector
+Embedded instructions that manipulate agent behavior: role reassignment (`"you are now"`), jailbreak phrases (`"DAN mode"`, `"developer mode"`), override directives (`"ignore previous instructions"`).
+
+### ToolPoisoningDetector
+Malicious content in MCP tool schemas targeting AI agents:
+
+| Category | Description |
+|---|---|
+| Invisible Unicode | 17 character types (zero-width spaces, RTLO, Hangul filler) |
+| Sensitive path targeting | `.env`, `.ssh/`, `~/.aws/credentials`, `/etc/passwd`, `id_rsa` → **CRITICAL** |
+| Behavior overrides | `ignore previous`, `override instructions`, `[hidden]`, `[secret]` |
+| Cross-tool manipulation | "before calling", "global rule", "always call this tool first" |
+| Suspicious tool names | `always_run_first`, `override_*`, `hijack`, `__*__` |
+| Suspicious param names | `__instruction__`, `system_prompt`, `ai_directive` |
+| Anomalous description length | >500 chars → potential payload embedding |
+
+### PathTraversalDetector
+Directory traversal: `../` sequences, URL-encoded variants (`%2e%2e%2f`), `zipfile.extractall()` without path validation (Zip Slip), `open()` with unvalidated filename arguments.
+
+### ConfigSecurityDetector
+Insecure configuration values: `DEBUG=True`, `CORS_ORIGINS=*`, `SSL_VERIFY=False`, weak secret keys, exposed admin/debug endpoints.
+
+### SSRFDetector _(v0.2)_
+Server-side request forgery sinks:
+
+| Pattern | Language | Severity |
+|---|---|---|
+| `requests.get(url)` with variable | Python | HIGH |
+| `fetch(userUrl)` / `axios.get(endpoint)` | JavaScript/TypeScript | HIGH |
+| `169.254.169.254` / `metadata.google.internal` | Any | CRITICAL |
+| `redirect_uri`, `callback_url` parameters | Any | MEDIUM |
+| `http.Get(url)` / `http.NewRequest(..., url, ...)` | Go | HIGH |
+| `new URL(var).openConnection()` | Java | HIGH |
+
+### NetworkBindingDetector _(v0.2)_
+Servers binding to `0.0.0.0` instead of `127.0.0.1`. Covers Python, JavaScript, Go (`net.Listen(":port")` shorthand also binds to all interfaces), Java, and config files (`.env`, YAML, TOML, ini).
+
+### MissingAuthDetector _(v0.2)_
+Routes and endpoints without authentication. Uses a ±5/3-line lookback/lookahead window:
+
+| Pattern | Severity |
+|---|---|
+| Flask/FastAPI route without `@login_required`/`Depends(...)` | MEDIUM |
+| Route with `/admin`, `/debug`, `/internal` path, no auth | HIGH |
+| Express route without auth middleware | MEDIUM |
+| MCP tool exposing `exec`/`shell`/`system` operation | HIGH |
+
+> **Note:** Global auth middleware applied to all routes at the app level will not be detected statically. These findings are expected to be reviewed and suppressed where appropriate.
 
 ---
 
 ## Output Formats
 
-MCP Sentinel supports 4 professional output formats:
-
-### 1. Terminal Output (Default)
+### Terminal (default)
 
 ```bash
-mcp-sentinel scan /path/to/project
+mcp-sentinel scan .
 ```
 
-**Features:**
-- Rich colored output with tables
-- Progress tracking with spinner
-- Severity-based color coding
-- Code snippet previews
+Rich-colored table output with severity-coded rows, code snippets, and remediation hints. Best for interactive use and debugging.
 
-**Best for:** Quick scans, debugging, development
-
-### 2. JSON Format
+### JSON
 
 ```bash
-mcp-sentinel scan /path/to/project --output json --json-file results.json
+mcp-sentinel scan . --output json --json-file results.json
 ```
 
-**Features:**
-- Structured data format
-- Machine-readable
-- Comprehensive vulnerability details
-- Scan statistics and metadata
+Structured export of all findings. Includes metadata, risk scores, MITRE ATT&CK IDs, CWE IDs, and remediation steps. Best for CI/CD pipelines and programmatic processing.
 
-**Best for:** CI/CD pipelines, automation, tooling integration
-
-**JSON Structure:**
+**Structure:**
 ```json
 {
   "target": "/path/to/project",
@@ -231,319 +197,99 @@ mcp-sentinel scan /path/to/project --output json --json-file results.json
     "total_vulnerabilities": 5,
     "critical_count": 1,
     "high_count": 2,
-    ...
+    "medium_count": 2,
+    "low_count": 0
   }
 }
 ```
 
-### 3. SARIF 2.1.0 Format (GitHub Code Scanning)
+### SARIF 2.1.0
 
 ```bash
-mcp-sentinel scan /path/to/project --output sarif --json-file results.sarif
+mcp-sentinel scan . --output sarif --json-file results.sarif
 ```
 
-**Features:**
-- Industry-standard format (OASIS SARIF 2.1.0)
-- GitHub Code Scanning compatible
-- IDE integration ready
-- Full location mapping
-- Rule definitions included
+OASIS SARIF 2.1.0 format. Compatible with GitHub Code Scanning, Azure DevOps, and GitLab SAST. Upload to GitHub Security tab for in-PR annotation.
 
-**Best for:** GitHub Code Scanning, IDE integration, tool interoperability
-
-**Upload to GitHub:**
+**Upload to GitHub Code Scanning:**
 ```bash
-# Generate SARIF
 mcp-sentinel scan . --output sarif --json-file results.sarif
-
-# Upload to GitHub Code Scanning
 gh api repos/{owner}/{repo}/code-scanning/sarifs -F sarif=@results.sarif
 ```
 
-### 4. HTML Interactive Reports
-
-```bash
-mcp-sentinel scan /path/to/project --output html --json-file report.html
-```
-
-**Features:**
-- Executive dashboard with key metrics
-- Risk score visualization
-- Animated severity breakdown charts
-- Detailed findings with code highlighting
-- Self-contained (no external dependencies)
-- Professional styling
-- Shareable (just send the HTML file)
-
-**Best for:** Executive summaries, team sharing, stakeholder presentations
-
-**Open the Report:**
-```bash
-# Open in browser
-open report.html  # macOS
-xdg-open report.html  # Linux
-start report.html  # Windows
-```
-
 ---
 
-## Interactive Remediation
-
-The `fix` command allows you to interactively apply patches to detected vulnerabilities. This streamlines the remediation process by automating the code modification step.
-
-### Usage
+## Severity Filtering
 
 ```bash
-# Scan and fix current directory
-mcp-sentinel fix
-
-# Scan and fix specific target
-mcp-sentinel fix /path/to/target
-
-# Fix using existing scan results (faster)
-mcp-sentinel fix --scan-file scan_results.json
-
-# Auto-approve all safe fixes (use with caution)
-mcp-sentinel fix --auto-approve
-```
-
-### How it Works
-
-1.  **Detection**: Scans the code (or loads existing results) to find vulnerabilities with available automated fixes.
-2.  **Proposal**: Generates a unified diff showing exactly what will change.
-3.  **Confirmation**: Prompts you to confirm, skip, or auto-approve the change.
-4.  **Application**: Applies the patch safely to your source code.
-
-**Example Session:**
-```text
-Issue 1/5: Hardcoded AWS Access Key
-File: src/config.py:15
-
-Proposed Change:
---- a/src/config.py
-+++ b/src/config.py
-- AWS_KEY = "AKIA1234567890123456"
-+ AWS_KEY = os.getenv("AWS_KEY")
-
-Apply this fix? (Y/n) y
-✔ Fix applied successfully!
-```
-
----
-
-## Advanced Features
-
-### RAG Knowledge System (New in 4.4)
-
-MCP Sentinel now includes a Retrieval-Augmented Generation (RAG) system that enhances AI analysis with:
-
-- **Vector Search**: Semantic retrieval of security patterns.
-- **Knowledge Base**: Access to OWASP, CWE, and SANS vulnerabilities.
-- **Contextual Insights**: Provides the AI engine with relevant security context for better accuracy.
-
-To use the RAG system, ensure you have the `--engines all` or include `semantic` in your engine list.
-
-### Severity Filtering
-
-Filter scan results by severity level:
-
-```bash
-# Show only critical vulnerabilities
+# Critical only
 mcp-sentinel scan . --severity critical
 
-# Show critical and high severity
+# Critical and high
 mcp-sentinel scan . --severity critical --severity high
 
-# Combine with HTML output
-mcp-sentinel scan . --severity critical --severity high --output html --json-file critical-issues.html
+# Everything except info
+mcp-sentinel scan . --severity critical --severity high --severity medium --severity low
 ```
 
-**Severity Levels:**
-- **CRITICAL**: Immediate action required (hardcoded secrets, RCE)
-- **HIGH**: Serious vulnerabilities (SQL injection, XSS)
-- **MEDIUM**: Important issues (missing headers, weak config)
-- **LOW**: Minor concerns (best practice violations)
-- **INFO**: Informational findings
-
-### Multi-Engine Scanning (Phase 4+)
-
-```bash
-# Use specific engines (Phase 4 feature - coming soon)
-mcp-sentinel scan . --engines static,sast
-
-# Use all available engines
-mcp-sentinel scan . --engines all
-```
-
-**Available Engines (Phase 4+):**
-- `static` - Pattern-based detection (available now)
-- `semantic` - AST and dataflow analysis (Phase 4)
-- `sast` - Semgrep + Bandit integration (Phase 4)
-- `ai` - AI-powered analysis (Phase 4)
-
-### Programmatic Usage
-
-Use MCP Sentinel in your Python scripts:
-
-```python
-import asyncio
-from pathlib import Path
-from mcp_sentinel.core import MultiEngineScanner
-from mcp_sentinel.engines.base import EngineType
-from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
-
-async def scan_project():
-    # Initialize scanner
-    scanner = MultiEngineScanner(
-        enabled_engines={EngineType.STATIC}
-    )
-
-    # Run scan
-    result = await scanner.scan_directory("/path/to/project")
-
-    # Generate reports
-    html_gen = HTMLGenerator()
-    html_gen.save_to_file(result, Path("report.html"))
-
-    sarif_gen = SARIFGenerator()
-    sarif_gen.save_to_file(result, Path("results.sarif"))
-
-    # Check results
-    if result.has_critical_findings():
-        print(f"⚠️  Found {result.statistics.critical_count} critical issues!")
-        return 1
-
-    print("✅ No critical issues found")
-    return 0
-
-# Run the scan
-exit_code = asyncio.run(scan_project())
-```
+**Severity levels:**
+| Level | CVSS range | Meaning |
+|---|---|---|
+| CRITICAL | 9.0–10.0 | Immediate action required — hardcoded secrets, cloud metadata references, sensitive path targeting |
+| HIGH | 7.0–8.9 | Serious vulnerability — code injection, SSRF, missing auth on sensitive routes |
+| MEDIUM | 4.0–6.9 | Important issue — open CORS, 0.0.0.0 binding, redirect params without validation |
+| LOW | 0.1–3.9 | Best practice violation |
+| INFO | 0.0 | Informational |
 
 ---
 
 ## Configuration
 
-### Configuration File
+Environment variables (can also be set in a `.env` file in the project root):
 
-Create a `.mcp-sentinel.yaml` file in your project root:
-
-```bash
-# Generate default config
-mcp-sentinel init
-```
-
-**Example Configuration:**
-
-```yaml
-# MCP Sentinel Configuration
-
-# Analysis engines (Phase 3: static only)
-engines:
-  static: true           # ✅ Available now
-  semantic: false        # 🚧 Phase 4
-  sast: false            # 🚧 Phase 4
-  ai: false              # 🚧 Phase 4
-
-# Report generation
-reporting:
-  formats: [terminal, html, sarif]
-  output_dir: ./reports
-
-  terminal:
-    colored: true
-    show_code_snippets: true
-
-  html:
-    include_executive_summary: true
-    show_risk_score: true
-    animated_charts: true
-
-  sarif:
-    github_code_scanning: true
-    include_fixes: true
-
-# Scanning configuration
-scan:
-  min_severity: low
-
-  include_patterns:
-    - "**/*.py"
-    - "**/*.js"
-    - "**/*.ts"
-    - "**/*.go"
-    - "**/*.java"
-
-  exclude_patterns:
-    - "**/node_modules/**"
-    - "**/.git/**"
-    - "**/__pycache__/**"
-    - "**/venv/**"
-    - "**/dist/**"
-
-# Performance
-performance:
-  max_workers: 10
-  cache_enabled: true
-  parallel_execution: true
-  timeout_seconds: 300
-```
-
-### Environment Variables
-
-Configure MCP Sentinel with environment variables:
-
-```bash
-# AI Provider Configuration (Phase 4+)
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
-export GOOGLE_API_KEY=...
-
-# Logging
-export MCP_SENTINEL_LOG_LEVEL=info  # debug, info, warning, error
-
-# Output
-export MCP_SENTINEL_OUTPUT_DIR=./reports
-```
+| Variable | Default | Description |
+|---|---|---|
+| `ENABLE_STATIC_ANALYSIS` | `true` | Enable/disable the static analysis engine |
+| `LOG_LEVEL` | `info` | Verbosity: debug, info, warning, error |
+| `MAX_WORKERS` | `4` | Concurrent file scanning workers |
+| `CACHE_TTL` | `3600` | Scan result cache TTL in seconds |
+| `ENVIRONMENT` | `development` | Environment label |
 
 ---
 
 ## Integration with CI/CD
 
-### GitHub Actions
+### GitHub Actions (recommended)
 
 ```yaml
-name: Security Scan
+name: MCP Sentinel Security Scan
 
 on: [push, pull_request]
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install MCP Sentinel
-        run: pip install mcp-sentinel
+        run: pip install -e .
 
-      - name: Run Security Scan
-        run: |
-          mcp-sentinel scan . --output sarif --json-file results.sarif
+      - name: Run scan (SARIF)
+        run: mcp-sentinel scan . --output sarif --json-file results.sarif
 
-      - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
+        if: always()
 
-      - name: Fail on Critical Issues
-        run: |
-          mcp-sentinel scan . --severity critical --no-progress
+      - name: Fail build on critical findings
+        run: mcp-sentinel scan . --severity critical --no-progress
 ```
 
 ### GitLab CI
@@ -552,20 +298,16 @@ jobs:
 security_scan:
   image: python:3.11
   stage: test
-
   before_script:
-    - pip install mcp-sentinel
-
+    - pip install -e .
   script:
     - mcp-sentinel scan . --output json --json-file gl-security-report.json
-
   artifacts:
     reports:
       security: gl-security-report.json
-
-  only:
-    - merge_requests
-    - main
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 ```
 
 ### Jenkins Pipeline
@@ -573,17 +315,12 @@ security_scan:
 ```groovy
 pipeline {
     agent any
-
     stages {
         stage('Security Scan') {
             steps {
-                sh 'pip install mcp-sentinel'
-                sh 'mcp-sentinel scan . --output html --json-file security-report.html'
-                publishHTML([
-                    reportDir: '.',
-                    reportFiles: 'security-report.html',
-                    reportName: 'Security Report'
-                ])
+                sh 'pip install -e .'
+                sh 'mcp-sentinel scan . --output json --json-file security-report.json'
+                archiveArtifacts artifacts: 'security-report.json'
             }
         }
     }
@@ -592,201 +329,142 @@ pipeline {
 
 ### Pre-commit Hook
 
-Add to `.pre-commit-config.yaml`:
-
 ```yaml
+# .pre-commit-config.yaml
 repos:
   - repo: local
     hooks:
       - id: mcp-sentinel
         name: MCP Sentinel Security Scan
         entry: mcp-sentinel scan
-        args: ['--severity', 'critical', '--severity', 'high']
+        args: ['--severity', 'critical', '--severity', 'high', '--no-progress']
         language: system
         pass_filenames: false
 ```
 
 ---
 
-## Docker Deployment
+## Programmatic Usage
 
-### Simple Scanner (Lightweight)
+```python
+import asyncio
+from pathlib import Path
+from mcp_sentinel.core import MultiEngineScanner
+from mcp_sentinel.engines.base import EngineType
+from mcp_sentinel.reporting.generators import SARIFGenerator
 
-Use for quick scanning without enterprise infrastructure:
+async def scan_project():
+    scanner = MultiEngineScanner(enabled_engines={EngineType.STATIC})
+    result = await scanner.scan_directory("/path/to/project")
 
-```bash
-# Build the image
-docker-compose -f docker-compose.simple.yml build
+    # Export SARIF
+    sarif_gen = SARIFGenerator()
+    sarif_gen.save_to_file(result, Path("results.sarif"))
 
-# Run a scan
-docker-compose -f docker-compose.simple.yml run --rm scanner scan /data
+    if result.has_critical_findings():
+        print(f"Found {result.statistics.critical_count} critical issues!")
+        return 1
+    return 0
 
-# Generate HTML report
-docker-compose -f docker-compose.simple.yml run --rm scanner scan /data \
-  --output html --json-file /reports/report.html
-
-# Mount your project
-docker-compose -f docker-compose.simple.yml run --rm \
-  -v /path/to/your/project:/data:ro \
-  scanner scan /data
+exit_code = asyncio.run(scan_project())
 ```
 
-### Enterprise Stack (Full Platform)
+Or use individual detectors directly:
 
-For production deployments with PostgreSQL, Redis, and Celery:
+```python
+import asyncio
+from pathlib import Path
+from mcp_sentinel.detectors.ssrf import SSRFDetector
 
-```bash
-# Start all services
-docker-compose up -d
+async def check_file():
+    detector = SSRFDetector()
+    content = Path("tool.py").read_text()
+    vulns = await detector.detect(Path("tool.py"), content)
+    for v in vulns:
+        print(f"{v.severity.value.upper()} {v.title} @ line {v.line_number}")
 
-# View logs
-docker-compose logs -f api
-
-# Access services
-# - API: http://localhost:8000
-# - Flower: http://localhost:5555
-# - MinIO: http://localhost:9001
-
-# Stop services
-docker-compose down
+asyncio.run(check_file())
 ```
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+### "No vulnerabilities found" when you expect some
 
-#### "No vulnerabilities found" when you expect some
+- Files may be in excluded directories (`node_modules`, `.git`, `venv`, `__pycache__`)
+- The file type may not be in the default scan patterns
+- The specific pattern variant you have may not be covered yet
 
-**Possible causes:**
-- Files are in excluded directories (node_modules, .git, venv)
-- File types not supported yet
-- Patterns don't match your code style
-
-**Solution:**
+Check which files are being discovered:
 ```bash
-# Check which files are being scanned
-mcp-sentinel scan . --no-progress | grep "Files Scanned"
-
-# Customize file patterns in .mcp-sentinel.yaml
-scan:
-  include_patterns:
-    - "**/*.py"
-    - "**/*.js"
+mcp-sentinel scan . --no-progress 2>&1 | grep "Files Scanned"
 ```
 
-#### "Permission denied" errors
+### MissingAuthDetector produces false positives for routes covered by global middleware
 
-**Solution:**
+This is expected. Global middleware applied at the app level cannot be detected statically. Review the findings in context and treat them as informational for fully-authenticated applications.
+
+### Scan is slow on large repositories
+
 ```bash
-# Ensure you have read permissions
-chmod -R +r /path/to/project
+# Reduce workers
+MAX_WORKERS=2 mcp-sentinel scan .
 
-# Or run with Docker
-docker-compose -f docker-compose.simple.yml run --rm scanner scan /data
-```
-
-#### Scan takes too long
-
-**Solution:**
-```bash
-# Reduce max workers
-mcp-sentinel scan . --config <(echo "performance: {max_workers: 4}")
-
-# Or exclude large directories
-scan:
-  exclude_patterns:
-    - "**/node_modules/**"
-    - "**/vendor/**"
-    - "**/dist/**"
+# Scan a subdirectory
+mcp-sentinel scan src/
 ```
 
 ### Getting Help
 
-- **Documentation**: https://github.com/beejak/mcp-sentinel/tree/main/docs
-- **Issues**: https://github.com/beejak/mcp-sentinel/issues
-- **Discussions**: https://github.com/beejak/mcp-sentinel/discussions
+- **Issues:** https://github.com/beejak/mcp-sentinel/issues
+- **Docs:** https://github.com/beejak/mcp-sentinel/tree/main/docs
 
 ---
 
 ## FAQ
 
-### What types of vulnerabilities does MCP Sentinel detect?
+### What vulnerabilities does MCP Sentinel detect?
 
-MCP Sentinel includes 8 specialized detectors covering:
+Nine detector categories:
 
-1. **Secrets** - Hardcoded API keys, passwords, tokens
-2. **Code Injection** - SQL injection, command injection, eval
-3. **Prompt Injection** - AI/LLM security attacks
-4. **XSS** - Cross-site scripting vulnerabilities
-5. **Configuration** - Insecure settings, missing headers
-6. **Path Traversal** - Directory traversal, Zip Slip
-7. **Tool Poisoning** - Unicode manipulation, hidden instructions
-8. **Supply Chain** - Malicious dependencies, typosquatting
+1. **Secrets** — hardcoded API keys, tokens, database credentials
+2. **Code Injection** — shell execution, eval, SQL injection
+3. **Prompt Injection** — instructions manipulating agent behavior
+4. **Tool Poisoning** — malicious content in MCP tool schemas (full-schema, Unicode, path targeting)
+5. **Path Traversal** — directory traversal, Zip Slip
+6. **Config Security** — debug mode, open CORS, TLS disabled, weak secrets
+7. **SSRF** — unvalidated URL arguments, cloud metadata endpoint references
+8. **Network Binding** — servers bound to 0.0.0.0 instead of 127.0.0.1
+9. **Missing Auth** — routes without authentication decorators or middleware
 
-### How accurate is the detection?
+### How accurate is detection?
 
-- **Test Coverage**: ~95% average across all detectors
-- **Pattern Count**: 98 vulnerability patterns
-- **False Positive Rate**: Low (context-aware detection)
-- **Detection Rate**: High (comprehensive pattern coverage)
+- Pattern-based detection with context filtering (false-positive suppression)
+- Test coverage: 86% overall, up to 97% for some detectors
+- Confidence levels (HIGH/MEDIUM/LOW) are set per-finding to communicate certainty
+- MissingAuthDetector uses MEDIUM confidence because global middleware cannot be detected statically
+
+### Does MCP Sentinel make network calls or send my code anywhere?
+
+No. All analysis runs locally. No network calls are made. No data leaves your machine.
 
 ### Can I use this in commercial projects?
 
-Yes! MCP Sentinel is MIT licensed, which means:
-- ✅ Commercial use allowed
-- ✅ Modification allowed
-- ✅ Distribution allowed
-- ✅ Private use allowed
+Yes. MIT licensed — commercial use, modification, and distribution are all permitted.
 
-### How does this compare to other security scanners?
+### What's the difference between v0.1 and v0.2?
 
-MCP Sentinel is specifically designed for MCP servers with:
-- **MCP-Specific Detectors**: Prompt injection, tool poisoning
-- **AI Security Focus**: LLM-specific attack patterns
-- **Modern Stack**: Python 3.11+, async-first architecture
-- **Professional Reporting**: SARIF, HTML dashboards
-- **100% Open Source**: No commercial upsells
+v0.2 added three MCP-specific detectors (SSRF, network binding, missing auth) and enhanced the tool poisoning detector with full-schema poisoning coverage — all grounded in documented 2025–2026 MCP CVEs and security research. Test count: 248 → 334.
 
-### Will you support more languages?
+### What's coming next?
 
-Phase 4 (Q1 2026) will add semantic analysis with tree-sitter, supporting:
-- Python (enhanced)
-- JavaScript/TypeScript (enhanced)
-- Go
-- Java
-- More languages based on community demand
+**v0.3** — Supply chain detector rebuild: exfiltration patterns in non-network tools, npm `postinstall` shell execution, PyPI typosquatting, encoded payload detection (`eval(atob(...))`).
 
-### Can I contribute?
-
-Absolutely! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Code contribution guidelines
-- Development setup
-- Testing requirements
-- Pull request process
-
-### What's the difference between phases?
-
-- **Phase 1**: Foundation (3 detectors)
-- **Phase 2**: AI & Supply Chain (5 detectors)
-- **Phase 3**: Complete Parity + Reports (8 detectors, 4 formats) ← **Current**
-- **Phase 4**: Multi-Engine Platform (Semantic, SAST, AI)
-- **Phase 5**: Enterprise Features (API, Database, Task Queue)
-- **Phase 6+**: Advanced Integrations & Analytics
+See [ROADMAP.md](../ROADMAP.md) for the full roadmap.
 
 ---
 
-## Next Steps
+**Happy Scanning.**
 
-1. **Run your first scan**: `mcp-sentinel scan .`
-2. **Generate an HTML report**: `--output html --json-file report.html`
-3. **Integrate with CI/CD**: See [Integration section](#integration-with-cicd)
-4. **Configure for your project**: `mcp-sentinel init`
-5. **Join the community**: [GitHub Discussions](https://github.com/beejak/mcp-sentinel/discussions)
-
----
-
-**Happy Scanning! 🛡️**
-
-For more information, visit the [full documentation](https://github.com/beejak/mcp-sentinel/tree/main/docs).
+For more documentation, see the [docs/](.) directory.

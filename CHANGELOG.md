@@ -7,7 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-03-23
+
+MCP-native attack pattern detectors. Three new detectors grounded in real CVE data and 2025–2026 MCP security research. Enhanced tool poisoning coverage to include full-schema poisoning (all schema fields, not just descriptions).
+
+### Added
+
+**New detectors:**
+- **`SSRFDetector`** — Server-Side Request Forgery. Detects unvalidated URL variables passed to Python HTTP clients (`requests`, `httpx`, `aiohttp`, `urllib`), JavaScript `fetch`/`axios`, Go `http.Get`/`http.NewRequest`, and Java `URL.openConnection()`. Also detects hardcoded cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`) at CRITICAL severity, and redirect/callback URL parameters (`redirect_uri`, `callback_url`, `webhook_url`). Based on the 30% SSRF exposure rate found in real-world MCP server scans.
+- **`NetworkBindingDetector`** — Detects servers binding to `0.0.0.0` (all interfaces) instead of `127.0.0.1`. Covers Python Flask/uvicorn/raw socket, Express/Node.js, Go `net.Listen`/`ListenAndServe` (including the `:port` shorthand which also binds to all interfaces), Java `ServerSocket`, and config files (`.env`, YAML, TOML, ini). Root cause of 8,000+ publicly exposed MCP servers.
+- **`MissingAuthDetector`** — Detects routes and endpoints without authentication. Flask/FastAPI routes without `@login_required` or `Depends(get_current_user)`, Express routes without auth middleware, routes with sensitive path segments (`/admin`, `/debug`, `/internal`, etc.), and MCP tool definitions exposing system operations (`exec`, `shell`, `run_command`). Uses ±5/3-line lookback/lookahead window for auth patterns.
+
+**`ToolPoisoningDetector` enhancements (full-schema poisoning — v0.2):**
+- Pattern 7: Suspicious tool names — `always_run_first`, `override_*`, `hijack`, `intercept_all`, `__*__` naming
+- Pattern 8: Suspicious parameter names — `__instruction__`, `system_prompt`, `hidden_prompt`, `ai_directive`
+- Pattern 9: Cross-tool manipulation phrases — "before calling", "always call this tool first", "global rule", "applies to all tools", "this tool takes precedence" — the tool shadowing attack vector
+- Pattern 10: Sensitive path targeting — `.env`, `.ssh/`, `~/.aws/credentials`, `/etc/passwd`, `/etc/shadow`, `id_rsa`, `authorized_keys` in tool content — the exact technique used in the GitHub MCP prompt injection data heist; flagged CRITICAL
+- Anomalous description length — tool descriptions >500 chars flagged as potential payload embedding (MEDIUM/LOW confidence)
+
+**`VulnerabilityType` enum:**
+- Added `SSRF = "ssrf"`
+- Added `NETWORK_BINDING = "network_binding"`
+- Added `MISSING_AUTH = "missing_auth"`
+
+**Registration:**
+- All three new detectors registered in `detectors/__init__.py` and `static_engine.py`
+- Default detector count: 6 → 9
+
+**New test files:**
+- `tests/unit/test_ssrf_detector.py` (28 tests)
+- `tests/unit/test_network_binding.py` (22 tests)
+- `tests/unit/test_missing_auth.py` (20 tests)
+- `tests/unit/test_tool_poisoning_enhanced.py` (26 tests)
+
+### Changed
+- `static_engine.py` docstring updated to list all 9 detectors
+- `StaticAnalysisEngine.__init__` docstring: "all 8 default detectors" → "all 9 default detectors"
+- `ToolPoisoningDetector` class docstring updated to list 10 patterns
+- `_create_vulnerability` in `ToolPoisoningDetector`: CRITICAL CVSS bumped to 9.5 (from 9.1) to reflect sensitive path targeting severity
+
+### Test results
+- **334 passed, 4 xfailed, 0 failed** (up from 248/4/0)
+- Coverage: 86.47%
+- xfail tests unchanged: document multi-line taint patterns requiring semantic analysis
+
+---
+
 ## [0.1.0] - 2026-03-23
+
+Major codebase reduction. Removed everything that was over-engineered, stub-only, or created unnecessary attack surface for a security tool. What remains is a focused, auditable static scanner with no external binary dependencies and no network calls.
+
+### Added
+- `UNUSED_CODE.md` documenting all removed features and security rationale
+- Lightweight stdlib `ast`-based `_detect_shell_true_ast()` in `CodeInjectionDetector` for multi-line `subprocess(shell=True)` detection without any external dependencies
+
+### Removed
+- **AI engine** (`engines/ai/`) — sent source code to external LLM APIs; antithetical for a security tool
+- **SAST engine** (`engines/sast/`) — Semgrep/Bandit wrappers; external binary dependencies with version drift risk
+- **Semantic/CFG engine** (`engines/semantic/`) — over-engineered; stdlib AST covers the critical cases
+- **RAG system** (`rag/`) — ChromaDB + sentence-transformers; only served the removed AI engine
+- **Remediation system** (`remediation/`) — `DiffBuilder.apply_patch()` wrote AI output directly to source files
+- **`fix` CLI command** — automated writes to production code from a security scanner is too dangerous
+- **API server** (`api/`) — stub FastAPI server; out of scope for a CLI scanner
+- **Integrations, Monitoring, Tasks, Storage** — all empty stubs
+- **XSS detector** — generic web vulnerability with low signal-to-noise for MCP servers
+- **Supply chain detector** — was stub-only; to be rebuilt properly in v0.3
+- **HTML report generator** — unnecessary dependency surface
+- **`--engines` CLI flag** — no longer needed with a single engine
+- **~30 pyproject.toml dependencies:** fastapi, uvicorn, sqlalchemy, alembic, asyncpg, anthropic, langchain*, openai, transformers, sentence-transformers, chromadb, boto3, redis, celery, grpcio*, strawberry-graphql, prometheus-client, opentelemetry*, structlog, sentry-sdk, jira, slack-sdk, PyGithub, tree-sitter*, libcst, semgrep, bandit, pandas, plotly, reportlab, jinja2, weasyprint, and others
+
+### Changed
+- `EngineType` enum reduced from `{STATIC, SEMANTIC, SAST, AI}` to `{STATIC}` only
+- `EngineSettings` reduced to `enable_static: bool` only
+- `Settings` stripped to: `environment`, `log_level`, `engines`, `max_workers`, `cache_ttl`
+- `_get_default_detectors()` reduced from 8 to 6 detectors
+- `multi_engine_scanner.py` simplified to single-engine orchestration
+- `cli/main.py` rewritten — removed `fix` command, `--engines`, `--output html`
+- `detectors/__init__.py` — exports `ConfigSecurityDetector` and `PathTraversalDetector`; removes `SupplyChainDetector`
+- `reporting/generators/__init__.py` — exports `SARIFGenerator` only
+
+### Fixed
+- Tests updated to match current detector count (6, not 8)
+- Multi-engine scanner progress callback assertion corrected to `EngineType.STATIC`
+- Framework detection test: XSS assertion removed (XSSDetector deleted)
+- Path traversal: two multi-line taint tests marked `@pytest.mark.xfail`
+- Config test fully rewritten (previously imported 5 removed config classes)
+
+### Test results
+- **248 passed, 4 xfailed, 0 failed**
+- xfail tests document multi-line taint patterns that require semantic analysis
+
 
 Major codebase reduction. Removed everything that was over-engineered, stub-only, or created unnecessary attack surface for a security tool. What remains is a focused, auditable static scanner with no external binary dependencies and no network calls.
 
