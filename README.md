@@ -23,7 +23,53 @@
 
 ---
 
-## What It Does
+## What's New in v0.2.0
+
+| | v0.1.0 | v0.2.0 |
+|---|---|---|
+| **Detectors** | 6 | 9 (+3) |
+| **Tests passing** | 248 | 334 (+86) |
+| **Coverage** | ~82% | 86.47% |
+| **VulnerabilityTypes** | 10 | 13 (+SSRF, NETWORK_BINDING, MISSING_AUTH) |
+
+### New detectors
+
+| Detector | What it catches | Key finding |
+|---|---|---|
+| `SSRFDetector` | Variable URLs passed to HTTP clients; cloud metadata IPs; redirect params | `169.254.169.254` → CRITICAL |
+| `NetworkBindingDetector` | `0.0.0.0` binding in code and config files across all languages | Root cause of 8,000+ exposed MCP servers |
+| `MissingAuthDetector` | Routes and endpoints without auth decorators or middleware | `/admin` without `@login_required` → HIGH |
+
+### ToolPoisoningDetector: full-schema poisoning (v0.2 additions)
+
+v0.1 only scanned `description` fields. v0.2 scans all schema fields:
+
+| Added in v0.2 | Coverage |
+|---|---|
+| Suspicious tool names | `always_run_first`, `override_*`, `hijack` |
+| Suspicious param names | `__instruction__`, `system_prompt`, `ai_directive` |
+| Cross-tool manipulation | "before calling", "global rule", "always call this tool first" |
+| Sensitive path targeting | `.env`, `.ssh/`, `~/.aws/credentials`, `/etc/passwd`, `id_rsa` → **CRITICAL** |
+| Anomalous description length | >500 chars flagged as potential payload embedding |
+
+### Threat model expanded in v0.2
+
+| Vulnerability class | v0.1 | v0.2 |
+|---|---|---|
+| Hardcoded secrets | ✅ | ✅ |
+| Code/command injection | ✅ | ✅ |
+| Prompt injection | ✅ | ✅ |
+| Tool poisoning (description field) | ✅ | ✅ |
+| Tool poisoning (all schema fields) | — | ✅ |
+| Path traversal | ✅ | ✅ |
+| Insecure configuration | ✅ | ✅ |
+| SSRF | — | ✅ |
+| Server exposed on all interfaces | — | ✅ |
+| Missing authentication on routes | — | ✅ |
+
+---
+
+
 
 MCP Sentinel scans MCP server source code for security vulnerabilities using pattern-based static analysis. No external binaries, no API calls, no data leaves your machine.
 
