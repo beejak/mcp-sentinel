@@ -1,621 +1,247 @@
-# QA Checklist & Test Strategy
+# MCP Sentinel — QA Checklist
 
-**Version**: 1.0.0
-**Date**: 2026-01-06
-**Repository**: mcp-sentinel-python
-**Purpose**: Comprehensive quality assurance checklist and testing strategy for Python edition
+**Version**: v0.2.0
 
 ---
 
 ## Table of Contents
 
 1. [Testing Philosophy](#testing-philosophy)
-2. [Test Pyramid Strategy](#test-pyramid-strategy)
+2. [Test Pyramid](#test-pyramid)
 3. [Quality Gates](#quality-gates)
 4. [Pre-Release Checklist](#pre-release-checklist)
 5. [Test Categories](#test-categories)
-6. [Performance Testing](#performance-testing)
-7. [Security Testing](#security-testing)
-8. [CI/CD Integration](#cicd-integration)
-9. [Test Data Management](#test-data-management)
-10. [Common Issues & Solutions](#common-issues--solutions)
+6. [Security Testing](#security-testing)
+7. [CI/CD Integration](#cicd-integration)
+8. [Common Issues & Solutions](#common-issues--solutions)
 
 ---
 
 ## Testing Philosophy
 
-### Core Principles
-
-1. **Test What Matters**
-   - Focus on critical paths and security-sensitive code
-   - Test public APIs and user-facing functionality
-   - Don't test implementation details unnecessarily
-
-2. **Fast Feedback Loop**
-   - Unit tests must run in < 1 second each
-   - Integration tests < 10 seconds each
-   - Full test suite < 2 minutes
-
-3. **Realistic Testing**
-   - Use real file system operations where possible
-   - Test with actual code samples, not mocks
-   - Validate against real-world scenarios
-
-4. **Automated Quality Gates**
-   - No manual steps in CI/CD pipeline
-   - Automated code quality checks
-   - Automated security scanning
+1. **Test what matters** — focus on security-sensitive detection logic; trust the framework for boilerplate
+2. **Fast feedback** — unit tests run in < 1s each; full suite in < 2 minutes
+3. **Realistic inputs** — test with real code samples from `tests/fixtures/`, not toy strings
+4. **Automated gates** — no manual QA steps; all checks run in CI
 
 ---
 
-## Test Pyramid Strategy
-
-### Test Distribution
+## Test Pyramid
 
 ```
-            /\
-           /  \    E2E Tests (5%)
-          /────\   ~10 tests, ~30s each
-         /      \
-        /────────\  Integration Tests (15%)
-       /          \  ~50 tests, ~5s each
-      /────────────\   Unit Tests (80%)
-     /              \  ~200 tests, <1s each
-    /________________\
+         /\
+        /  \    Integration (7 tests)
+       /────\   End-to-end scanner pipeline
+      /      \
+     /────────\  Unit (327 tests)
+    /          \  Detector logic, engine, CLI, config
+   /────────────\
 ```
 
-### Unit Tests (80%)
+**Current distribution (v0.2.0):**
+- Unit tests: 327 (96%)
+- Integration tests: 7 (2%)
+- Other (caching, CLI): 6 (2%)
+- **Total: 334 tests**
 
-**Characteristics**:
-- Isolated from external dependencies
-- Fast execution (< 1 second)
-- High coverage (aim for 90%+ on critical modules)
-- Test individual functions/classes
-
-**Target Modules**:
-- Configuration management (100% coverage)
-- Secret detection patterns (95% coverage)
-- Result processing (90% coverage)
-- Utility functions (85% coverage)
-
-### Integration Tests (15%)
-
-**Characteristics**:
-- Test component interactions
-- Use real file system
-- Test CLI commands
-- Validate configuration loading
-
-**Target Areas**:
-- CLI command execution
-- File discovery and filtering
-- Configuration file loading
-- Output format generation
-
-### E2E Tests (5%)
-
-**Characteristics**:
-- Full workflow testing
-- Real-world scenarios
-- Performance benchmarks
-- Cross-platform validation
-
-**Target Scenarios**:
-- Complete scan workflow
-- Large repository scanning
-- Different output formats
-- Error handling scenarios
+See [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md) for the full test inventory.
 
 ---
 
 ## Quality Gates
 
-### Code Quality Gates
+### Must pass before merge
 
-**Must Pass Before Merge:**
-1. All unit tests pass (`poetry run pytest tests/unit/`)
-2. Type checking passes (`poetry run mypy src/`)
-3. Linting passes (`poetry run ruff check src/`)
-4. Formatting passes (`poetry run black --check src/`)
-5. Security scan passes (`poetry run bandit -r src/`)
+```bash
+# Full test suite — zero failures
+pytest tests/ -v
 
-**Performance Gates:**
-1. Unit test execution < 2 minutes total
-2. No test takes > 5 seconds
-3. Memory usage < 100MB during tests
-4. No performance regression > 10%
+# Type checking (non-blocking in CI, blocking for release)
+mypy src/mcp_sentinel --ignore-missing-imports
 
-### Pre-Release Gates
+# Linting
+ruff check src/
 
-**Must Pass Before Release:**
-1. All integration tests pass
-2. E2E tests pass on target platforms
-3. Security audit passes
-4. Documentation is current
-5. Performance benchmarks meet targets
+# Security scan of MCP Sentinel's own source
+bandit -r src/
+```
+
+### Performance gates
+
+- Full test suite: < 2 minutes
+- No single test: > 10 seconds
+- No performance regression vs. previous release baseline
 
 ---
 
 ## Pre-Release Checklist
 
-### Code Quality Verification
+### Code quality
 
-**Testing Checklist:**
-- [ ] All unit tests pass (`poetry run pytest tests/unit/`)
-- [ ] All integration tests pass (`poetry run pytest tests/integration/`)
-- [ ] All E2E tests pass (`poetry run pytest tests/e2e/`)
-- [ ] Test coverage > 90% for critical modules
-- [ ] No skipped tests without justification
-- [ ] All tests have proper assertions
+- [ ] All 334 tests pass (`pytest tests/ -v`)
+- [ ] No unexpected test failures or regressions
+- [ ] xfail tests still xfail (4 expected: multi-line taint tracking)
+- [ ] Type checking passes (`mypy src/mcp_sentinel --ignore-missing-imports`)
+- [ ] Linting passes (`ruff check src/`)
+- [ ] Security scan passes (`bandit -r src/`)
+- [ ] No debug `print()` statements left in production code
 
-**Code Quality Checklist:**
-- [ ] Type checking passes (`poetry run mypy src/`)
-- [ ] Linting passes (`poetry run ruff check src/`)
-- [ ] Formatting passes (`poetry run black --check src/`)
-- [ ] Security scan passes (`poetry run bandit -r src/`)
-- [ ] No TODO comments in production code
-- [ ] Docstrings for public APIs
+### Detector quality
 
-**Performance Checklist:**
-- [ ] Unit tests complete in < 2 minutes
-- [ ] Integration tests complete in < 5 minutes
-- [ ] E2E tests complete in < 10 minutes
-- [ ] No memory leaks detected
-- [ ] Performance benchmarks documented
+For each of the 9 detectors, verify:
 
-### Functional Verification
+- [ ] `SecretsDetector` — detects AWS keys, OpenAI keys, private keys; ignores placeholder values
+- [ ] `CodeInjectionDetector` — detects `os.system`, `subprocess(shell=True)`, `eval`/`exec`; ignores comments
+- [ ] `PromptInjectionDetector` — detects role manipulation, jailbreaks; ignores legitimate `system:` usage
+- [ ] `ToolPoisoningDetector` — detects invisible unicode, cross-tool instructions, file references in schemas
+- [ ] `PathTraversalDetector` — detects `../`, unsafe archive extraction; ignores `realpath`/`resolve` usage
+- [ ] `ConfigSecurityDetector` — detects debug mode, wildcard CORS, weak TLS; ignores test files
+- [ ] `SSRFDetector` — detects variable URLs in HTTP calls, metadata endpoints; ignores literal URLs
+- [ ] `NetworkBindingDetector` — detects `0.0.0.0` binding; ignores `127.0.0.1`
+- [ ] `MissingAuthDetector` — detects unauthenticated sensitive routes; ignores routes with auth decorators
 
-**CLI Testing:**
-- [ ] `mcp-sentinel --help` works
-- [ ] `mcp-sentinel scan --help` works
-- [ ] `mcp-sentinel version` shows correct version
-- [ ] Invalid commands show helpful errors
-- [ ] Progress indication works for long operations
+### Functional verification
 
-**Scanning Functionality:**
-- [ ] Basic scan finds known vulnerabilities
-- [ ] Include patterns work correctly
-- [ ] Exclude patterns work correctly
-- [ ] Output formats generate valid files
-- [ ] Error handling for permission issues
+- [ ] `mcp-sentinel --help` renders correctly
+- [ ] `mcp-sentinel scan --help` renders correctly
+- [ ] `mcp-sentinel --version` shows `v0.2.0`
+- [ ] `mcp-sentinel scan .` completes without error on this repo
+- [ ] `--output terminal` produces readable terminal output
+- [ ] `--output json --json-file out.json` produces valid JSON
+- [ ] `--output sarif --json-file out.sarif` produces valid SARIF 2.1.0
+- [ ] `--severity critical` filters to critical only
+- [ ] `--no-progress` suppresses progress bar (for CI)
 
-**Configuration Testing:**
-- [ ] Default configuration loads
-- [ ] Custom configuration files work
-- [ ] Environment variables override files
-- [ ] Invalid configurations show errors
-- [ ] Configuration validation works
+### Documentation
+
+- [ ] `README.md` reflects current features
+- [ ] `docs/TEST_COVERAGE.md` matches actual test suite
+- [ ] `docs/CI_CD_INTEGRATION.md` uses correct CLI flags
+- [ ] `docs/CONFIGURATION.md` lists only real env vars
+- [ ] `CHANGELOG.md` has entry for this version
 
 ---
 
 ## Test Categories
 
-### Functional Tests
+### Detector tests (pattern)
 
-**Test Case: Basic Secret Detection**
+Each detector test file covers:
+
 ```python
-async def test_secret_detection():
-    """Test that secrets are detected in code."""
-    # Create test file with known secret
-    test_content = '''
-    API_KEY = "sk-1234567890abcdef"
-    '''
-    
-    # Run detector
-    detector = SecretsDetector()
-    results = await detector.detect(Path("test.py"), test_content)
-    
-    # Verify results
-    assert len(results) == 1
-    assert results[0].type == "openai_api_key"
-    assert results[0].confidence > 0.8
+# 1. Detection tests — positive cases
+async def test_detect_<pattern>(detector):
+    content = "... code with vulnerability ..."
+    vulns = await detector.detect(Path("file.py"), content)
+    assert len(vulns) == 1
+    assert vulns[0].severity == "high"
+
+# 2. False-positive suppression — negative cases
+async def test_ignore_<safe_pattern>(detector):
+    content = "... safe equivalent code ..."
+    vulns = await detector.detect(Path("file.py"), content)
+    assert len(vulns) == 0
+
+# 3. File type applicability
+def test_is_applicable_python(detector):
+    assert detector.is_applicable(Path("app.py")) is True
+
+def test_is_applicable_markdown(detector):
+    assert detector.is_applicable(Path("README.md")) is False
+
+# 4. Metadata quality
+async def test_line_number_accuracy(detector):
+    vulns = await detector.detect(Path("file.py"), content)
+    assert vulns[0].line == 3  # exact line number
+
+async def test_code_snippet_captured(detector):
+    vulns = await detector.detect(Path("file.py"), content)
+    assert "os.system" in vulns[0].code_snippet
 ```
 
-**Test Case: File Pattern Matching**
+### Integration tests
+
 ```python
-def test_file_pattern_matching():
-    """Test include/exclude pattern functionality."""
-    config = Config(
-        include_patterns=["*.py", "*.js"],
-        exclude_patterns=["test_*", "__pycache__/*"]
-    )
-    
-    # Test various file paths
-    assert should_include_file("app.py", config) == True
-    assert should_include_file("test_app.py", config) == False
-    assert should_include_file("__pycache__/app.py", config) == False
-```
+# tests/integration/test_scanner.py
+async def test_scan_directory(temp_dir, sample_python_file):
+    result = await scanner.scan(temp_dir)
+    assert result.total_files_scanned >= 1
 
-### Integration Tests
-
-**Test Case: CLI Command Execution**
-```python
-def test_cli_scan_command():
-    """Test that CLI scan command works end-to-end."""
-    result = runner.invoke(app, ["scan", "tests/fixtures/sample_project"])
-    
-    assert result.exit_code == 0
-    assert "Scan completed" in result.stdout
-    assert "Found 0 vulnerabilities" in result.stdout or "Found" in result.stdout
-```
-
-**Test Case: Configuration Loading**
-```python
-def test_configuration_loading():
-    """Test configuration loading from file and environment."""
-    # Create test config file
-    config_content = """
-    max_concurrent_files = 20
-    output_format = "json"
-    """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.toml') as f:
-        f.write(config_content)
-        f.flush()
-        
-        # Load configuration
-        config = load_config(f.name)
-        assert config.max_concurrent_files == 20
-        assert config.output_format == "json"
-```
-
-### Performance Tests
-
-**Test Case: Large Repository Scan**
-```python
-@pytest.mark.slow
-def test_large_repository_scan():
-    """Test scanning performance on large repository."""
-    start_time = time.time()
-    
-    # Create large test repository
-    with tempfile.TemporaryDirectory() as tmpdir:
-        create_large_test_repo(tmpdir, file_count=1000)
-        
-        # Run scan
-        result = runner.invoke(app, ["scan", tmpdir])
-        
-        # Verify performance
-        elapsed_time = time.time() - start_time
-        assert elapsed_time < 30  # Should complete in 30 seconds
-        assert result.exit_code == 0
-```
-
-**Test Case: Memory Usage**
-```python
-def test_memory_usage():
-    """Test that memory usage stays within limits."""
-    import psutil
-    
-    process = psutil.Process()
-    initial_memory = process.memory_info().rss / 1024 / 1024  # MB
-    
-    # Run scan on medium-sized project
-    result = runner.invoke(app, ["scan", "tests/fixtures/medium_project"])
-    
-    final_memory = process.memory_info().rss / 1024 / 1024  # MB
-    memory_increase = final_memory - initial_memory
-    
-    assert memory_increase < 50  # Memory increase < 50MB
-    assert result.exit_code == 0
-```
-
-### Security Tests
-
-**Test Case: Path Traversal Protection**
-```python
-def test_path_traversal_protection():
-    """Test that path traversal attacks are prevented."""
-    malicious_paths = [
-        "../../../etc/passwd",
-        "..\\..\\windows\\system32",
-        "/absolute/path/attack"
-    ]
-    
-    for path in malicious_paths:
-        result = runner.invoke(app, ["scan", path])
-        assert result.exit_code != 0 or "not found" in result.stdout.lower()
-```
-
-**Test Case: Regex Safety**
-```python
-def test_regex_safety():
-    """Test that regex patterns don't cause ReDoS."""
-    malicious_content = "a" * 10000 + "@" + "a" * 10000
-    
-    detector = SecretsDetector()
-    start_time = time.time()
-    
-    # This should not hang
-    results = detector.detect(Path("test.txt"), malicious_content)
-    
-    elapsed_time = time.time() - start_time
-    assert elapsed_time < 1  # Should complete quickly
-    assert len(results) == 0  # Should not match
-```
-
----
-
-## Performance Testing
-
-### Benchmark Suite
-
-**Scan Performance Benchmarks:**
-```python
-@pytest.mark.benchmark
-def test_scan_performance_small_project():
-    """Benchmark scan performance on small project."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        create_test_project(tmpdir, files=10, size="small")
-        
-        start_time = time.time()
-        result = runner.invoke(app, ["scan", tmpdir])
-        elapsed_time = time.time() - start_time
-        
-        assert elapsed_time < 2  # Should complete in 2 seconds
-        assert result.exit_code == 0
-
-@pytest.mark.benchmark
-def test_scan_performance_medium_project():
-    """Benchmark scan performance on medium project."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        create_test_project(tmpdir, files=100, size="medium")
-        
-        start_time = time.time()
-        result = runner.invoke(app, ["scan", tmpdir])
-        elapsed_time = time.time() - start_time
-        
-        assert elapsed_time < 10  # Should complete in 10 seconds
-        assert result.exit_code == 0
-```
-
-**Memory Usage Benchmarks:**
-```python
-@pytest.mark.benchmark
-def test_memory_efficiency():
-    """Test memory efficiency during scanning."""
-    import psutil
-    
-    with tempfile.TemporaryDirectory() as tmpdir:
-        create_test_project(tmpdir, files=500, size="medium")
-        
-        process = psutil.Process()
-        initial_memory = process.memory_info().rss / 1024 / 1024  # MB
-        
-        result = runner.invoke(app, ["scan", tmpdir])
-        
-        final_memory = process.memory_info().rss / 1024 / 1024  # MB
-        peak_memory = process.memory_info().rss / 1024 / 1024  # MB
-        
-        assert final_memory - initial_memory < 100  # < 100MB increase
-        assert peak_memory < 200  # Peak < 200MB
-        assert result.exit_code == 0
-```
-
-### Performance Regression Detection
-
-**Automated Performance Testing:**
-```python
-@pytest.mark.regression
-def test_no_performance_regression():
-    """Test that performance hasn't regressed."""
-    # This test compares against baseline metrics
-    baseline_metrics = load_baseline_metrics()
-    
-    with tempfile.TemporaryDirectory() as tmpdir:
-        create_standard_test_project(tmpdir)
-        
-        start_time = time.time()
-        result = runner.invoke(app, ["scan", tmpdir])
-        elapsed_time = time.time() - start_time
-        
-        # Allow 10% regression tolerance
-        assert elapsed_time < baseline_metrics["scan_time"] * 1.1
-        assert result.exit_code == 0
+async def test_scan_finds_secrets(temp_dir, sample_python_file):
+    result = await scanner.scan(temp_dir)
+    secrets = result.get_by_severity("high")
+    assert len(secrets) > 0
 ```
 
 ---
 
 ## Security Testing
 
-### Security Test Categories
+### Self-scan
 
-**Input Validation Tests:**
-- Path traversal attacks
-- Command injection attempts
-- Malicious file content
-- Oversized inputs
+MCP Sentinel scans its own source on every CI run:
 
-**Access Control Tests:**
-- File permission handling
-- Directory traversal protection
-- Symbolic link handling
-- Hidden file access
-
-**Secret Detection Tests:**
-- False positive prevention
-- Context-aware detection
-- Confidence scoring accuracy
-- Pattern matching safety
-
-### Security Test Examples
-
-**Test Case: Malicious File Content**
-```python
-def test_malicious_file_content():
-    """Test handling of malicious file content."""
-    malicious_content = """
-    import os
-    os.system("rm -rf /")
-    """
-    
-    # Should not execute malicious code
-    result = runner.invoke(app, ["scan", "-"], input=malicious_content)
-    assert result.exit_code == 0  # Should not crash
+```bash
+mcp-sentinel scan src/ --output sarif --json-file self-scan.sarif --no-progress
 ```
 
-**Test Case: Oversized File Handling**
-```python
-def test_oversized_file_handling():
-    """Test handling of oversized files."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.py') as f:
-        # Write 10MB of content
-        f.write("# " + "x" * (10 * 1024 * 1024))
-        f.flush()
-        
-        result = runner.invoke(app, ["scan", f.name])
-        assert result.exit_code == 0  # Should handle gracefully
-```
+This catches regressions where newly written detector code accidentally triggers its own detectors.
+
+### Input handling
+
+- [ ] Empty files handled gracefully (no crash, empty result)
+- [ ] Binary files skipped without error
+- [ ] Extremely long lines don't cause ReDoS (regex patterns are anchored/bounded)
+- [ ] Permission-denied files logged as errors, scan continues
+- [ ] Symlinks handled safely (no infinite loops)
+
+### False-positive rate
+
+Monitor the ratio of false positives on the `tests/fixtures/` corpus. Each detector maintains explicit suppression tests — any new false positive must be accompanied by a suppression test.
 
 ---
 
 ## CI/CD Integration
 
-### GitHub Actions Workflow
+```bash
+# Install
+pip install -e ".[dev]"
 
-```yaml
-name: Quality Assurance
+# Full suite with coverage
+pytest tests/ \
+  --cov=src/mcp_sentinel \
+  --cov-report=xml \
+  --cov-report=term \
+  -v
 
-on: [push, pull_request]
+# Unit only (fast, <30s)
+pytest tests/unit/ -v
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.11, 3.12]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-    
-    - name: Install dependencies
-      run: poetry install --with dev
-    
-    - name: Run unit tests
-      run: poetry run pytest tests/unit/ --cov=mcp_sentinel --cov-report=xml
-    
-    - name: Run integration tests
-      run: poetry run pytest tests/integration/
-    
-    - name: Run security scan
-      run: poetry run bandit -r src/
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
+# Integration only
+pytest tests/integration/ -v
+
+# Specific detector
+pytest tests/unit/test_ssrf_detector.py -v
 ```
 
-### Quality Gate Enforcement
-
-**Branch Protection Rules:**
-- All CI checks must pass
-- Code review approval required
-- No merge conflicts
-- Up-to-date with main branch
-
-**Automated Checks:**
-- Test execution on every commit
-- Security scanning on PRs
-- Performance benchmarks on releases
-- Documentation building verification
-
----
-
-## Test Data Management
-
-### Test Fixtures Structure
-
-```
-tests/fixtures/
-├── sample_projects/
-│   ├── python_basic/       # Basic Python project
-│   ├── javascript_basic/   # Basic JavaScript project
-│   ├── mixed_languages/    # Multi-language project
-│   └── large_project/      # Large project for performance
-├── vulnerabilities/
-│   ├── secrets/            # Secret samples
-│   ├── injection/          # Injection vulnerabilities
-│   └── file_access/        # File access issues
-├── edge_cases/
-│   ├── empty_files/        # Empty file handling
-│   ├── binary_files/       # Binary file handling
-│   └── special_chars/      # Special character handling
-└── malicious/
-    ├── path_traversal/     # Path traversal attempts
-    ├── oversized/          # Oversized files
-    └── malformed/          # Malformed content
-```
-
-### Test Data Generation
-
-**Automated Test Data Creation:**
-```python
-def create_test_project(path: str, files: int = 10, size: str = "small"):
-    """Create standardized test project."""
-    os.makedirs(path, exist_ok=True)
-    
-    for i in range(files):
-        filename = f"file_{i}.py"
-        content = generate_test_content(size)
-        
-        with open(os.path.join(path, filename), 'w') as f:
-            f.write(content)
-
-def generate_test_content(size: str) -> str:
-    """Generate test content of specified size."""
-    if size == "small":
-        return "# Test file\nprint('hello')\n"
-    elif size == "medium":
-        return "# Test file\n" + "x = 1\n" * 100
-    elif size == "large":
-        return "# Test file\n" + "x = 1\n" * 1000
-```
+See [`.github/workflows/python-ci.yml`](../.github/workflows/python-ci.yml) for the full matrix (Python 3.9–3.12, Linux/macOS/Windows).
 
 ---
 
 ## Common Issues & Solutions
 
-### Test Execution Issues
+**Issue: `async def` tests not collected**
+- Ensure `pytest-asyncio` is installed and `asyncio_mode = "auto"` is set in `pyproject.toml`
 
-**Issue: Tests are slow**
-- Use pytest-xdist for parallel execution
-- Optimize test fixtures
-- Reduce file I/O in tests
-- Use in-memory operations where possible
+**Issue: Tests pass locally but fail in CI**
+- Check Python version — CI matrix covers 3.9–3.12; some fixture syntax differs
+- Run with the same Python version: `python3.9 -m pytest tests/`
 
-**Issue: Flaky tests**
-- Use deterministic test data
-- Avoid timing-dependent tests
-- Clean up test state properly
-- Use proper test isolation
+**Issue: xfail tests unexpectedly passing (XPASS)**
+- Two XPASS tests in `test_code_injection.py` are expected and tracked — the underlying patterns were improved
+- New unexpected XPASSes should prompt removal of the `xfail` marker and addition of a proper assertion
 
-**Issue: Test coverage gaps**
-- Use coverage.py to identify gaps
-- Focus on critical paths first
-- Test error conditions
-- Test edge cases systematically
-
-### Quality Gate Issues
-
-**Issue: Type checking failures**
-- Add proper type hints
-- Use mypy configuration file
-- Gradually increase strictness
-- Fix type issues incrementally
-
-**Issue: Security scan failures**
-- Review security scan results carefully
-- Fix legitimate security issues
-- Suppress false positives with justification
-- Update security tools regularly
-
----
-
-**Remember**: Quality is not an act, it is a habit. Consistent application of these testing practices ensures reliable, secure, and maintainable software.
+**Issue: Coverage drop**
+- New detector code added without tests will drop coverage
+- Run `pytest --cov=src/mcp_sentinel --cov-report=term-missing` to identify uncovered lines
+- Target: maintain or improve overall coverage with each PR
