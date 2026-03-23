@@ -1,7 +1,7 @@
 # MCP Sentinel — Roadmap
 
 **Last Updated:** March 2026
-**Current Version:** v0.2.0
+**Current Version:** v0.3.0
 **Branch:** master
 
 ---
@@ -68,20 +68,30 @@ Detects Flask/FastAPI routes without `@login_required`/`Depends(get_current_user
 
 ---
 
-## v0.3.0 — Supply Chain & Package Integrity (Q3 2026)
+## v0.3.0 — Supply Chain & Package Integrity — March 2026 ✅
 
 The `postmark-mcp` attack (silent BCC on all outgoing emails), npm packages with embedded reverse shells, and PyPI typosquatting of MCP server names are documented incidents.
 
-### Rebuilt Supply Chain Detector
-- **Exfiltration patterns in non-network tools:** Flag unexpected `requests`, `fetch`, `urllib` calls in tools that have no declared network purpose (e.g., a file reader tool making outbound HTTP calls)
-- **BCC/forward injection in email tools:** Detect patterns that silently copy or redirect email/message content
-- **Dynamic code execution at install:** Flag `postinstall`, `prepare`, `setup.py` scripts with network calls or shell execution
-- **Typosquatting heuristics:** Flag package names with edit distance <= 2 from known high-value MCP packages
-- **Encoded payload patterns:** `eval(atob(...))`, `eval(base64.b64decode(...))`, `exec(compile(...))`
+### What shipped
 
-### Dependency Confusion Detection
-- Detect packages that appear in both internal and external registry references
-- Flag packages with abnormal recent version bumps that add network behavior not present in prior versions (structural signal — requires manifest analysis)
+**`SupplyChainDetector` (new)**
+
+7 pattern categories covering the documented supply chain attack surface:
+
+| Category | Severity | Description |
+|---|---|---|
+| `encoded_payload` | CRITICAL | `eval(base64.b64decode(...))`, `eval(atob(...))`, `exec(compile(...))`, `zlib.decompress(base64...)` — obfuscated execution |
+| `install_script_network` | CRITICAL | HTTP requests inside `setup.py` or npm `postinstall` — install-time exfiltration |
+| `install_script_exec` | HIGH | `cmdclass` overrides, `subprocess`/`os.system` calls in install scripts |
+| `covert_exfiltration` | CRITICAL | Outbound calls with `os.environ`, `process.env`, or file reads in the payload |
+| `silent_bcc` | HIGH | Hardcoded BCC/forward addresses in email-sending code |
+| `dependency_confusion` | MEDIUM | `--extra-index-url`, `--index-url`, `registry=` pointing to non-official registries |
+| `known_typosquat` | HIGH | Curated list of real PyPI/npm typosquatting incidents |
+
+**Stats:**
+- Detectors: 9 → 10
+- Tests: 334 → 383 passed, 4 xfail, 0 failed
+- New vulnerability type: `SUPPLY_CHAIN` (was stub in models — now active)
 
 ---
 

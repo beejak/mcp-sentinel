@@ -1,7 +1,7 @@
 # MCP Sentinel — Test Strategy
 
-**Version**: v0.2.0
-**Total tests**: 334 (327 unit, 7 integration)
+**Version**: v0.3.0
+**Total tests**: 383 (376 unit, 7 integration)
 
 ---
 
@@ -22,12 +22,12 @@
 
 MCP Sentinel uses an **async-first testing strategy** driven by `pytest-asyncio`. All detector tests are async — they mirror the async `detect()` interface exactly, which means tests run at the same concurrency level as production.
 
-**v0.2.0 test status:**
-- 334 tests collected
-- 330 pass, 4 xfail (documented multi-line taint tracking gaps)
+**v0.3.0 test status:**
+- 383 tests collected
+- 379 pass, 4 xfail (documented multi-line taint tracking gaps)
 - 2 XPASS (tracked — patterns improved beyond original xfail expectation)
 - 0 failures
-- 33% overall coverage (detector logic is well covered; CLI and reporting paths have lower coverage)
+- ~87% overall coverage (detector logic is well covered; CLI and reporting paths have lower coverage)
 
 Full test inventory: [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md)
 
@@ -123,6 +123,7 @@ open(x)
 | `SSRFDetector` | 25 | ~75% | New in v0.2.0 |
 | `NetworkBindingDetector` | 22 | ~70% | New in v0.2.0 |
 | `MissingAuthDetector` | 19 | ~65% | New in v0.2.0 |
+| `SupplyChainDetector` | 49 | ~75% | New in v0.3.0 |
 | `MultiEngineScanner` | 11 | ~60% | Orchestration logic |
 | `StaticAnalysisEngine` | 6 | ~55% | Engine dispatch |
 | `Settings/Config` | 5 | 100% | Full coverage |
