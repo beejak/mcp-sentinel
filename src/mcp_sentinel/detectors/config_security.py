@@ -10,7 +10,7 @@ Critical for ensuring MCP servers follow security best practices in deployment.
 import re
 from pathlib import Path
 from re import Pattern
-from typing import List, Optional
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -36,12 +36,12 @@ class ConfigSecurityDetector(BaseDetector):
     8. Exposed debug/admin endpoints
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Config Security detector."""
         super().__init__(name="ConfigSecurityDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for configuration security detection."""
         return {
             # Pattern 1: Debug mode enabled

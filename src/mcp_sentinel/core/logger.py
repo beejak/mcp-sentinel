@@ -3,7 +3,7 @@ import logging
 import logging.handlers
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from rich.logging import RichHandler
 
@@ -12,7 +12,7 @@ class JsonFormatter(logging.Formatter):
     """JSON formatter for file logging."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_record: Dict[str, Any] = {
+        log_record: dict[str, Any] = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat(),
             "level": record.levelname,
             "logger": record.name,

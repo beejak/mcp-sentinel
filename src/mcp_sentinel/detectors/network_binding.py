@@ -35,12 +35,12 @@ class NetworkBindingDetector(BaseDetector):
     5. Config files (.env, YAML, TOML, ini)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the network binding detector."""
         super().__init__(name="NetworkBindingDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for network binding detection."""
         return {
             # Python: host="0.0.0.0" in server calls

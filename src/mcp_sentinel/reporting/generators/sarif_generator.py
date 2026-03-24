@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp_sentinel import __version__
+from mcp_sentinel.models.owasp_mapping import build_compliance_summary
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
@@ -115,6 +116,7 @@ class SARIFGenerator:
                     "scanDuration": result.statistics.scan_duration_seconds,
                     "riskScore": result.risk_score(),
                 },
+                "owaspAgenticAITop10": build_compliance_summary(result.vulnerabilities),
             },
         }
 
@@ -141,61 +143,125 @@ class SARIFGenerator:
 
     def _create_rules(self) -> list[dict[str, Any]]:
         """Create SARIF rules for all detectors."""
-        # Define rules for each vulnerability type
-        # In production, this should be dynamically generated from detectors
-        rules = [
+        return [
             {
                 "id": "SECRET_EXPOSURE",
                 "name": "HardcodedSecrets",
                 "shortDescription": {"text": "Hardcoded Secrets Detected"},
-                "fullDescription": {
-                    "text": "Hardcoded credentials, API keys, or other secrets detected in source code."
-                },
+                "fullDescription": {"text": "Hardcoded credentials, API keys, or other secrets detected in source code."},
                 "helpUri": "https://cwe.mitre.org/data/definitions/798.html",
                 "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI02"},
             },
             {
                 "id": "CODE_INJECTION",
                 "name": "CodeInjection",
                 "shortDescription": {"text": "Code Injection Vulnerability"},
-                "fullDescription": {
-                    "text": "Command injection or code execution vulnerability detected."
-                },
+                "fullDescription": {"text": "Command injection or code execution vulnerability detected."},
                 "helpUri": "https://cwe.mitre.org/data/definitions/78.html",
                 "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI04"},
             },
             {
                 "id": "PROMPT_INJECTION",
                 "name": "PromptInjection",
                 "shortDescription": {"text": "Prompt Injection Vulnerability"},
-                "fullDescription": {
-                    "text": "AI prompt injection vulnerability that could lead to unintended behavior."
-                },
+                "fullDescription": {"text": "AI prompt injection vulnerability that could lead to unintended behavior."},
                 "helpUri": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
                 "defaultConfiguration": {"level": "warning"},
+                "properties": {"owasp_asi": "ASI01"},
             },
             {
-                "id": "XSS",
-                "name": "CrossSiteScripting",
-                "shortDescription": {"text": "Cross-Site Scripting (XSS)"},
-                "fullDescription": {
-                    "text": "Cross-site scripting vulnerability that could allow arbitrary JavaScript execution."
-                },
-                "helpUri": "https://cwe.mitre.org/data/definitions/79.html",
+                "id": "TOOL_POISONING",
+                "name": "ToolPoisoning",
+                "shortDescription": {"text": "MCP Tool Poisoning"},
+                "fullDescription": {"text": "Hidden instructions or homoglyph attacks in MCP tool descriptions that hijack agent reasoning."},
+                "helpUri": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
                 "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI01"},
             },
             {
                 "id": "PATH_TRAVERSAL",
                 "name": "PathTraversal",
                 "shortDescription": {"text": "Path Traversal Vulnerability"},
-                "fullDescription": {
-                    "text": "Path traversal vulnerability that could allow access to unauthorized files."
-                },
+                "fullDescription": {"text": "Path traversal vulnerability that could allow access to unauthorized files."},
                 "helpUri": "https://cwe.mitre.org/data/definitions/22.html",
                 "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI09"},
+            },
+            {
+                "id": "SSRF",
+                "name": "SSRF",
+                "shortDescription": {"text": "Server-Side Request Forgery"},
+                "fullDescription": {"text": "Unvalidated URL parameters that could allow SSRF attacks."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/918.html",
+                "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI05"},
+            },
+            {
+                "id": "NETWORK_BINDING",
+                "name": "InsecureNetworkBinding",
+                "shortDescription": {"text": "Insecure Network Binding"},
+                "fullDescription": {"text": "Server bound to 0.0.0.0 exposes service on all interfaces."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/605.html",
+                "defaultConfiguration": {"level": "warning"},
+                "properties": {"owasp_asi": "ASI06"},
+            },
+            {
+                "id": "MISSING_AUTH",
+                "name": "MissingAuthentication",
+                "shortDescription": {"text": "Missing Authentication"},
+                "fullDescription": {"text": "Endpoints or routes lack authentication checks."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/306.html",
+                "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI04"},
+            },
+            {
+                "id": "SUPPLY_CHAIN",
+                "name": "SupplyChainVulnerability",
+                "shortDescription": {"text": "Supply Chain Risk"},
+                "fullDescription": {"text": "Encoded payloads, install-time execution, or exfiltration patterns in dependencies."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/1357.html",
+                "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI03"},
+            },
+            {
+                "id": "WEAK_CRYPTO",
+                "name": "WeakCryptography",
+                "shortDescription": {"text": "Weak or Deprecated Cryptography"},
+                "fullDescription": {"text": "Use of MD5, SHA-1, ECB mode, or other cryptographically weak primitives."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/327.html",
+                "defaultConfiguration": {"level": "warning"},
+                "properties": {"owasp_asi": "ASI07"},
+            },
+            {
+                "id": "INSECURE_DESERIALIZATION",
+                "name": "InsecureDeserialization",
+                "shortDescription": {"text": "Insecure Deserialization"},
+                "fullDescription": {"text": "Unsafe deserialization of untrusted data (pickle, yaml.load, marshal)."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/502.html",
+                "defaultConfiguration": {"level": "error"},
+                "properties": {"owasp_asi": "ASI08"},
+            },
+            {
+                "id": "CONFIG_SECURITY",
+                "name": "InsecureConfiguration",
+                "shortDescription": {"text": "Insecure Configuration"},
+                "fullDescription": {"text": "Debug modes, CORS misconfigurations, or insecure default settings."},
+                "helpUri": "https://cwe.mitre.org/data/definitions/16.html",
+                "defaultConfiguration": {"level": "warning"},
+                "properties": {"owasp_asi": "ASI02"},
+            },
+            {
+                "id": "MCP_SAMPLING",
+                "name": "MCPSamplingMisuse",
+                "shortDescription": {"text": "MCP Sampling Misuse"},
+                "fullDescription": {"text": "MCP sampling calls with prompt injection risk, sensitive data, or unconstrained token limits."},
+                "helpUri": "https://spec.modelcontextprotocol.io/specification/client/sampling/",
+                "defaultConfiguration": {"level": "warning"},
+                "properties": {"owasp_asi": "ASI10"},
             },
         ]
-        return rules
 
     def _create_invocation(self, result: ScanResult) -> dict[str, Any]:
         """Create SARIF invocation object."""
@@ -259,6 +325,8 @@ class SARIFGenerator:
                 "detector": vuln.detector,
                 "engine": vuln.engine,
                 "mitre_attack_ids": vuln.mitre_attack_ids,
+                "owasp_asi_id": vuln.owasp_asi_id,
+                "owasp_asi_name": vuln.owasp_asi_name,
             },
             "fixes": (
                 [

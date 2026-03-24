@@ -27,9 +27,6 @@ def detector():
 # ============================================================================
 
 
-@pytest.mark.xfail(
-    reason="Multi-line taint tracking (request.args -> open(filename)) requires semantic engine which was removed"
-)
 @pytest.mark.asyncio
 async def test_detect_open_with_request_param(detector):
     """Test detection of open() with request parameter."""
@@ -225,9 +222,6 @@ tar.extractall()
 # ============================================================================
 
 
-@pytest.mark.xfail(
-    reason="Multi-line taint tracking (request.args -> os.path.join(filename)) requires semantic engine which was removed"
-)
 @pytest.mark.asyncio
 async def test_detect_os_path_join_with_request(detector):
     """Test detection of os.path.join with request data."""
@@ -256,7 +250,6 @@ const filePath = path.join(__dirname, req.params.filename);
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires semantic analysis: taint tracking across lines (Phase 4.2)")
 async def test_detect_java_file_constructor(detector):
     """Test detection of Java File() with request data."""
     content = """
@@ -630,7 +623,6 @@ def process_file(request):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Requires semantic analysis: taint tracking across lines (Phase 4.2)")
 async def test_nodejs_file_handler(detector):
     """Test detection in Node.js file handler."""
     content = """

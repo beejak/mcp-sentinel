@@ -6,7 +6,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Optional, Set
+from typing import Optional
 
 import click
 import questionary
@@ -19,9 +19,9 @@ from rich.table import Table
 from mcp_sentinel import __version__
 from mcp_sentinel.core.logger import setup_logging
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
-from mcp_sentinel.engines.base import EngineType, ScanProgress
+from mcp_sentinel.engines.base import ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.reporting.generators import SARIFGenerator
+from mcp_sentinel.reporting.generators import ComplianceReportGenerator, SARIFGenerator
 
 console = Console()
 
@@ -31,28 +31,38 @@ console = Console()
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARN", "ERROR", "FATAL"], case_sensitive=False),
     default="INFO",
-    help="Set logging level",
+    help="Logging verbosity. Use DEBUG to trace which files are scanned and which patterns fire. Use WARN/ERROR to suppress informational output in scripts.",
 )
 @click.option(
     "--log-file",
     type=click.Path(dir_okay=False, writable=True),
     default=None,
-    help="Log detailed output to file",
+    help="Write logs to a file in addition to stderr. Useful for keeping a machine-readable audit trail while still viewing terminal output.",
 )
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
-def cli(log_level: str, log_file: Optional[str]):
+def cli(log_level: str, log_file: Optional[str]) -> None:
     """
     MCP Sentinel - Security Scanner for MCP Servers
 
     Detects security threats in MCP server code using static analysis:
-    - Hardcoded secrets (AWS keys, API tokens, passwords)
+    - Hardcoded secrets (AWS keys, API tokens, passwords, private keys)
+    - Code injection (eval, exec, subprocess abuse, SQL f-strings)
     - Prompt injection and AI manipulation attacks
-    - Tool poisoning (invisible Unicode, homoglyphs, RTLO)
-    - Code injection (eval, exec, subprocess abuse)
+    - Tool poisoning (invisible Unicode, sensitive path targeting, override directives)
     - Path traversal and unsafe file operations
     - Configuration security misconfigurations
+    - SSRF (unvalidated URLs in HTTP clients, cloud metadata endpoints)
+    - Network binding on all interfaces (0.0.0.0)
+    - Missing authentication on routes and endpoints
+    - Supply chain attacks (encoded payloads, install-time exfiltration)
+    - Weak cryptography (MD5/SHA-1, ECB mode, insecure random, broken ciphers)
+    - Insecure deserialization (pickle, yaml.load, ObjectInputStream)
 
     Output formats: terminal (default), json, sarif (GitHub Code Scanning)
+
+    Compliance: every finding is annotated with its OWASP Agentic AI Top 10
+    (ASI01–ASI10) category. Use --compliance-file to export a full ASI coverage
+    report alongside your scan results.
 
     Documentation: https://github.com/beejak/mcp-sentinel
     """
@@ -66,53 +76,105 @@ def cli(log_level: str, log_file: Optional[str]):
     "--output",
     type=click.Choice(["terminal", "json", "sarif"]),
     default="terminal",
-    help="Output format: terminal (colored, default), json (structured), sarif (GitHub Code Scanning)",
+    help=(
+        "Output format. "
+        "'terminal' prints a colour-coded table — best for interactive use. "
+        "'json' writes structured findings to --json-file (or stdout) — use this for scripting or feeding results into other tools. "
+        "'sarif' writes a SARIF 2.1.0 file — use this for GitHub Code Scanning, GitLab SAST, or Azure DevOps."
+    ),
 )
 @click.option(
     "--severity",
     type=click.Choice(["critical", "high", "medium", "low", "info"]),
     multiple=True,
-    help="Filter by severity level (can be used multiple times)",
+    help=(
+        "Only show findings at or matching the given severity. "
+        "Repeatable: --severity critical --severity high. "
+        "Omit to show all severities. "
+        "Useful for hard-gating a CI pipeline on critical/high while reviewing medium/low separately."
+    ),
 )
 @click.option(
     "--json-file",
     type=click.Path(),
-    help="Output file path for json/sarif formats (e.g., results.sarif, scan.json)",
+    help=(
+        "File path to write json or sarif output to. "
+        "Required when --output is sarif (for GitHub upload). "
+        "If omitted with --output json, findings are printed to stdout."
+    ),
 )
 @click.option(
     "--no-progress",
     is_flag=True,
-    help="Disable progress output",
+    help=(
+        "Suppress the animated progress bar. "
+        "Use this in CI environments to keep logs clean, "
+        "or when piping output to another tool."
+    ),
+)
+@click.option(
+    "--compliance-file",
+    type=click.Path(),
+    default=None,
+    help=(
+        "Write an OWASP Agentic AI Top 10 compliance report (JSON) to this file. "
+        "The report lists all ASI01–ASI10 categories with finding counts, "
+        "severity breakdown, and coverage gaps. "
+        "Compatible with any compliance dashboard that accepts structured JSON."
+    ),
 )
 def scan(
     target: Optional[str],
     output: str,
-    severity: tuple,
+    severity: tuple[str, ...],
     json_file: str,
     no_progress: bool,
-):
+    compliance_file: Optional[str],
+) -> None:
     """
     Scan a directory or file for security vulnerabilities.
 
-    TARGET: Path to directory or file to scan (optional, will prompt if missing)
+    TARGET is the path to scan — a directory or a single file. If omitted,
+    mcp-sentinel will prompt you interactively.
 
-    Examples:
+    Runs 13 pattern-based detectors covering: hardcoded secrets, code
+    injection, prompt injection, tool poisoning, path traversal, config
+    security, SSRF, network binding, missing auth, supply chain attacks,
+    weak cryptography, insecure deserialization, and MCP sampling misuse.
+    Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10)
+    category. Severity is calibrated based on server context (filesystem
+    access, network access, STDIO transport).
 
-        \b
-        # Scan current directory
-        mcp-sentinel scan .
+    \b
+    Common workflows:
 
-        \b
-        # Generate SARIF for GitHub Code Scanning
+    \b
+      Interactive review (default terminal output):
+        mcp-sentinel scan /path/to/mcp-server
+
+    \b
+      CI pipeline — fail on critical/high, suppress noise:
+        mcp-sentinel scan . --severity critical --severity high --no-progress
+
+    \b
+      GitHub Code Scanning integration (upload SARIF to Security tab):
         mcp-sentinel scan . --output sarif --json-file results.sarif
 
-        \b
-        # Filter critical and high severity only
-        mcp-sentinel scan . --severity critical --severity high
+    \b
+      Export all findings as JSON for scripting or external tools:
+        mcp-sentinel scan . --output json --json-file results.json
 
-        \b
-        # Output structured JSON
-        mcp-sentinel scan . --output json --json-file scan.json
+    \b
+      Scan a single file with debug logging to understand pattern matches:
+        mcp-sentinel --log-level debug scan server.py
+
+    \b
+      Keep an audit log while reviewing interactively:
+        mcp-sentinel --log-file audit.log scan .
+
+    \b
+      Export OWASP Agentic AI Top 10 compliance report:
+        mcp-sentinel scan . --compliance-file compliance.json
     """
     if not target:
         target = questionary.path("Target directory to scan:").ask()
@@ -153,6 +215,10 @@ def scan(
     elif output == "sarif":
         _print_sarif_results(result, json_file)
 
+    # Always write compliance report when requested (regardless of output format)
+    if compliance_file:
+        _write_compliance_report(result, compliance_file)
+
     if result.has_critical_findings():
         raise click.Abort()
 
@@ -166,7 +232,7 @@ async def _run_scan(
 
     engine_progress = {}
 
-    def progress_callback(engine_name: str, progress: ScanProgress):
+    def progress_callback(engine_name: str, progress: ScanProgress) -> None:
         engine_progress[engine_name] = progress
 
     scanner = MultiEngineScanner(
@@ -200,7 +266,7 @@ async def _run_scan(
         return await scanner.scan(target)
 
 
-def _print_terminal_results(result: ScanResult):
+def _print_terminal_results(result: ScanResult) -> None:
     """Print results to terminal."""
     console.print("\n")
 
@@ -247,6 +313,10 @@ def _print_terminal_results(result: ScanResult):
 
     console.print(severity_table)
     console.print("\n")
+
+    # OWASP Agentic AI Top 10 summary (only when there are findings)
+    if result.vulnerabilities:
+        _print_owasp_summary(result.vulnerabilities)
 
     if result.vulnerabilities:
         console.print("[bold]Detailed Findings:[/bold]\n")
@@ -296,7 +366,68 @@ def _print_terminal_results(result: ScanResult):
         )
 
 
-def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
+def _print_owasp_summary(vulnerabilities: list) -> None:
+    """Print a compact OWASP Agentic AI Top 10 category breakdown."""
+    from mcp_sentinel.models.owasp_mapping import build_compliance_summary
+
+    summary = build_compliance_summary(vulnerabilities)
+    if not summary:
+        return
+
+    owasp_table = Table(title="OWASP Agentic AI Top 10 Coverage", box=box.ROUNDED)
+    owasp_table.add_column("ASI ID", style="cyan", width=7)
+    owasp_table.add_column("Category", style="bold")
+    owasp_table.add_column("Findings", justify="right")
+    owasp_table.add_column("Max Severity", justify="center")
+
+    severity_colors = {
+        "critical": "red",
+        "high": "orange1",
+        "medium": "yellow",
+        "low": "blue",
+        "info": "green",
+    }
+
+    for asi_id in sorted(summary.keys()):
+        cat = summary[asi_id]
+        count = int(cat["count"])
+        # Determine max severity
+        max_sev = None
+        for sev in ("critical", "high", "medium", "low", "info"):
+            if int(cat.get(sev, 0)) > 0:
+                max_sev = sev
+                break
+        color = severity_colors.get(max_sev or "", "white")
+        owasp_table.add_row(
+            asi_id,
+            str(cat["name"]),
+            str(count),
+            f"[{color}]{(max_sev or '').upper()}[/]" if max_sev else "-",
+        )
+
+    console.print(owasp_table)
+    console.print("\n")
+
+
+def _write_compliance_report(result: ScanResult, output_file: str) -> None:
+    """Write OWASP Agentic AI Top 10 compliance report as JSON."""
+    generator = ComplianceReportGenerator()
+    report = generator.generate(
+        vulnerabilities=result.vulnerabilities,
+        target=result.target,
+        scan_id=result.scan_id if hasattr(result, "scan_id") else None,
+    )
+    try:
+        with open(output_file, "w") as f:
+            f.write(json.dumps(report, indent=2))
+        console.print(
+            f"\n[bold green]OWASP compliance report saved to {output_file}[/bold green]"
+        )
+    except Exception as e:
+        console.print(f"\n[bold red]Error saving compliance report: {e}[/bold red]")
+
+
+def _print_json_results(result: ScanResult, output_file: Optional[str] = None) -> None:
     """Print results as JSON."""
     json_output = result.model_dump_json(indent=2)
 
@@ -311,7 +442,7 @@ def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
         print(json_output)
 
 
-def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None):
+def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None) -> None:
     """Print results as SARIF."""
     generator = SARIFGenerator()
     sarif_output = generator.generate(result)

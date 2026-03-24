@@ -8,13 +8,13 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class EngineSettings(BaseSettings):
+class EngineSettings(BaseSettings):  # type: ignore[misc]
     """Analysis engine configuration."""
 
     enable_static: bool = Field(default=True, alias="ENABLE_STATIC_ANALYSIS")
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):  # type: ignore[misc]
     """Main application settings."""
 
     model_config = SettingsConfigDict(

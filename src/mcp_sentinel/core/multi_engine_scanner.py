@@ -11,11 +11,12 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
+from typing import Optional, Union
 
-import aiofiles
-from mcp_sentinel.core.exceptions import ScanError
+import aiofiles  # type: ignore[import-untyped]
+
 from mcp_sentinel.core.cache_manager import CacheManager
+from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
 from mcp_sentinel.engines.static import StaticAnalysisEngine
 from mcp_sentinel.models.scan_result import ScanResult
@@ -31,8 +32,8 @@ class MultiEngineScanner:
 
     def __init__(
         self,
-        engines: Optional[List[BaseEngine]] = None,
-        enabled_engines: Optional[Set[EngineType]] = None,
+        engines: Optional[list[BaseEngine]] = None,
+        enabled_engines: Optional[set[EngineType]] = None,
         progress_callback: Optional[Callable[[str, ScanProgress], None]] = None,
     ):
         self.engines = engines or [StaticAnalysisEngine(enabled=True)]
@@ -52,7 +53,7 @@ class MultiEngineScanner:
         self.cache_manager = CacheManager()
 
     def _create_progress_callback(self, engine: BaseEngine) -> Callable[[ScanProgress], None]:
-        def callback(progress: ScanProgress):
+        def callback(progress: ScanProgress) -> None:
             if self.progress_callback:
                 self.progress_callback(engine.name, progress)
         return callback
@@ -60,7 +61,7 @@ class MultiEngineScanner:
     async def scan(
         self,
         target_path: Union[str, Path],
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: Optional[list[str]] = None,
     ) -> ScanResult:
         """
         Scan a directory or file using all enabled engines.
@@ -111,10 +112,10 @@ class MultiEngineScanner:
 
             engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
-            all_vulnerabilities: List[Vulnerability] = []
+            all_vulnerabilities: list[Vulnerability] = []
             for idx, result in enumerate(engine_results):
                 engine = self.active_engines[idx]
-                if isinstance(result, Exception):
+                if not isinstance(result, list):
                     logger.error(f"Engine {engine.name} failed: {result}")
                     continue
                 all_vulnerabilities.extend(result)
@@ -150,7 +151,7 @@ class MultiEngineScanner:
         file_path: Path,
         content: Optional[str] = None,
         file_type: Optional[str] = None,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """Scan a single file using all enabled engines."""
         if content is None:
             try:
@@ -171,9 +172,9 @@ class MultiEngineScanner:
 
         engine_results = await asyncio.gather(*engine_tasks, return_exceptions=True)
 
-        all_vulnerabilities: List[Vulnerability] = []
+        all_vulnerabilities: list[Vulnerability] = []
         for result in engine_results:
-            if isinstance(result, Exception):
+            if not isinstance(result, list):
                 continue
             all_vulnerabilities.extend(result)
 
@@ -181,16 +182,16 @@ class MultiEngineScanner:
 
     def _deduplicate_vulnerabilities(
         self,
-        vulnerabilities: List[Vulnerability],
-    ) -> List[Vulnerability]:
+        vulnerabilities: list[Vulnerability],
+    ) -> list[Vulnerability]:
         """Deduplicate vulnerabilities by (file, line, type, title)."""
-        groups: dict = defaultdict(list)
+        groups: dict[tuple[str, int, str, str], list[Vulnerability]] = defaultdict(list)
 
         for vuln in vulnerabilities:
             key = (vuln.file_path, vuln.line_number, vuln.type.value, vuln.title)
             groups[key].append(vuln)
 
-        deduplicated: List[Vulnerability] = []
+        deduplicated: list[Vulnerability] = []
         for _key, group in groups.items():
             if len(group) == 1:
                 deduplicated.append(group[0])
@@ -207,7 +208,7 @@ class MultiEngineScanner:
     def _count_files(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: Optional[list[str]] = None,
     ) -> int:
         """Count files that would be scanned."""
         if not file_patterns:

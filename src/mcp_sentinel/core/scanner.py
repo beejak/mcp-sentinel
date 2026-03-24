@@ -5,7 +5,7 @@ Main scanner orchestrator for MCP Sentinel.
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.detectors.base import BaseDetector
@@ -34,7 +34,7 @@ class Scanner:
     This is the primary entry point for scanning operations.
     """
 
-    def __init__(self, detectors: Optional[List[BaseDetector]] = None):
+    def __init__(self, detectors: Optional[list[BaseDetector]] = None):
         """
         Initialize the scanner.
 
@@ -43,7 +43,7 @@ class Scanner:
         """
         self.detectors = detectors or self._get_default_detectors()
 
-    def _get_default_detectors(self) -> List[BaseDetector]:
+    def _get_default_detectors(self) -> list[BaseDetector]:
         """Get the default set of detectors (all 12 active detectors)."""
         return [
             SecretsDetector(),
@@ -63,7 +63,7 @@ class Scanner:
     async def scan_directory(
         self,
         target_path: str,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: Optional[list[str]] = None,
     ) -> ScanResult:
         """
         Scan a directory for vulnerabilities.
@@ -125,7 +125,7 @@ class Scanner:
 
         return scan_result
 
-    async def scan_file(self, file_path: Path) -> List[Vulnerability]:
+    async def scan_file(self, file_path: Path) -> list[Vulnerability]:
         """
         Scan a single file for vulnerabilities.
 
@@ -135,7 +135,7 @@ class Scanner:
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         try:
             # Read file content
@@ -166,8 +166,8 @@ class Scanner:
         return vulnerabilities
 
     def _discover_files(
-        self, target_path: Path, file_patterns: Optional[List[str]] = None
-    ) -> List[Path]:
+        self, target_path: Path, file_patterns: Optional[list[str]] = None
+    ) -> list[Path]:
         """
         Discover all files to scan in the target directory.
 
@@ -178,7 +178,7 @@ class Scanner:
         Returns:
             List of file paths to scan
         """
-        files: List[Path] = []
+        files: list[Path] = []
 
         # Default patterns if none provided
         if not file_patterns:

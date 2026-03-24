@@ -8,10 +8,10 @@ Detects:
 - Jailbreak keywords and attempts
 """
 
-from typing import Dict, List, Optional
 import re
 from pathlib import Path
 from re import Pattern
+from typing import Optional, cast
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -33,12 +33,12 @@ class PromptInjectionDetector(BaseDetector):
     - Jailbreak keywords
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the prompt injection detector."""
         super().__init__(name="PromptInjectionDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for prompt injection detection."""
         return {
             # Family 1: Role Manipulation
@@ -125,7 +125,7 @@ class PromptInjectionDetector(BaseDetector):
 
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect prompt injection vulnerabilities in file content.
 
@@ -137,7 +137,7 @@ class PromptInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         # Scan for each pattern family
@@ -358,7 +358,7 @@ class PromptInjectionDetector(BaseDetector):
             line_number=line_number,
             code_snippet=code_snippet,
             cwe_id=metadata["cwe_id"],
-            cvss_score=cvss_scores[metadata["severity"]],
+            cvss_score=cvss_scores[cast(Severity, metadata["severity"])],
             remediation=metadata["remediation"],
             references=[
                 f"https://cwe.mitre.org/data/definitions/{metadata['cwe_id'].split('-')[1]}.html",

@@ -3,14 +3,14 @@ Scan result model for aggregating vulnerability findings.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 
-class ScanStatistics(BaseModel):
+class ScanStatistics(BaseModel):  # type: ignore[misc]
     """Statistics about the scan."""
 
     total_files: int = 0
@@ -22,10 +22,10 @@ class ScanStatistics(BaseModel):
     low_count: int = 0
     info_count: int = 0
     scan_duration_seconds: float = 0.0
-    engines_used: List[str] = Field(default_factory=list)
+    engines_used: list[str] = Field(default_factory=list)
 
 
-class ScanResult(BaseModel):
+class ScanResult(BaseModel):  # type: ignore[misc]
     """
     Result of a security scan.
 
@@ -43,9 +43,9 @@ class ScanResult(BaseModel):
 
     scan_id: str = Field(default_factory=lambda: f"scan-{datetime.utcnow().timestamp()}")
     target: str
-    vulnerabilities: List[Vulnerability] = Field(default_factory=list)
+    vulnerabilities: list[Vulnerability] = Field(default_factory=list)
     statistics: ScanStatistics = Field(default_factory=ScanStatistics)
-    config: Dict[str, Any] = Field(default_factory=dict)
+    config: dict[str, Any] = Field(default_factory=dict)
 
     started_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
@@ -69,11 +69,11 @@ class ScanResult(BaseModel):
         else:
             self.statistics.info_count += 1
 
-    def get_by_severity(self, severity: Severity) -> List[Vulnerability]:
+    def get_by_severity(self, severity: Severity) -> list[Vulnerability]:
         """Get all vulnerabilities of a specific severity."""
         return [v for v in self.vulnerabilities if v.severity == severity]
 
-    def get_by_file(self, file_path: str) -> List[Vulnerability]:
+    def get_by_file(self, file_path: str) -> list[Vulnerability]:
         """Get all vulnerabilities in a specific file."""
         return [v for v in self.vulnerabilities if v.file_path == file_path]
 

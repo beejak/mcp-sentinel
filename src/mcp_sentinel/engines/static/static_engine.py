@@ -1,46 +1,55 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-Pattern-based detectors (v0.4):
+Pattern-based detectors (v0.5):
 - SecretsDetector
 - CodeInjectionDetector
 - PromptInjectionDetector
 - ToolPoisoningDetector          (enhanced: full-schema poisoning, sensitive path targeting)
 - ConfigSecurityDetector
-- PathTraversalDetector
+- PathTraversalDetector          (v0.5: lightweight taint analysis for def-use chains)
 - SSRFDetector                   (unvalidated URL args, cloud metadata, redirect params)
 - NetworkBindingDetector         (0.0.0.0 binding across Python/JS/Go/Java/config)
 - MissingAuthDetector            (routes/endpoints without auth decorators or middleware)
 - SupplyChainDetector            (v0.3: encoded payloads, install-time exec/network, exfiltration)
 - WeakCryptoDetector             (v0.4: MD5/SHA-1, insecure random, ECB, broken ciphers)
 - InsecureDeserializationDetector (v0.4: pickle, yaml.load, marshal, eval-as-parser)
+- MCPSamplingDetector            (v0.5: sampling misuse, prompt injection, sensitive data in LLM calls)
+
+Post-scan passes (v0.5):
+- SeverityCalibrator             (elevates severity for CODE_INJECTION/PATH_TRAVERSAL/SSRF/MCP_SAMPLING
+                                   when the server declares filesystem or network access)
 """
 
 import asyncio
 import concurrent.futures
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-import aiofiles
+import aiofiles  # type: ignore[import-untyped]
+
 from mcp_sentinel.core.cache_manager import CacheManager
-
-logger = logging.getLogger(__name__)
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
+from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
+from mcp_sentinel.detectors.mcp_sampling import MCPSamplingDetector
 from mcp_sentinel.detectors.missing_auth import MissingAuthDetector
 from mcp_sentinel.detectors.network_binding import NetworkBindingDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
-from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.ssrf import SSRFDetector
 from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.weak_crypto import WeakCryptoDetector
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType, ScanProgress
+from mcp_sentinel.engines.static.context_detector import detect_mcp_context
+from mcp_sentinel.engines.static.severity_calibrator import SeverityCalibrator
 from mcp_sentinel.models.vulnerability import Vulnerability
+
+logger = logging.getLogger(__name__)
 
 
 class StaticAnalysisEngine(BaseEngine):
@@ -53,9 +62,9 @@ class StaticAnalysisEngine(BaseEngine):
 
     def __init__(
         self,
-        detectors: Optional[List[BaseDetector]] = None,
+        detectors: Optional[list[BaseDetector]] = None,
         enabled: bool = True,
-    ):
+    ) -> None:
         """
         Initialize the static analysis engine.
 
@@ -72,11 +81,11 @@ class StaticAnalysisEngine(BaseEngine):
         self.process_pool = concurrent.futures.ProcessPoolExecutor()
         self.cache_manager = CacheManager()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown the process pool."""
         self.process_pool.shutdown()
 
-    def _get_default_detectors(self) -> List[BaseDetector]:
+    def _get_default_detectors(self) -> list[BaseDetector]:
         """Get default detectors."""
         return [
             SecretsDetector(),
@@ -91,6 +100,7 @@ class StaticAnalysisEngine(BaseEngine):
             SupplyChainDetector(),
             WeakCryptoDetector(),
             InsecureDeserializationDetector(),
+            MCPSamplingDetector(),
         ]
 
     async def scan_file(
@@ -98,7 +108,7 @@ class StaticAnalysisEngine(BaseEngine):
         file_path: Path,
         content: str,
         file_type: Optional[str] = None,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Scan a single file using all applicable detectors.
 
@@ -124,7 +134,7 @@ class StaticAnalysisEngine(BaseEngine):
 
         # Run all applicable detectors
         loop = asyncio.get_running_loop()
-        
+
         for detector in self.detectors:
             if not detector.enabled:
                 continue
@@ -155,8 +165,8 @@ class StaticAnalysisEngine(BaseEngine):
     async def scan_directory(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
-    ) -> List[Vulnerability]:
+        file_patterns: Optional[list[str]] = None,
+    ) -> list[Vulnerability]:
         """
         Scan a directory using all detectors.
 
@@ -211,6 +221,11 @@ class StaticAnalysisEngine(BaseEngine):
                 progress.scanned_files += 1
                 progress.vulnerabilities_found = len(vulnerabilities)
                 self._report_progress(progress)
+
+            # Post-scan: apply MCP-context severity calibration
+            context = detect_mcp_context(target_path)
+            calibrator = SeverityCalibrator()
+            vulnerabilities = calibrator.calibrate(vulnerabilities, context)
 
             self.status = EngineStatus.COMPLETED
             return vulnerabilities
@@ -273,7 +288,7 @@ class StaticAnalysisEngine(BaseEngine):
     def _discover_files(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: Optional[list[str]] = None,
     ) -> list[Path]:
         """
         Discover all files to scan in the target directory.

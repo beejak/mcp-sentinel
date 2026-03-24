@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mcp-sentinel"
-version = "4.1.0"
+version = "5.0.0"
 description = "Security scanner for Model Context Protocol (MCP) servers"
 authors = ["MCP Sentinel Team <team@mcp-sentinel.dev>"]
 license = "MIT"
@@ -112,6 +112,11 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = "mcp_sentinel.cli.main"
+# click decorators don't preserve type signatures — inherent to click's design
+disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 minversion = "7.0"

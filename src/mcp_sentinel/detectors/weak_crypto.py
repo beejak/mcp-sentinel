@@ -42,12 +42,12 @@ class WeakCryptoDetector(BaseDetector):
     7. Static/predictable nonces or IVs set to zeros or constants
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the weak crypto detector."""
         super().__init__(name="WeakCryptoDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for weak crypto detection."""
         return {
             # MD5 / SHA-1 in security contexts (password, token, signature, auth)
@@ -402,7 +402,7 @@ class WeakCryptoDetector(BaseDetector):
             cvss_score=meta["cvss_score"],
             remediation=meta["remediation"],
             references=[
-                f"https://cwe.mitre.org/data/definitions/{meta['cwe_id'].split('-')[1]}.html",
+                f"https://cwe.mitre.org/data/definitions/{str(meta['cwe_id']).split('-')[1]}.html",
                 "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html",
                 "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html",
                 "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf",
