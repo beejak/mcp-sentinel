@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2026-03-24
 
-Security intelligence upgrade: OWASP Agentic AI Top 10 compliance annotations, a new MCP-specific sampling detector, and lightweight taint analysis in the path traversal detector.
+Security intelligence upgrade: OWASP Agentic AI Top 10 compliance annotations, a new MCP-specific sampling detector, lightweight taint analysis in the path traversal detector, MCP-context severity calibration, and a structured compliance report.
 
 ### Added
 
@@ -36,17 +36,36 @@ Security intelligence upgrade: OWASP Agentic AI Top 10 compliance annotations, a
 **VulnerabilityType enum:**
 - Added `MCP_SAMPLING = "mcp_sampling"`
 
+**MCP-specific severity calibration (`src/mcp_sentinel/engines/static/severity_calibrator.py`):**
+- `SeverityCalibrator` post-scan pass elevates severity for `CODE_INJECTION`, `PATH_TRAVERSAL`, `SSRF`, `MCP_SAMPLING` when the server declares filesystem or network access
+- Additional elevation for `PATH_TRAVERSAL` and `CODE_INJECTION` when sensitive tool operations (`rm`, `delete`, `shell`, `sudo`) are present
+- STDIO transport findings annotated with privilege-level context note
+- `MCPContextDetector` infers signals from `mcp.json`, `.mcp/config.json`, `package.json`, and `pyproject.toml`
+
+**OWASP compliance report (`src/mcp_sentinel/reporting/generators/compliance_generator.py`):**
+- `ComplianceReportGenerator.generate()` produces a structured JSON report keyed by ASI01–ASI10
+- Each category entry includes `finding_count`, `max_severity`, per-severity breakdown, `has_detector` flag, and descriptive notes
+- `--compliance-file PATH` CLI flag writes the report alongside any output format
+- Terminal output now shows an OWASP Agentic AI Top 10 coverage table when findings exist
+
+**`Vulnerability` model auto-annotation:**
+- Added `@model_validator(mode='after')` to `Vulnerability` — `owasp_asi_id` and `owasp_asi_name` are now auto-populated at construction time, not just via `BaseDetector.detect()`. This ensures all code paths (direct construction in tests, model_copy, etc.) produce correctly annotated findings.
+
 **New test files:**
 - `tests/unit/test_mcp_sampling.py` (26 tests)
 - `tests/unit/test_owasp_mapping.py` (16 tests)
+- `tests/unit/test_severity_calibrator.py` (35 tests — calibration rules + context detection)
+- `tests/unit/test_compliance_generator.py` (25 tests — compliance report structure and tallying)
 
 ### Changed
-- `BaseDetector.detect()` now auto-annotates all findings with OWASP ASI metadata
+- `BaseDetector.detect()` now auto-annotates all findings with OWASP ASI metadata (still works as before; `model_validator` is a belt-and-suspenders addition)
 - Static engine default detector list: 12 → 13 (added `MCPSamplingDetector`)
+- `StaticAnalysisEngine.scan_directory()` calls `SeverityCalibrator.calibrate()` after all detectors complete
 - SARIF generator: full rule catalogue (13 rules covering all `VulnerabilityType` values), OWASP ASI fields on each result
+- CLI `scan` command: added `--compliance-file` option; docstring updated to 13 detectors
 
 ### Test results
-- **571 passed, 0 xfailed, 0 failed** (up from 525/4/0)
+- **619 passed, 0 xfailed, 0 failed** (up from 571)
 - Coverage: ~87%
 
 ---

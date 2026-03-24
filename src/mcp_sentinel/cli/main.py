@@ -21,7 +21,7 @@ from mcp_sentinel.core.logger import setup_logging
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.engines.base import ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.reporting.generators import SARIFGenerator
+from mcp_sentinel.reporting.generators import ComplianceReportGenerator, SARIFGenerator
 
 console = Console()
 
@@ -59,6 +59,10 @@ def cli(log_level: str, log_file: Optional[str]) -> None:
     - Insecure deserialization (pickle, yaml.load, ObjectInputStream)
 
     Output formats: terminal (default), json, sarif (GitHub Code Scanning)
+
+    Compliance: every finding is annotated with its OWASP Agentic AI Top 10
+    (ASI01–ASI10) category. Use --compliance-file to export a full ASI coverage
+    report alongside your scan results.
 
     Documentation: https://github.com/beejak/mcp-sentinel
     """
@@ -108,12 +112,24 @@ def cli(log_level: str, log_file: Optional[str]) -> None:
         "or when piping output to another tool."
     ),
 )
+@click.option(
+    "--compliance-file",
+    type=click.Path(),
+    default=None,
+    help=(
+        "Write an OWASP Agentic AI Top 10 compliance report (JSON) to this file. "
+        "The report lists all ASI01–ASI10 categories with finding counts, "
+        "severity breakdown, and coverage gaps. "
+        "Compatible with any compliance dashboard that accepts structured JSON."
+    ),
+)
 def scan(
     target: Optional[str],
     output: str,
     severity: tuple[str, ...],
     json_file: str,
     no_progress: bool,
+    compliance_file: Optional[str],
 ) -> None:
     """
     Scan a directory or file for security vulnerabilities.
@@ -121,10 +137,13 @@ def scan(
     TARGET is the path to scan — a directory or a single file. If omitted,
     mcp-sentinel will prompt you interactively.
 
-    Runs 12 pattern-based detectors covering: hardcoded secrets, code
+    Runs 13 pattern-based detectors covering: hardcoded secrets, code
     injection, prompt injection, tool poisoning, path traversal, config
     security, SSRF, network binding, missing auth, supply chain attacks,
-    weak cryptography, and insecure deserialization.
+    weak cryptography, insecure deserialization, and MCP sampling misuse.
+    Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10)
+    category. Severity is calibrated based on server context (filesystem
+    access, network access, STDIO transport).
 
     \b
     Common workflows:
@@ -152,6 +171,10 @@ def scan(
     \b
       Keep an audit log while reviewing interactively:
         mcp-sentinel --log-file audit.log scan .
+
+    \b
+      Export OWASP Agentic AI Top 10 compliance report:
+        mcp-sentinel scan . --compliance-file compliance.json
     """
     if not target:
         target = questionary.path("Target directory to scan:").ask()
@@ -191,6 +214,10 @@ def scan(
         _print_json_results(result, json_file)
     elif output == "sarif":
         _print_sarif_results(result, json_file)
+
+    # Always write compliance report when requested (regardless of output format)
+    if compliance_file:
+        _write_compliance_report(result, compliance_file)
 
     if result.has_critical_findings():
         raise click.Abort()
@@ -287,6 +314,10 @@ def _print_terminal_results(result: ScanResult) -> None:
     console.print(severity_table)
     console.print("\n")
 
+    # OWASP Agentic AI Top 10 summary (only when there are findings)
+    if result.vulnerabilities:
+        _print_owasp_summary(result.vulnerabilities)
+
     if result.vulnerabilities:
         console.print("[bold]Detailed Findings:[/bold]\n")
 
@@ -333,6 +364,67 @@ def _print_terminal_results(result: ScanResult) -> None:
         console.print(
             f"\n[bold yellow]Found {result.statistics.total_vulnerabilities} vulnerabilities[/bold yellow]"
         )
+
+
+def _print_owasp_summary(vulnerabilities: list) -> None:
+    """Print a compact OWASP Agentic AI Top 10 category breakdown."""
+    from mcp_sentinel.models.owasp_mapping import build_compliance_summary
+
+    summary = build_compliance_summary(vulnerabilities)
+    if not summary:
+        return
+
+    owasp_table = Table(title="OWASP Agentic AI Top 10 Coverage", box=box.ROUNDED)
+    owasp_table.add_column("ASI ID", style="cyan", width=7)
+    owasp_table.add_column("Category", style="bold")
+    owasp_table.add_column("Findings", justify="right")
+    owasp_table.add_column("Max Severity", justify="center")
+
+    severity_colors = {
+        "critical": "red",
+        "high": "orange1",
+        "medium": "yellow",
+        "low": "blue",
+        "info": "green",
+    }
+
+    for asi_id in sorted(summary.keys()):
+        cat = summary[asi_id]
+        count = int(cat["count"])
+        # Determine max severity
+        max_sev = None
+        for sev in ("critical", "high", "medium", "low", "info"):
+            if int(cat.get(sev, 0)) > 0:
+                max_sev = sev
+                break
+        color = severity_colors.get(max_sev or "", "white")
+        owasp_table.add_row(
+            asi_id,
+            str(cat["name"]),
+            str(count),
+            f"[{color}]{(max_sev or '').upper()}[/]" if max_sev else "-",
+        )
+
+    console.print(owasp_table)
+    console.print("\n")
+
+
+def _write_compliance_report(result: ScanResult, output_file: str) -> None:
+    """Write OWASP Agentic AI Top 10 compliance report as JSON."""
+    generator = ComplianceReportGenerator()
+    report = generator.generate(
+        vulnerabilities=result.vulnerabilities,
+        target=result.target,
+        scan_id=result.scan_id if hasattr(result, "scan_id") else None,
+    )
+    try:
+        with open(output_file, "w") as f:
+            f.write(json.dumps(report, indent=2))
+        console.print(
+            f"\n[bold green]OWASP compliance report saved to {output_file}[/bold green]"
+        )
+    except Exception as e:
+        console.print(f"\n[bold red]Error saving compliance report: {e}[/bold red]")
 
 
 def _print_json_results(result: ScanResult, output_file: Optional[str] = None) -> None:

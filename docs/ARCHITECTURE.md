@@ -1,7 +1,7 @@
 # MCP Sentinel — Architecture
 
-**Version**: v0.4.0
-**Status**: 12 detectors, 525 tests, static engine
+**Version**: v0.5.0
+**Status**: 13 detectors, 619 tests, static engine + OWASP compliance + severity calibration
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Overview
 
-MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.4.0 is intentionally focused: one engine (static), twelve detectors, no external service dependencies.
+MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.5.0 is intentionally focused: one engine (static), thirteen detectors, no external service dependencies.
 
 ### Key design decisions
 
@@ -35,6 +35,8 @@ MCP Sentinel is a **static pattern-matching security scanner** purpose-built for
 | Detector per vulnerability class | Focused, independently testable, easy to extend |
 | Pydantic v2 configuration | Type-safe settings with env var overrides |
 | SARIF output | Native integration with GitHub, GitLab, Azure DevOps security tabs |
+| OWASP ASI annotation | Every finding is auto-annotated with ASI01–ASI10 via a model_validator |
+| Severity calibration | Post-scan pass elevates severity based on declared server capabilities |
 | CLI-only | No REST API, no server, no database — minimal footprint |
 
 ---
@@ -61,7 +63,9 @@ src/mcp_sentinel/
 ├── engines/
 │   ├── base.py                  # AbstractEngine interface
 │   └── static/
-│       └── static_engine.py     # StaticAnalysisEngine — runs all detectors per file
+│       ├── static_engine.py     # StaticAnalysisEngine — runs all detectors per file
+│       ├── context_detector.py  # MCPContext — infers server context from mcp.json / package.json
+│       └── severity_calibrator.py  # SeverityCalibrator — post-scan severity elevation
 │
 ├── detectors/
 │   ├── base.py                  # BaseDetector interface
@@ -76,15 +80,18 @@ src/mcp_sentinel/
 │   ├── missing_auth.py          # MissingAuthDetector
 │   ├── supply_chain.py          # SupplyChainDetector
 │   ├── weak_crypto.py           # WeakCryptoDetector
-│   └── insecure_deserialization.py  # InsecureDeserializationDetector
+│   ├── insecure_deserialization.py  # InsecureDeserializationDetector
+│   └── mcp_sampling.py          # MCPSamplingDetector (v0.5)
 │
 ├── models/
-│   ├── vulnerability.py         # Vulnerability dataclass
-│   └── scan_result.py           # ScanResult dataclass
+│   ├── vulnerability.py         # Vulnerability dataclass (OWASP ASI auto-annotation via model_validator)
+│   ├── scan_result.py           # ScanResult dataclass
+│   └── owasp_mapping.py         # OWASP Agentic AI Top 10 (ASI01–ASI10) mapping & compliance summary
 │
 └── reporting/
     └── generators/
-        └── sarif_generator.py   # SARIF 2.1.0 output
+        ├── sarif_generator.py   # SARIF 2.1.0 output (includes OWASP ASI fields)
+        └── compliance_generator.py  # OWASP Agentic AI Top 10 compliance JSON report
 ```
 
 ---
@@ -159,30 +166,36 @@ class BaseDetector:
         """Analyze content and return any found vulnerabilities."""
 ```
 
-### Detector scope (v0.4.0)
+### Detector scope (v0.5.0)
 
-| Detector | Languages / File Types | Patterns |
-|---|---|---|
-| `SecretsDetector` | All | AWS keys, OpenAI keys, Anthropic keys, private keys, DB URLs |
-| `CodeInjectionDetector` | Python, JS, TS | `os.system`, `subprocess(shell=True)`, `eval`, `exec`, `child_process.exec` |
-| `PromptInjectionDetector` | All text/code | Role manipulation, jailbreak keywords, system prompt assignment |
-| `ToolPoisoningDetector` | JSON, YAML, code, text | Invisible unicode, cross-tool instructions, sensitive file references in tool schemas |
-| `PathTraversalDetector` | Python, JS, Java, PHP | `../` sequences, unsafe `zipfile`/`tarfile` extraction, unvalidated `open()` |
-| `ConfigSecurityDetector` | Python, JS, YAML, JSON, nginx, Dockerfile | Debug mode, wildcard CORS, weak TLS, insecure cookies, `ALLOWED_HOSTS=*` |
-| `SSRFDetector` | Python, JS, TS, Go, Java | HTTP calls with variable URLs, cloud metadata endpoints |
-| `NetworkBindingDetector` | Python, Go, JS, YAML, `.env` | `host="0.0.0.0"`, `:8080` shorthand, `BIND_HOST=0.0.0.0` |
-| `MissingAuthDetector` | Python, JS, TS, JSON | Sensitive routes/tools without auth decorators/middleware |
-| `SupplyChainDetector` | Python, JS, TS, Shell, manifests | Encoded payloads, install-time exec/network, exfiltration, BCC injection, typosquatting |
-| `WeakCryptoDetector` | Python, JS, TS, Java, Go | MD5/SHA-1, insecure PRNG, ECB mode, deprecated ciphers, static IV, weak KDF |
-| `InsecureDeserializationDetector` | Python, JS, TS, Java, PHP | pickle, yaml.load, marshal, eval-as-parser, jsonpickle, ObjectInputStream, unserialize |
+| Detector | Languages / File Types | Patterns | ASI |
+|---|---|---|---|
+| `SecretsDetector` | All | AWS keys, OpenAI keys, Anthropic keys, private keys, DB URLs | ASI02 |
+| `CodeInjectionDetector` | Python, JS, TS | `os.system`, `subprocess(shell=True)`, `eval`, `exec`, `child_process.exec` | ASI04 |
+| `PromptInjectionDetector` | All text/code | Role manipulation, jailbreak keywords, system prompt assignment | ASI01 |
+| `ToolPoisoningDetector` | JSON, YAML, code, text | Invisible unicode, cross-tool instructions, sensitive file references in tool schemas | ASI01 |
+| `PathTraversalDetector` | Python, JS, Java, PHP | `../` sequences, unsafe `zipfile`/`tarfile` extraction, taint-tracked `open()` / `os.path.join()` | ASI09 |
+| `ConfigSecurityDetector` | Python, JS, YAML, JSON, nginx, Dockerfile | Debug mode, wildcard CORS, weak TLS, insecure cookies, `ALLOWED_HOSTS=*` | ASI02 |
+| `SSRFDetector` | Python, JS, TS, Go, Java | HTTP calls with variable URLs, cloud metadata endpoints | ASI05 |
+| `NetworkBindingDetector` | Python, Go, JS, YAML, `.env` | `host="0.0.0.0"`, `:8080` shorthand, `BIND_HOST=0.0.0.0` | ASI06 |
+| `MissingAuthDetector` | Python, JS, TS, JSON | Sensitive routes/tools without auth decorators/middleware | ASI04 |
+| `SupplyChainDetector` | Python, JS, TS, Shell, manifests | Encoded payloads, install-time exec/network, exfiltration, BCC injection, typosquatting | ASI03 |
+| `WeakCryptoDetector` | Python, JS, TS, Java, Go | MD5/SHA-1, insecure PRNG, ECB mode, deprecated ciphers, static IV, weak KDF | ASI07 |
+| `InsecureDeserializationDetector` | Python, JS, TS, Java, PHP | pickle, yaml.load, marshal, eval-as-parser, jsonpickle, ObjectInputStream, unserialize | ASI08 |
+| `MCPSamplingDetector` | Python, JS, TS | Sampling call audit, prompt injection via sampling, sensitive data in LLM calls, token limit abuse | ASI10 |
 
 ### Adding a new detector
 
 1. Create `src/mcp_sentinel/detectors/my_detector.py` inheriting from `BaseDetector`
-2. Implement `is_applicable()` and `detect()`
+2. Implement `is_applicable()` and `detect_sync()`
 3. Add to `src/mcp_sentinel/detectors/__init__.py`
-4. Register in `StaticAnalysisEngine`
-5. Add tests in `tests/unit/test_my_detector.py`
+4. Register in `StaticAnalysisEngine._get_default_detectors()`
+5. Add OWASP mapping entry in `src/mcp_sentinel/models/owasp_mapping.py`
+6. Add tests in `tests/unit/test_my_detector.py`
+
+OWASP annotation is automatic: the `Vulnerability` model validator auto-populates
+`owasp_asi_id` / `owasp_asi_name` from the detector's `VulnerabilityType` via
+`owasp_mapping.annotate()`.
 
 ---
 
@@ -245,19 +258,38 @@ Terminal output uses [Rich](https://github.com/Textualize/rich) for tables, prog
 
 ### Terminal
 
-Rich table with columns: severity badge, title, file:line, code snippet.
+Rich tables with:
+- Severity summary (CRITICAL / HIGH / MEDIUM / LOW / INFO counts)
+- **OWASP Agentic AI Top 10 coverage** — which ASI categories have findings, max severity per category
+- Detailed findings with code snippets, remediation steps, and diff suggestions
 
 ### JSON
 
-Direct serialization of `ScanResult` — all vulnerabilities with full metadata.
+Direct serialization of `ScanResult` — all vulnerabilities with full metadata including
+`owasp_asi_id` and `owasp_asi_name` on every finding.
 
 ### SARIF 2.1.0
 
-Generated by `SARIFGenerator`. Compatible with:
+Generated by `SARIFGenerator`. Includes `owasp_asi_id`/`owasp_asi_name` in result properties.
+Compatible with:
 - GitHub Code Scanning (Security tab)
 - GitLab Security reports
 - Azure DevOps Security Code Scanning
 - VS Code SARIF Viewer extension
+
+### OWASP Compliance Report (`--compliance-file`)
+
+Generated by `ComplianceReportGenerator`. Structured JSON keyed by ASI01–ASI10:
+```json
+{
+  "framework": "OWASP Agentic AI Top 10 2026",
+  "categories": {
+    "ASI01": {"name": "Prompt Injection", "finding_count": 3, "max_severity": "high", ...},
+    ...
+  },
+  "summary": {"categories_with_findings": 4, "risk_distribution": {...}}
+}
+```
 
 ---
 
@@ -311,11 +343,25 @@ All detector tests follow the same structure:
 
 ---
 
+## Severity Calibration
+
+After all detectors run, `SeverityCalibrator` applies a post-scan pass:
+
+1. **Filesystem / network access** — if `mcp.json` / `package.json` declares filesystem
+   or network tools, `CODE_INJECTION`, `PATH_TRAVERSAL`, `SSRF`, `MCP_SAMPLING` findings
+   are elevated by one severity step (e.g. MEDIUM → HIGH, HIGH → CRITICAL).
+2. **Sensitive tool operations** — tools exposing `rm`, `delete`, `shell`, `execute`, `sudo`
+   trigger additional elevation for `PATH_TRAVERSAL` and `CODE_INJECTION`.
+3. **STDIO transport** — adds a `context_note` to all findings explaining that the server
+   inherits the full host user privilege level.
+
+Context is detected by `MCPContextDetector` which inspects `mcp.json`, `.mcp/config.json`,
+`package.json`, and `pyproject.toml` at the scan root.
+
 ## Future Plans
 
 | Version | Planned |
 |---|---|
-| v0.3.0 | Per-detector enable/disable via config; custom pattern rules |
-| v0.4.0 | SARIF baseline diffing; suppress known findings |
-| v0.5.0 | Multi-line taint tracking (cross-line dataflow for PathTraversal, SSRF) |
 | v1.0.0 | Stable API; plugin system for community detectors |
+| v1.1.0 | SARIF baseline diffing; suppress known findings |
+| v1.2.0 | Per-detector enable/disable via config; custom pattern rules |

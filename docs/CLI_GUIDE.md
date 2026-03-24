@@ -70,7 +70,7 @@ Log files use JSON-structured format (timestamp, level, message) and rotate at 1
 mcp-sentinel scan [TARGET] [OPTIONS]
 ```
 
-Scans a directory or file for security vulnerabilities using all 12 detectors.
+Scans a directory or file for security vulnerabilities using all 13 detectors.
 
 ### `TARGET`
 
@@ -182,6 +182,39 @@ mcp-sentinel scan . --output json | jq .vulnerabilities
 
 ---
 
+### `--compliance-file PATH`
+
+Write an [OWASP Agentic AI Top 10 2026](https://owasp.org/www-project-top-10-for-large-language-model-applications/) compliance report to this file as JSON.
+
+The report covers all ASI01–ASI10 categories with finding counts, severity breakdowns, and notes on categories with no findings. It is independent of `--output` — you can combine it with any output format.
+
+```bash
+# Compliance report only
+mcp-sentinel scan . --compliance-file compliance.json
+
+# Compliance + SARIF for GitHub upload
+mcp-sentinel scan . --output sarif --json-file results.sarif --compliance-file compliance.json
+
+# Compliance + JSON findings in one command
+mcp-sentinel scan . --output json --json-file findings.json --compliance-file compliance.json
+```
+
+Example compliance report structure:
+```json
+{
+  "framework": "OWASP Agentic AI Top 10 2026",
+  "total_findings": 7,
+  "categories": {
+    "ASI01": {"name": "Prompt Injection", "finding_count": 3, "max_severity": "high"},
+    "ASI02": {"name": "Sensitive Data Exposure", "finding_count": 0, ...},
+    ...
+  },
+  "summary": {"categories_with_findings": 4, "risk_distribution": {...}}
+}
+```
+
+---
+
 ### `--no-progress`
 
 Suppress the animated progress bar.
@@ -222,7 +255,7 @@ fi
 mcp-sentinel scan /path/to/mcp-server
 ```
 
-Runs all 12 detectors, shows colour-coded findings grouped by severity, prints a risk score.
+Runs all 13 detectors, shows colour-coded findings grouped by severity, an OWASP ASI01–ASI10 category breakdown, and a risk score.
 
 ---
 
@@ -294,22 +327,32 @@ jq -r '.vulnerabilities[] | [.severity, .title, .file_path, .line_number, .remed
 
 ## Detector reference
 
-All 12 detectors run on every scan. They cannot be individually disabled (by design — a scanner that lets you silence detectors is easier to misuse).
+All 13 detectors run on every scan. They cannot be individually disabled (by design — a scanner that lets you silence detectors is easier to misuse). Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10) category.
 
-| Detector | Severity range | What it catches |
-|---|---|---|
-| `SecretsDetector` | CRITICAL | AWS keys, API tokens, private keys, DB URLs, 15+ patterns |
-| `CodeInjectionDetector` | CRITICAL/HIGH | `os.system`, `subprocess(shell=True)`, `eval`, `exec`, SQL f-strings |
-| `PromptInjectionDetector` | HIGH/MEDIUM | Role manipulation, jailbreaks, system prompt exposure |
-| `ToolPoisoningDetector` | CRITICAL/MEDIUM | Invisible Unicode, sensitive path targeting, override directives, cross-tool manipulation |
-| `PathTraversalDetector` | HIGH | `../` sequences, zip slip, unsafe `open()` and `os.path.join()` |
-| `ConfigSecurityDetector` | HIGH/MEDIUM | `DEBUG=True`, open CORS, `SSL_VERIFY=False`, weak secrets |
-| `SSRFDetector` | CRITICAL/HIGH | Unvalidated URLs in HTTP clients, cloud metadata endpoints (`169.254.169.254`) |
-| `NetworkBindingDetector` | MEDIUM | `0.0.0.0` binding in Python, JS, Go, Java, config files |
-| `MissingAuthDetector` | HIGH/MEDIUM | Routes without `@login_required`, `Depends(get_current_user)`, or auth middleware |
-| `SupplyChainDetector` | CRITICAL/HIGH | Encoded payloads, install-time exec/network, env var exfiltration, typosquatting |
-| `WeakCryptoDetector` | HIGH/MEDIUM | MD5/SHA-1, ECB mode, insecure random, deprecated ciphers, static IV, weak KDF |
-| `InsecureDeserializationDetector` | CRITICAL | `pickle.loads`, `yaml.load`, `marshal`, `ObjectInputStream`, PHP `unserialize`, Node.js `vm.runInContext` |
+| Detector | Severity range | ASI | What it catches |
+|---|---|---|---|
+| `SecretsDetector` | CRITICAL | ASI02 | AWS keys, API tokens, private keys, DB URLs, 15+ patterns |
+| `CodeInjectionDetector` | CRITICAL/HIGH | ASI04 | `os.system`, `subprocess(shell=True)`, `eval`, `exec`, SQL f-strings |
+| `PromptInjectionDetector` | HIGH/MEDIUM | ASI01 | Role manipulation, jailbreaks, system prompt exposure |
+| `ToolPoisoningDetector` | CRITICAL/MEDIUM | ASI01 | Invisible Unicode, sensitive path targeting, override directives, cross-tool manipulation |
+| `PathTraversalDetector` | HIGH | ASI09 | `../` sequences, zip slip, taint-tracked `open()` and `os.path.join()` |
+| `ConfigSecurityDetector` | HIGH/MEDIUM | ASI02 | `DEBUG=True`, open CORS, `SSL_VERIFY=False`, weak secrets |
+| `SSRFDetector` | CRITICAL/HIGH | ASI05 | Unvalidated URLs in HTTP clients, cloud metadata endpoints (`169.254.169.254`) |
+| `NetworkBindingDetector` | MEDIUM | ASI06 | `0.0.0.0` binding in Python, JS, Go, Java, config files |
+| `MissingAuthDetector` | HIGH/MEDIUM | ASI04 | Routes without `@login_required`, `Depends(get_current_user)`, or auth middleware |
+| `SupplyChainDetector` | CRITICAL/HIGH | ASI03 | Encoded payloads, install-time exec/network, env var exfiltration, typosquatting |
+| `WeakCryptoDetector` | HIGH/MEDIUM | ASI07 | MD5/SHA-1, ECB mode, insecure random, deprecated ciphers, static IV, weak KDF |
+| `InsecureDeserializationDetector` | CRITICAL | ASI08 | `pickle.loads`, `yaml.load`, `marshal`, `ObjectInputStream`, PHP `unserialize`, Node.js `vm.runInContext` |
+| `MCPSamplingDetector` | CRITICAL/HIGH/MEDIUM | ASI10 | Sampling call audit, prompt injection via `create_message`, sensitive data in LLM calls, unconstrained token limits |
+
+### Severity calibration
+
+After all detectors run, findings are adjusted based on server context signals detected
+from `mcp.json`, `package.json`, or similar config files:
+
+- **Filesystem/network access declared** → `CODE_INJECTION`, `PATH_TRAVERSAL`, `SSRF`, `MCP_SAMPLING` elevated one step
+- **Sensitive tools** (`rm`, `delete`, `shell`, `sudo`) → `PATH_TRAVERSAL`, `CODE_INJECTION` elevated one step
+- **STDIO transport** → all findings annotated with a privilege-level context note
 
 ---
 
@@ -317,4 +360,4 @@ All 12 detectors run on every scan. They cannot be individually disabled (by des
 
 - [QUICKSTART.md](../QUICKSTART.md) — install and first scan in 2 minutes
 - [README.md](../README.md) — full detector documentation with pattern tables
-- [ROADMAP.md](../ROADMAP.md) — what's coming in v0.5
+- [ARCHITECTURE.md](ARCHITECTURE.md) — module structure, scan pipeline, detector reference

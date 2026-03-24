@@ -15,6 +15,10 @@ Pattern-based detectors (v0.5):
 - WeakCryptoDetector             (v0.4: MD5/SHA-1, insecure random, ECB, broken ciphers)
 - InsecureDeserializationDetector (v0.4: pickle, yaml.load, marshal, eval-as-parser)
 - MCPSamplingDetector            (v0.5: sampling misuse, prompt injection, sensitive data in LLM calls)
+
+Post-scan passes (v0.5):
+- SeverityCalibrator             (elevates severity for CODE_INJECTION/PATH_TRAVERSAL/SSRF/MCP_SAMPLING
+                                   when the server declares filesystem or network access)
 """
 
 import asyncio
@@ -41,6 +45,8 @@ from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.weak_crypto import WeakCryptoDetector
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType, ScanProgress
+from mcp_sentinel.engines.static.context_detector import detect_mcp_context
+from mcp_sentinel.engines.static.severity_calibrator import SeverityCalibrator
 from mcp_sentinel.models.vulnerability import Vulnerability
 
 logger = logging.getLogger(__name__)
@@ -215,6 +221,11 @@ class StaticAnalysisEngine(BaseEngine):
                 progress.scanned_files += 1
                 progress.vulnerabilities_found = len(vulnerabilities)
                 self._report_progress(progress)
+
+            # Post-scan: apply MCP-context severity calibration
+            context = detect_mcp_context(target_path)
+            calibrator = SeverityCalibrator()
+            vulnerabilities = calibrator.calibrate(vulnerabilities, context)
 
             self.status = EngineStatus.COMPLETED
             return vulnerabilities
