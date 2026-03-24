@@ -420,7 +420,7 @@ MCP Sentinel is a **static analysis tool**. It finds patterns in source code —
 
 **What it does not catch:**
 - Multi-line taint flows (e.g., `x = request.args.get("f")` on line 1, `open(x)` on line 50) — requires semantic/dynamic analysis
-- Rug pull attacks (tool definitions changing at runtime) — requires runtime monitoring; structural signals planned for v0.4
+- Rug pull attacks (tool definitions changing at runtime) — requires runtime monitoring; structural signals planned for v0.5
 - Logic flaws, business logic vulnerabilities
 - Deep transitive dependency analysis (only checks direct manifest files and code patterns)
 

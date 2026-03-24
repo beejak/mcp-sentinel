@@ -45,12 +45,18 @@ def cli(log_level: str, log_file: Optional[str]):
     MCP Sentinel - Security Scanner for MCP Servers
 
     Detects security threats in MCP server code using static analysis:
-    - Hardcoded secrets (AWS keys, API tokens, passwords)
+    - Hardcoded secrets (AWS keys, API tokens, passwords, private keys)
+    - Code injection (eval, exec, subprocess abuse, SQL f-strings)
     - Prompt injection and AI manipulation attacks
-    - Tool poisoning (invisible Unicode, homoglyphs, RTLO)
-    - Code injection (eval, exec, subprocess abuse)
+    - Tool poisoning (invisible Unicode, sensitive path targeting, override directives)
     - Path traversal and unsafe file operations
     - Configuration security misconfigurations
+    - SSRF (unvalidated URLs in HTTP clients, cloud metadata endpoints)
+    - Network binding on all interfaces (0.0.0.0)
+    - Missing authentication on routes and endpoints
+    - Supply chain attacks (encoded payloads, install-time exfiltration)
+    - Weak cryptography (MD5/SHA-1, ECB mode, insecure random, broken ciphers)
+    - Insecure deserialization (pickle, yaml.load, ObjectInputStream)
 
     Output formats: terminal (default), json, sarif (GitHub Code Scanning)
 

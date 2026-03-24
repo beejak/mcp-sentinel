@@ -35,8 +35,8 @@ Include:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| 0.4.x   | :white_check_mark: |
+| < 0.4   | :x:                |
 
 ## Security Best Practices
 
@@ -44,7 +44,7 @@ Include:
 
 1. **Keep MCP Sentinel Updated**
    ```bash
-   cargo install mcp-sentinel --force
+   pip install --upgrade mcp-sentinel
    ```
 
 2. **Verify Downloads**
@@ -69,12 +69,12 @@ Include:
 2. **Dependency Management**
    - Keep dependencies updated
    - Review dependency changes
-   - Use `cargo audit` regularly
+   - Use `pip audit` regularly
 
 3. **Code Review**
    - All code must be reviewed
    - Security-sensitive changes require additional review
-   - Use static analysis tools
+   - Use static analysis tools (ruff, mypy)
 
 ## Known Security Considerations
 
@@ -95,28 +95,30 @@ Some detectors use regex patterns that could be vulnerable to ReDoS (Regular Exp
 ### 3. External Dependencies
 
 We minimize external dependencies and:
-- Pin dependency versions in Cargo.lock
-- Regularly audit with `cargo audit`
+- Pin dependency versions in `pyproject.toml`
+- Regularly audit with `pip audit`
 - Review security advisories
 
 ### 4. Secrets in Output
 
-Detected secrets are redacted in output:
-```rust
-// Example: "AKIAIOSFODNN7EXAMPLE" → "AKIA...MPLE"
-```
-
-However, JSON output may contain more detail. Secure your reports appropriately.
+Detected secrets are included in scan output with surrounding context. JSON output may contain more detail. Secure your reports appropriately — do not commit SARIF or JSON scan results to public repositories.
 
 ## Security Features
 
 ### What MCP Sentinel Scans For
 
-1. **Secrets**: API keys, private keys, credentials
-2. **Command Injection**: Unsafe system calls
-3. **File Access**: Sensitive file operations
-4. **Tool Poisoning**: Malicious tool descriptions
-5. **Prompt Injection**: LLM manipulation attempts
+1. **Secrets**: API keys, private keys, credentials (15+ patterns)
+2. **Code Injection**: `os.system`, `subprocess(shell=True)`, `eval`, `exec`, SQL f-strings
+3. **Prompt Injection**: Role manipulation, jailbreaks, system prompt exposure
+4. **Tool Poisoning**: Invisible Unicode, override directives, sensitive path targeting
+5. **Path Traversal**: `../` sequences, zip slip, unsafe `open()` calls
+6. **Config Security**: `DEBUG=True`, open CORS, `SSL_VERIFY=False`, weak secrets
+7. **SSRF**: Unvalidated URL variables in HTTP clients, cloud metadata endpoints
+8. **Network Binding**: Servers bound to `0.0.0.0` instead of `127.0.0.1`
+9. **Missing Auth**: Routes and endpoints without authentication
+10. **Supply Chain**: Encoded payloads, install-time exec/network, covert exfiltration
+11. **Weak Crypto**: MD5/SHA-1, insecure random, ECB mode, deprecated ciphers
+12. **Insecure Deserialization**: `pickle.loads`, `yaml.load`, `ObjectInputStream`, PHP `unserialize`
 
 ### What MCP Sentinel Does NOT Do
 
@@ -124,6 +126,7 @@ However, JSON output may contain more detail. Secure your reports appropriately.
 - **No Code Execution**: We only analyze, never execute
 - **No Data Collection**: No telemetry or analytics
 - **No Cloud Storage**: Everything stays local
+- **No Multi-line Taint**: Cross-line variable-to-sink flows require semantic analysis (planned v0.5)
 
 ## Responsible Disclosure
 
@@ -149,26 +152,26 @@ Contributors who responsibly disclose vulnerabilities:
 Subscribe to security updates:
 - Watch this repository
 - Follow releases
-- Join our security mailing list (coming soon)
 
 ## Audit History
 
 | Date | Type | Auditor | Result |
 |------|------|---------|--------|
 | 2025-10-25 | Internal | Core Team | Phase 1 Complete - No issues found |
+| 2026-03-23 | Internal | Core Team | v0.1.0 codebase reduction - attack surface minimized |
 
 ## Additional Resources
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Rust Security Database](https://rustsec.org/)
+- [OWASP Agentic AI Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+- [Python Security Advisories](https://github.com/pypa/advisory-database)
 - [CWE Database](https://cwe.mitre.org/)
 
 ## Contact
 
 - **Security Issues**: security@mcp-sentinel.dev
-- **General Questions**: discussions@mcp-sentinel.dev
-- **Twitter**: @mcp_sentinel (coming soon)
+- **General Questions**: Use GitHub Discussions
 
 ---
 
-**Thank you for helping keep MCP Sentinel secure!** 🛡️
+**Thank you for helping keep MCP Sentinel secure!**
