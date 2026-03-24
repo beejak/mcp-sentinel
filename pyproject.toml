@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mcp-sentinel"
-version = "4.1.0"
+version = "5.0.0"
 description = "Security scanner for Model Context Protocol (MCP) servers"
 authors = ["MCP Sentinel Team <team@mcp-sentinel.dev>"]
 license = "MIT"

@@ -1,19 +1,20 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-Pattern-based detectors (v0.4):
+Pattern-based detectors (v0.5):
 - SecretsDetector
 - CodeInjectionDetector
 - PromptInjectionDetector
 - ToolPoisoningDetector          (enhanced: full-schema poisoning, sensitive path targeting)
 - ConfigSecurityDetector
-- PathTraversalDetector
+- PathTraversalDetector          (v0.5: lightweight taint analysis for def-use chains)
 - SSRFDetector                   (unvalidated URL args, cloud metadata, redirect params)
 - NetworkBindingDetector         (0.0.0.0 binding across Python/JS/Go/Java/config)
 - MissingAuthDetector            (routes/endpoints without auth decorators or middleware)
 - SupplyChainDetector            (v0.3: encoded payloads, install-time exec/network, exfiltration)
 - WeakCryptoDetector             (v0.4: MD5/SHA-1, insecure random, ECB, broken ciphers)
 - InsecureDeserializationDetector (v0.4: pickle, yaml.load, marshal, eval-as-parser)
+- MCPSamplingDetector            (v0.5: sampling misuse, prompt injection, sensitive data in LLM calls)
 """
 
 import asyncio
@@ -29,6 +30,7 @@ from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
+from mcp_sentinel.detectors.mcp_sampling import MCPSamplingDetector
 from mcp_sentinel.detectors.missing_auth import MissingAuthDetector
 from mcp_sentinel.detectors.network_binding import NetworkBindingDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
@@ -92,6 +94,7 @@ class StaticAnalysisEngine(BaseEngine):
             SupplyChainDetector(),
             WeakCryptoDetector(),
             InsecureDeserializationDetector(),
+            MCPSamplingDetector(),
         ]
 
     async def scan_file(

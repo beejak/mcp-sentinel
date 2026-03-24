@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2026-03-24
+
+Security intelligence upgrade: OWASP Agentic AI Top 10 compliance annotations, a new MCP-specific sampling detector, and lightweight taint analysis in the path traversal detector.
+
+### Added
+
+**OWASP Agentic AI Top 10 (ASI01–ASI10) mapping (`src/mcp_sentinel/models/owasp_mapping.py`):**
+- Every finding is now annotated with `owasp_asi_id` and `owasp_asi_name` automatically via `BaseDetector.detect()`
+- `build_compliance_summary()` aggregates findings by ASI category for dashboards and reports
+- SARIF output includes `owaspAgenticAITop10` compliance summary in run properties and `owasp_asi_id`/`owasp_asi_name` in each result's properties
+- Full ASI rule set added to SARIF `tool.driver.rules`
+
+**New detector — `MCPSamplingDetector`:**
+- Detects MCP sampling (`create_message` / `createMessage` / `sampling/createMessage`) across Python, JavaScript, TypeScript
+- **Prompt injection via sampling** (HIGH, CWE-77): user-controlled input concatenated or interpolated into sampling message text
+- **Sensitive data in sampling** (HIGH, CWE-312): passwords, tokens, API keys, `os.environ`/`process.env` secrets sent to LLM
+- **Unconstrained token limits** (LOW, CWE-400): `max_tokens`/`maxTokens` > 100 000 or absent limits
+- **Generic sampling call** (MEDIUM, CWE-668): any sampling call for audit awareness
+- Maps to OWASP ASI10 (Inadequate Audit and Monitoring)
+
+**Lightweight taint analysis in `PathTraversalDetector`:**
+- `_taint_python()`: stdlib `ast.NodeVisitor` def-use chains — detects `x = request.args.get(...)` → `open(x)` and `os.path.join(…, x)`
+- `_taint_js()`: regex window — detects `x = req.query.y` → `path.join(…, x)` → `fs.readFile(y)` (one-step propagation)
+- `_taint_java()`: regex window — detects `x = request.getParameter(…)` → `new File(…, x)`
+- Resolves the 4 previously-xfailed tests; all 42 path traversal tests now pass
+
+**VulnerabilityType enum:**
+- Added `MCP_SAMPLING = "mcp_sampling"`
+
+**New test files:**
+- `tests/unit/test_mcp_sampling.py` (26 tests)
+- `tests/unit/test_owasp_mapping.py` (16 tests)
+
+### Changed
+- `BaseDetector.detect()` now auto-annotates all findings with OWASP ASI metadata
+- Static engine default detector list: 12 → 13 (added `MCPSamplingDetector`)
+- SARIF generator: full rule catalogue (13 rules covering all `VulnerabilityType` values), OWASP ASI fields on each result
+
+### Test results
+- **571 passed, 0 xfailed, 0 failed** (up from 525/4/0)
+- Coverage: ~87%
+
+---
+
 ## [0.4.1] - 2026-03-24
 
 ### Fixed

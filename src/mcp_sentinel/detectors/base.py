@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
+from mcp_sentinel.models.owasp_mapping import annotate
 from mcp_sentinel.models.vulnerability import Vulnerability
 
 
@@ -50,6 +51,9 @@ class BaseDetector(ABC):
         """
         Detect vulnerabilities in a file (Async wrapper).
 
+        Annotates every returned finding with its OWASP Agentic AI Top 10
+        category (owasp_asi_id / owasp_asi_name) before returning.
+
         Args:
             file_path: Path to the file
             content: File content
@@ -58,7 +62,13 @@ class BaseDetector(ABC):
         Returns:
             List of detected vulnerabilities
         """
-        return self.detect_sync(file_path, content, file_type)
+        vulns = self.detect_sync(file_path, content, file_type)
+        for vuln in vulns:
+            if vuln.owasp_asi_id is None:
+                asi_id, asi_name = annotate(vuln.type)
+                vuln.owasp_asi_id = asi_id
+                vuln.owasp_asi_name = asi_name
+        return vulns
 
     def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
         """

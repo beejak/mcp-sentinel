@@ -4,6 +4,7 @@ from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
+from mcp_sentinel.detectors.mcp_sampling import MCPSamplingDetector
 from mcp_sentinel.detectors.missing_auth import MissingAuthDetector
 from mcp_sentinel.detectors.network_binding import NetworkBindingDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
@@ -24,6 +25,7 @@ __all__ = [
     "ConfigSecurityDetector",
     "SSRFDetector",
     "NetworkBindingDetector",
+    "MCPSamplingDetector",
     "MissingAuthDetector",
     "SupplyChainDetector",
     "WeakCryptoDetector",

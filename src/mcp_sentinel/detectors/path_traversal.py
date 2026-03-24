@@ -7,6 +7,7 @@ allow attackers to access files outside intended directories.
 Critical for MCP servers that handle file operations or serve files.
 """
 
+import ast
 import re
 from pathlib import Path
 from re import Pattern
@@ -135,6 +136,38 @@ class PathTraversalDetector(BaseDetector):
         ]
         return file_path.suffix.lower() in code_extensions
 
+    # ── taint source patterns ──────────────────────────────────────────────────
+    # Matches the RHS of an assignment that pulls data from user-controlled input.
+    _PY_SOURCE = re.compile(
+        r"\b(\w+)\s*=\s*(?:request|req)\s*(?:\.\s*(?:args|form|values|GET|POST|json|data)"
+        r"(?:\s*\.\s*get\s*\([^)]*\)|\s*\[\s*['\"][^'\"]+['\"]\s*\])"
+        r"|\s*\.\s*get_json\s*\(\s*\)(?:\s*\.\s*get\s*\([^)]*\))?)",
+        re.IGNORECASE,
+    )
+    _JS_SOURCE = re.compile(
+        r"\b(\w+)\s*=\s*(?:req|request)\s*\.\s*(?:query|body|params)\s*(?:\.\s*\w+|\[\s*['\"][^'\"]*['\"]\s*\])",
+        re.IGNORECASE,
+    )
+    _JAVA_SOURCE = re.compile(
+        r"\b(\w+)\s*=\s*(?:request|req)\s*\.\s*getParameter\s*\([^)]*\)",
+        re.IGNORECASE,
+    )
+
+    # ── taint sink patterns (category, pattern) ────────────────────────────────
+    _PY_OPEN_SINK = re.compile(r"\bopen\s*\(\s*(\w+)", re.IGNORECASE)
+    _PY_JOIN_SINK = re.compile(r"\bos\s*\.\s*path\s*\.\s*join\s*\([^)]*\b(\w+)\b", re.IGNORECASE)
+    _JS_SINKS = re.compile(
+        r"(?:path\.join|fs\.readFile|fs\.readFileSync|fs\.writeFile|fs\.createReadStream)"
+        r"\s*\([^)]*\b(\w+)\b",
+        re.IGNORECASE,
+    )
+    _JAVA_FILE_SINK = re.compile(
+        r"(?:new\s+File|Paths\.get|FileInputStream|FileReader)\s*\([^)]*\b(\w+)\b",
+        re.IGNORECASE,
+    )
+
+    _TAINT_WINDOW = 30  # lines to look ahead from a source assignment
+
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
     ) -> list[Vulnerability]:
@@ -142,8 +175,8 @@ class PathTraversalDetector(BaseDetector):
         Detect path traversal vulnerabilities in file content.
 
         Uses two-phase detection:
-        1. Pattern-based detection (fast, baseline)
-        2. Semantic analysis (slower, more accurate, multi-line)
+        1. Pattern-based detection (fast, single-line baseline)
+        2. Lightweight taint analysis (cross-line variable def-use chains)
 
         Args:
             file_path: Path to the file
@@ -155,7 +188,193 @@ class PathTraversalDetector(BaseDetector):
         """
         vulnerabilities: list[Vulnerability] = []
         vulnerabilities.extend(self._pattern_based_detection(file_path, content, file_type))
+        vulnerabilities.extend(self._taint_analysis(file_path, content, file_type))
         return self._deduplicate_vulnerabilities(vulnerabilities)
+
+    def _taint_analysis(
+        self, file_path: Path, content: str, file_type: Optional[str]
+    ) -> list[Vulnerability]:
+        """
+        Lightweight single-file taint analysis.
+
+        Finds variables assigned from user-controlled sources (request.args,
+        req.query, request.getParameter) and checks whether they reach file-
+        operation sinks (open, os.path.join, path.join, fs.readFile, new File)
+        within a look-ahead window of _TAINT_WINDOW lines.
+
+        Works for Python (AST-assisted), JavaScript/TypeScript, and Java.
+        """
+        ext = file_path.suffix.lower()
+        is_python = (file_type == "python") or ext == ".py"
+        is_js = (file_type in ("javascript", "typescript")) or ext in (".js", ".ts", ".jsx", ".tsx")
+        is_java = (file_type == "java") or ext in (".java", ".kt")
+
+        if is_python:
+            return self._taint_python(file_path, content)
+        if is_js:
+            return self._taint_js(file_path, content)
+        if is_java:
+            return self._taint_java(file_path, content)
+        return []
+
+    def _taint_python(self, file_path: Path, content: str) -> list[Vulnerability]:
+        """
+        Python-specific taint: use stdlib ast to find def-use chains inside
+        each function body.  Catches:
+          x = request.args.get('k')  →  open(x)            [path_manipulation]
+          x = request.args.get('k')  →  os.path.join(b, x) [unsafe_path_join]
+        """
+        try:
+            tree = ast.parse(content)
+        except SyntaxError:
+            return []
+
+        lines = content.splitlines()
+        vulnerabilities: list[Vulnerability] = []
+
+        class _TaintVisitor(ast.NodeVisitor):
+            """Collects (varname, lineno) for tainted source assignments."""
+
+            def __init__(self) -> None:
+                self.sources: list[tuple[str, int]] = []  # (varname, lineno)
+
+            def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+                if self._is_request_source(node.value):
+                    for target in node.targets:
+                        if isinstance(target, ast.Name):
+                            self.sources.append((target.id, node.lineno))
+                self.generic_visit(node)
+
+            def _is_request_source(self, node: ast.expr) -> bool:
+                """Return True if node looks like request.args.get(...) etc."""
+                # request.args.get(...)  /  request.form.get(...)  etc.
+                if isinstance(node, ast.Call):
+                    func = node.func
+                    if isinstance(func, ast.Attribute) and func.attr == "get":
+                        obj = func.value
+                        if isinstance(obj, ast.Attribute) and isinstance(obj.value, ast.Name):
+                            return obj.value.id in ("request", "req")
+                    # request.get_json() style
+                    if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                        return func.value.id in ("request", "req")
+                # request.json['key']  /  request.args['key']
+                if isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute):
+                    if isinstance(node.value.value, ast.Name):
+                        return node.value.value.id in ("request", "req")
+                return False
+
+        visitor = _TaintVisitor()
+        visitor.visit(tree)
+
+        for varname, src_line in visitor.sources:
+            window_end = min(src_line + self._TAINT_WINDOW, len(lines))
+            for lineno in range(src_line, window_end + 1):
+                line = lines[lineno - 1] if lineno <= len(lines) else ""
+
+                # open(varname, ...) sink
+                m = self._PY_OPEN_SINK.search(line)
+                if m and m.group(1) == varname:
+                    snippet = line.strip()
+                    vulnerabilities.append(
+                        self._create_vulnerability("path_manipulation", f"open({varname})",
+                                                   file_path, lineno, snippet)
+                    )
+
+                # os.path.join(..., varname, ...) sink
+                m2 = self._PY_JOIN_SINK.search(line)
+                if m2 and m2.group(1) == varname:
+                    snippet = line.strip()
+                    vulnerabilities.append(
+                        self._create_vulnerability("unsafe_path_join",
+                                                   f"os.path.join(..., {varname})",
+                                                   file_path, lineno, snippet)
+                    )
+
+        return vulnerabilities
+
+    # Matches `const/let/var X = <sink>` to detect one-step taint propagation.
+    _JS_ASSIGN_LHS = re.compile(r"(?:const|let|var)\s+(\w+)\s*=", re.IGNORECASE)
+
+    def _taint_js(self, file_path: Path, content: str) -> list[Vulnerability]:
+        """
+        JavaScript/TypeScript taint: regex-based window.
+        Finds  const x = req.query.y  then looks for path.join/fs.readFile
+        using x within _TAINT_WINDOW lines.  Also propagates taint one step:
+        if  const y = path.join(..., x)  is found, y is also flagged as tainted
+        and its use in further file-I/O sinks is reported.
+        """
+        lines = content.splitlines()
+        vulnerabilities: list[Vulnerability] = []
+
+        for src_lineno, line in enumerate(lines, start=1):
+            m = self._JS_SOURCE.match(line.strip()) or self._JS_SOURCE.search(line)
+            if not m:
+                continue
+            varname = m.group(1)
+
+            window_end = min(src_lineno + self._TAINT_WINDOW, len(lines))
+            for sink_lineno in range(src_lineno + 1, window_end + 1):
+                sink_line = lines[sink_lineno - 1] if sink_lineno <= len(lines) else ""
+                sm = self._JS_SINKS.search(sink_line)
+                if not sm or sm.group(1) != varname:
+                    continue
+                cat = "unsafe_path_join" if "join" in sink_line.lower() else "path_manipulation"
+                vulnerabilities.append(
+                    self._create_vulnerability(
+                        cat, sm.group(0), file_path, sink_lineno, sink_line.strip()
+                    )
+                )
+                # One-step taint propagation: if this sink is assigned to a new
+                # variable (e.g. `const filePath = path.join(..., x)`), track
+                # that variable and report its use in further file-I/O sinks.
+                lhs_m = self._JS_ASSIGN_LHS.search(sink_line)
+                if lhs_m:
+                    derived = lhs_m.group(1)
+                    prop_end = min(sink_lineno + self._TAINT_WINDOW, len(lines))
+                    for prop_lineno in range(sink_lineno + 1, prop_end + 1):
+                        prop_line = lines[prop_lineno - 1] if prop_lineno <= len(lines) else ""
+                        pm = self._JS_SINKS.search(prop_line)
+                        if pm and pm.group(1) == derived:
+                            pcat = (
+                                "unsafe_path_join"
+                                if "join" in prop_line.lower()
+                                else "path_manipulation"
+                            )
+                            vulnerabilities.append(
+                                self._create_vulnerability(
+                                    pcat, pm.group(0), file_path, prop_lineno, prop_line.strip()
+                                )
+                            )
+
+        return vulnerabilities
+
+    def _taint_java(self, file_path: Path, content: str) -> list[Vulnerability]:
+        """
+        Java taint: regex-based window.
+        Finds  String x = request.getParameter(...)  then checks for
+        new File / Paths.get / FileInputStream using x within window.
+        """
+        lines = content.splitlines()
+        vulnerabilities: list[Vulnerability] = []
+
+        for src_lineno, line in enumerate(lines, start=1):
+            m = self._JAVA_SOURCE.search(line)
+            if not m:
+                continue
+            varname = m.group(1)
+
+            window_end = min(src_lineno + self._TAINT_WINDOW, len(lines))
+            for sink_lineno in range(src_lineno + 1, window_end + 1):
+                sink_line = lines[sink_lineno - 1] if sink_lineno <= len(lines) else ""
+                sm = self._JAVA_FILE_SINK.search(sink_line)
+                if sm and sm.group(1) == varname:
+                    cat = "unsafe_path_join" if "Paths" in sink_line else "path_manipulation"
+                    vulnerabilities.append(
+                        self._create_vulnerability(cat, sm.group(0),
+                                                   file_path, sink_lineno, sink_line.strip())
+                    )
+
+        return vulnerabilities
 
     def _pattern_based_detection(
         self, file_path: Path, content: str, file_type: Optional[str]
