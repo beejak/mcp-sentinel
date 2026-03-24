@@ -31,13 +31,13 @@ console = Console()
     "--log-level",
     type=click.Choice(["DEBUG", "INFO", "WARN", "ERROR", "FATAL"], case_sensitive=False),
     default="INFO",
-    help="Set logging level",
+    help="Logging verbosity. Use DEBUG to trace which files are scanned and which patterns fire. Use WARN/ERROR to suppress informational output in scripts.",
 )
 @click.option(
     "--log-file",
     type=click.Path(dir_okay=False, writable=True),
     default=None,
-    help="Log detailed output to file",
+    help="Write logs to a file in addition to stderr. Useful for keeping a machine-readable audit trail while still viewing terminal output.",
 )
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
 def cli(log_level: str, log_file: Optional[str]):
@@ -72,23 +72,41 @@ def cli(log_level: str, log_file: Optional[str]):
     "--output",
     type=click.Choice(["terminal", "json", "sarif"]),
     default="terminal",
-    help="Output format: terminal (colored, default), json (structured), sarif (GitHub Code Scanning)",
+    help=(
+        "Output format. "
+        "'terminal' prints a colour-coded table — best for interactive use. "
+        "'json' writes structured findings to --json-file (or stdout) — use this for scripting or feeding results into other tools. "
+        "'sarif' writes a SARIF 2.1.0 file — use this for GitHub Code Scanning, GitLab SAST, or Azure DevOps."
+    ),
 )
 @click.option(
     "--severity",
     type=click.Choice(["critical", "high", "medium", "low", "info"]),
     multiple=True,
-    help="Filter by severity level (can be used multiple times)",
+    help=(
+        "Only show findings at or matching the given severity. "
+        "Repeatable: --severity critical --severity high. "
+        "Omit to show all severities. "
+        "Useful for hard-gating a CI pipeline on critical/high while reviewing medium/low separately."
+    ),
 )
 @click.option(
     "--json-file",
     type=click.Path(),
-    help="Output file path for json/sarif formats (e.g., results.sarif, scan.json)",
+    help=(
+        "File path to write json or sarif output to. "
+        "Required when --output is sarif (for GitHub upload). "
+        "If omitted with --output json, findings are printed to stdout."
+    ),
 )
 @click.option(
     "--no-progress",
     is_flag=True,
-    help="Disable progress output",
+    help=(
+        "Suppress the animated progress bar. "
+        "Use this in CI environments to keep logs clean, "
+        "or when piping output to another tool."
+    ),
 )
 def scan(
     target: Optional[str],
@@ -100,25 +118,40 @@ def scan(
     """
     Scan a directory or file for security vulnerabilities.
 
-    TARGET: Path to directory or file to scan (optional, will prompt if missing)
+    TARGET is the path to scan — a directory or a single file. If omitted,
+    mcp-sentinel will prompt you interactively.
 
-    Examples:
+    Runs 12 pattern-based detectors covering: hardcoded secrets, code
+    injection, prompt injection, tool poisoning, path traversal, config
+    security, SSRF, network binding, missing auth, supply chain attacks,
+    weak cryptography, and insecure deserialization.
 
-        \b
-        # Scan current directory
-        mcp-sentinel scan .
+    \b
+    Common workflows:
 
-        \b
-        # Generate SARIF for GitHub Code Scanning
+    \b
+      Interactive review (default terminal output):
+        mcp-sentinel scan /path/to/mcp-server
+
+    \b
+      CI pipeline — fail on critical/high, suppress noise:
+        mcp-sentinel scan . --severity critical --severity high --no-progress
+
+    \b
+      GitHub Code Scanning integration (upload SARIF to Security tab):
         mcp-sentinel scan . --output sarif --json-file results.sarif
 
-        \b
-        # Filter critical and high severity only
-        mcp-sentinel scan . --severity critical --severity high
+    \b
+      Export all findings as JSON for scripting or external tools:
+        mcp-sentinel scan . --output json --json-file results.json
 
-        \b
-        # Output structured JSON
-        mcp-sentinel scan . --output json --json-file scan.json
+    \b
+      Scan a single file with debug logging to understand pattern matches:
+        mcp-sentinel --log-level debug scan server.py
+
+    \b
+      Keep an audit log while reviewing interactively:
+        mcp-sentinel --log-file audit.log scan .
     """
     if not target:
         target = questionary.path("Target directory to scan:").ask()
