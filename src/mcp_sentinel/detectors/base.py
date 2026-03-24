@@ -4,7 +4,7 @@ Base detector class for all vulnerability detectors.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from mcp_sentinel.models.vulnerability import Vulnerability
 
@@ -30,10 +30,10 @@ class BaseDetector(ABC):
     @abstractmethod
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Synchronous detection method.
-        
+
         Args:
             file_path: Path to the file
             content: File content
@@ -46,7 +46,7 @@ class BaseDetector(ABC):
 
     async def detect(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect vulnerabilities in a file (Async wrapper).
 

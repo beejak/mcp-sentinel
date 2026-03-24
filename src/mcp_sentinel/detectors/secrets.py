@@ -5,7 +5,7 @@ Secrets detector for finding hardcoded credentials and API keys.
 import re
 from pathlib import Path
 from re import Pattern
-from typing import List, Optional
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -81,7 +81,7 @@ class SecretsDetector(BaseDetector):
 
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect secrets in file content.
 

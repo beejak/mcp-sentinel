@@ -5,7 +5,7 @@ Base engine interface for MCP Sentinel analysis engines.
 from abc import ABC, abstractmethod
 from enum import Enum
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, Optional
 
 from mcp_sentinel.models.vulnerability import Vulnerability
 
@@ -109,7 +109,7 @@ class BaseEngine(ABC):
         file_path: Path,
         content: str,
         file_type: Optional[str] = None,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Scan a single file for vulnerabilities.
 
@@ -127,8 +127,8 @@ class BaseEngine(ABC):
     async def scan_directory(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
-    ) -> List[Vulnerability]:
+        file_patterns: Optional[list[str]] = None,
+    ) -> list[Vulnerability]:
         """
         Scan a directory for vulnerabilities.
 
@@ -160,7 +160,7 @@ class BaseEngine(ABC):
         pass
 
     @abstractmethod
-    def get_supported_languages(self) -> List[str]:
+    def get_supported_languages(self) -> list[str]:
         """
         Get list of supported programming languages.
 

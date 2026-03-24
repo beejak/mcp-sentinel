@@ -10,10 +10,9 @@ import ast
 import re
 from pathlib import Path
 from re import Pattern
-from typing import Dict, List, Optional
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
-
 from mcp_sentinel.models.vulnerability import (
     Confidence,
     Severity,
@@ -35,8 +34,8 @@ class CodeInjectionDetector(BaseDetector):
 
     def __init__(self):
         super().__init__(name="CodeInjectionDetector", enabled=True)
-        self.python_patterns: Dict[str, Pattern] = self._compile_python_patterns()
-        self.javascript_patterns: Dict[str, Pattern] = self._compile_javascript_patterns()
+        self.python_patterns: dict[str, Pattern] = self._compile_python_patterns()
+        self.javascript_patterns: dict[str, Pattern] = self._compile_javascript_patterns()
 
     def _compile_python_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for Python code injection detection."""
@@ -93,7 +92,7 @@ class CodeInjectionDetector(BaseDetector):
 
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect code injection vulnerabilities in file content.
 
@@ -109,7 +108,7 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Determine which patterns to use based on file type
         if not file_type:

@@ -20,20 +20,19 @@ import asyncio
 import concurrent.futures
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import aiofiles
-from mcp_sentinel.core.cache_manager import CacheManager
 
-logger = logging.getLogger(__name__)
+from mcp_sentinel.core.cache_manager import CacheManager
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
+from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
 from mcp_sentinel.detectors.missing_auth import MissingAuthDetector
 from mcp_sentinel.detectors.network_binding import NetworkBindingDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
-from mcp_sentinel.detectors.insecure_deserialization import InsecureDeserializationDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.ssrf import SSRFDetector
 from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
@@ -41,6 +40,8 @@ from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.weak_crypto import WeakCryptoDetector
 from mcp_sentinel.engines.base import BaseEngine, EngineStatus, EngineType, ScanProgress
 from mcp_sentinel.models.vulnerability import Vulnerability
+
+logger = logging.getLogger(__name__)
 
 
 class StaticAnalysisEngine(BaseEngine):
@@ -53,7 +54,7 @@ class StaticAnalysisEngine(BaseEngine):
 
     def __init__(
         self,
-        detectors: Optional[List[BaseDetector]] = None,
+        detectors: Optional[list[BaseDetector]] = None,
         enabled: bool = True,
     ):
         """
@@ -76,7 +77,7 @@ class StaticAnalysisEngine(BaseEngine):
         """Shutdown the process pool."""
         self.process_pool.shutdown()
 
-    def _get_default_detectors(self) -> List[BaseDetector]:
+    def _get_default_detectors(self) -> list[BaseDetector]:
         """Get default detectors."""
         return [
             SecretsDetector(),
@@ -98,7 +99,7 @@ class StaticAnalysisEngine(BaseEngine):
         file_path: Path,
         content: str,
         file_type: Optional[str] = None,
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Scan a single file using all applicable detectors.
 
@@ -124,7 +125,7 @@ class StaticAnalysisEngine(BaseEngine):
 
         # Run all applicable detectors
         loop = asyncio.get_running_loop()
-        
+
         for detector in self.detectors:
             if not detector.enabled:
                 continue
@@ -155,8 +156,8 @@ class StaticAnalysisEngine(BaseEngine):
     async def scan_directory(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
-    ) -> List[Vulnerability]:
+        file_patterns: Optional[list[str]] = None,
+    ) -> list[Vulnerability]:
         """
         Scan a directory using all detectors.
 
@@ -273,7 +274,7 @@ class StaticAnalysisEngine(BaseEngine):
     def _discover_files(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
+        file_patterns: Optional[list[str]] = None,
     ) -> list[Path]:
         """
         Discover all files to scan in the target directory.

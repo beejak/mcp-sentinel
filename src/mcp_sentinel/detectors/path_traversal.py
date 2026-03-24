@@ -10,7 +10,7 @@ Critical for MCP servers that handle file operations or serve files.
 import re
 from pathlib import Path
 from re import Pattern
-from typing import Dict, List, Optional
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -35,9 +35,9 @@ class PathTraversalDetector(BaseDetector):
 
     def __init__(self):
         super().__init__(name="PathTraversalDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for path traversal detection."""
         return {
             # Pattern 1: Direct path manipulation
@@ -137,7 +137,7 @@ class PathTraversalDetector(BaseDetector):
 
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect path traversal vulnerabilities in file content.
 
@@ -153,13 +153,13 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of detected path traversal vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         vulnerabilities.extend(self._pattern_based_detection(file_path, content, file_type))
         return self._deduplicate_vulnerabilities(vulnerabilities)
 
     def _pattern_based_detection(
         self, file_path: Path, content: str, file_type: Optional[str]
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Pattern-based detection (Phase 1 - fast baseline).
 

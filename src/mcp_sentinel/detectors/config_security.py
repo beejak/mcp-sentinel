@@ -10,7 +10,7 @@ Critical for ensuring MCP servers follow security best practices in deployment.
 import re
 from pathlib import Path
 from re import Pattern
-from typing import List, Optional
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (

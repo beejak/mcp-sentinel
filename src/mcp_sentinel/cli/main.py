@@ -6,7 +6,7 @@ import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Optional, Set
+from typing import Optional
 
 import click
 import questionary
@@ -19,7 +19,7 @@ from rich.table import Table
 from mcp_sentinel import __version__
 from mcp_sentinel.core.logger import setup_logging
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
-from mcp_sentinel.engines.base import EngineType, ScanProgress
+from mcp_sentinel.engines.base import ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.reporting.generators import SARIFGenerator
 

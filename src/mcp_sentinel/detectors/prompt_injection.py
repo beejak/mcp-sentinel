@@ -8,10 +8,10 @@ Detects:
 - Jailbreak keywords and attempts
 """
 
-from typing import Dict, List, Optional
 import re
 from pathlib import Path
 from re import Pattern
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -36,9 +36,9 @@ class PromptInjectionDetector(BaseDetector):
     def __init__(self):
         """Initialize the prompt injection detector."""
         super().__init__(name="PromptInjectionDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for prompt injection detection."""
         return {
             # Family 1: Role Manipulation
@@ -125,7 +125,7 @@ class PromptInjectionDetector(BaseDetector):
 
     def detect_sync(
         self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect prompt injection vulnerabilities in file content.
 
@@ -137,7 +137,7 @@ class PromptInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         # Scan for each pattern family

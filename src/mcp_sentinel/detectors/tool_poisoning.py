@@ -17,7 +17,7 @@ import re
 import unicodedata
 from pathlib import Path
 from re import Pattern
-from typing import List, Optional
+from typing import Optional
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
