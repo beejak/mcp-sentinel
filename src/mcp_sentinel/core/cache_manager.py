@@ -27,7 +27,7 @@ class CacheManager:
         self.cache: dict[str, Any] = {}
         self._load_cache()
 
-    def _load_cache(self):
+    def _load_cache(self) -> None:
         """Load cache from disk."""
         if self.cache_file.exists():
             try:
@@ -39,7 +39,7 @@ class CacheManager:
         else:
             self.cache = {}
 
-    def _save_cache(self):
+    def _save_cache(self) -> None:
         """Save cache to disk."""
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -76,7 +76,7 @@ class CacheManager:
 
         return None
 
-    def update_cache(self, file_path: Path, content_hash: str, vulnerabilities: list[Vulnerability]):
+    def update_cache(self, file_path: Path, content_hash: str, vulnerabilities: list[Vulnerability]) -> None:
         """
         Update cache with new results.
 

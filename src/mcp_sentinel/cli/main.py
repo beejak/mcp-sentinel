@@ -40,7 +40,7 @@ console = Console()
     help="Write logs to a file in addition to stderr. Useful for keeping a machine-readable audit trail while still viewing terminal output.",
 )
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
-def cli(log_level: str, log_file: Optional[str]):
+def cli(log_level: str, log_file: Optional[str]) -> None:
     """
     MCP Sentinel - Security Scanner for MCP Servers
 
@@ -111,10 +111,10 @@ def cli(log_level: str, log_file: Optional[str]):
 def scan(
     target: Optional[str],
     output: str,
-    severity: tuple,
+    severity: tuple[str, ...],
     json_file: str,
     no_progress: bool,
-):
+) -> None:
     """
     Scan a directory or file for security vulnerabilities.
 
@@ -205,7 +205,7 @@ async def _run_scan(
 
     engine_progress = {}
 
-    def progress_callback(engine_name: str, progress: ScanProgress):
+    def progress_callback(engine_name: str, progress: ScanProgress) -> None:
         engine_progress[engine_name] = progress
 
     scanner = MultiEngineScanner(
@@ -239,7 +239,7 @@ async def _run_scan(
         return await scanner.scan(target)
 
 
-def _print_terminal_results(result: ScanResult):
+def _print_terminal_results(result: ScanResult) -> None:
     """Print results to terminal."""
     console.print("\n")
 
@@ -335,7 +335,7 @@ def _print_terminal_results(result: ScanResult):
         )
 
 
-def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
+def _print_json_results(result: ScanResult, output_file: Optional[str] = None) -> None:
     """Print results as JSON."""
     json_output = result.model_dump_json(indent=2)
 
@@ -350,7 +350,7 @@ def _print_json_results(result: ScanResult, output_file: Optional[str] = None):
         print(json_output)
 
 
-def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None):
+def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None) -> None:
     """Print results as SARIF."""
     generator = SARIFGenerator()
     sarif_output = generator.generate(result)

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 
-class ScanStatistics(BaseModel):
+class ScanStatistics(BaseModel):  # type: ignore[misc]
     """Statistics about the scan."""
 
     total_files: int = 0
@@ -25,7 +25,7 @@ class ScanStatistics(BaseModel):
     engines_used: list[str] = Field(default_factory=list)
 
 
-class ScanResult(BaseModel):
+class ScanResult(BaseModel):  # type: ignore[misc]
     """
     Result of a security scan.
 

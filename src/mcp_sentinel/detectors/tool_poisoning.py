@@ -17,7 +17,7 @@ import re
 import unicodedata
 from pathlib import Path
 from re import Pattern
-from typing import Optional
+from typing import Optional, cast
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -66,12 +66,12 @@ class ToolPoisoningDetector(BaseDetector):
         "\u180e",  # Mongolian Vowel Separator
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the tool poisoning detector."""
         super().__init__(name="ToolPoisoningDetector", enabled=True)
-        self.text_patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.text_patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for tool poisoning detection."""
         return {
             # Pattern 1: Ignore/Disregard commands
@@ -489,7 +489,7 @@ class ToolPoisoningDetector(BaseDetector):
             line_number=line_number,
             code_snippet=code_snippet,
             cwe_id=metadata["cwe_id"],
-            cvss_score=cvss_scores[metadata["severity"]],
+            cvss_score=cvss_scores[cast(Severity, metadata["severity"])],
             remediation="1. Review and validate all tool descriptions and metadata\n"
             "2. Implement strict input validation for tool configurations\n"
             "3. Use allowlists for acceptable instruction patterns\n"

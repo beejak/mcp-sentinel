@@ -16,7 +16,7 @@ class BaseDetector(ABC):
     All detectors should inherit from this class and implement the detect method.
     """
 
-    def __init__(self, name: str, enabled: bool = True):
+    def __init__(self, name: str, enabled: bool = True) -> None:
         """
         Initialize the detector.
 

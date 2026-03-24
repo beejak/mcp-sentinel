@@ -30,12 +30,12 @@ class SecretsDetector(BaseDetector):
     - And more...
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the secrets detector."""
         super().__init__(name="SecretsDetector", enabled=True)
-        self.patterns: dict[str, Pattern] = self._compile_patterns()
+        self.patterns: dict[str, Pattern[str]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, Pattern]:
+    def _compile_patterns(self) -> dict[str, Pattern[str]]:
         """Compile regex patterns for secret detection."""
         return {
             # AWS Access Keys

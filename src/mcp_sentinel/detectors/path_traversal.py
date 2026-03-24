@@ -33,11 +33,11 @@ class PathTraversalDetector(BaseDetector):
     5. Missing path sanitization
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="PathTraversalDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for path traversal detection."""
         return {
             # Pattern 1: Direct path manipulation

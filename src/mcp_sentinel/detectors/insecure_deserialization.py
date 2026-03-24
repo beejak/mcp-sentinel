@@ -48,12 +48,12 @@ class InsecureDeserializationDetector(BaseDetector):
     9. Node.js eval() / vm.runInContext() for data parsing
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the insecure deserialization detector."""
         super().__init__(name="InsecureDeserializationDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for insecure deserialization detection."""
         return {
             # Python pickle — arbitrary RCE via __reduce__
@@ -482,7 +482,7 @@ class InsecureDeserializationDetector(BaseDetector):
             cvss_score=meta["cvss_score"],
             remediation=meta["remediation"],
             references=[
-                f"https://cwe.mitre.org/data/definitions/{meta['cwe_id'].split('-')[1]}.html",
+                f"https://cwe.mitre.org/data/definitions/{str(meta['cwe_id']).split('-')[1]}.html",
                 "https://owasp.org/www-community/vulnerabilities/Deserialization_of_untrusted_data",
                 "https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html",
                 "https://portswigger.net/web-security/deserialization",

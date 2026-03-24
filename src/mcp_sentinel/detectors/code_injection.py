@@ -10,7 +10,7 @@ import ast
 import re
 from pathlib import Path
 from re import Pattern
-from typing import Optional
+from typing import Optional, cast
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -32,12 +32,12 @@ class CodeInjectionDetector(BaseDetector):
     - JavaScript code execution (eval, Function constructor)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="CodeInjectionDetector", enabled=True)
-        self.python_patterns: dict[str, Pattern] = self._compile_python_patterns()
-        self.javascript_patterns: dict[str, Pattern] = self._compile_javascript_patterns()
+        self.python_patterns: dict[str, Pattern[str]] = self._compile_python_patterns()
+        self.javascript_patterns: dict[str, Pattern[str]] = self._compile_javascript_patterns()
 
-    def _compile_python_patterns(self) -> dict[str, Pattern]:
+    def _compile_python_patterns(self) -> dict[str, Pattern[str]]:
         """Compile regex patterns for Python code injection detection."""
         return {
             # os.system() - Direct command execution
@@ -58,7 +58,7 @@ class CodeInjectionDetector(BaseDetector):
             "cursor_execute_fstring": re.compile(r"cursor\.execute\s*\(\s*f[\"']"),
         }
 
-    def _compile_javascript_patterns(self) -> dict[str, Pattern]:
+    def _compile_javascript_patterns(self) -> dict[str, Pattern[str]]:
         """Compile regex patterns for JavaScript/TypeScript code injection detection."""
         return {
             # child_process.exec() - Command execution
@@ -387,7 +387,7 @@ class CodeInjectionDetector(BaseDetector):
         vulnerabilities: list[Vulnerability] = []
 
         class ShellTrueVisitor(ast.NodeVisitor):
-            def __init__(self):
+            def __init__(self) -> None:
                 self.nodes: list[ast.Call] = []
 
             def visit_Call(self, node: ast.Call) -> None:
@@ -412,7 +412,7 @@ class CodeInjectionDetector(BaseDetector):
         lines = content.splitlines()
         for node in visitor.nodes:
             snippet = lines[node.lineno - 1].strip() if node.lineno <= len(lines) else ""
-            attr = node.func.attr  # type: ignore[union-attr]
+            attr = cast(ast.Attribute, node.func).attr
             vuln = self._create_python_vulnerability(
                 pattern_name=f"subprocess_{attr.lower()}_shell",
                 file_path=file_path,

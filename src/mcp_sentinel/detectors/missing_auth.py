@@ -46,13 +46,13 @@ class MissingAuthDetector(BaseDetector):
     4. MCP tool definitions that expose system operations without access checks
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the missing auth detector."""
         super().__init__(name="MissingAuthDetector", enabled=True)
-        self.route_patterns: dict[str, list[Pattern]] = self._compile_route_patterns()
-        self.auth_patterns: list[Pattern] = self._compile_auth_patterns()
+        self.route_patterns: dict[str, list[Pattern[str]]] = self._compile_route_patterns()
+        self.auth_patterns: list[Pattern[str]] = self._compile_auth_patterns()
 
-    def _compile_route_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_route_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns that identify route/endpoint definitions."""
         return {
             # Python Flask/FastAPI decorators
@@ -90,7 +90,7 @@ class MissingAuthDetector(BaseDetector):
             ],
         }
 
-    def _compile_auth_patterns(self) -> list[Pattern]:
+    def _compile_auth_patterns(self) -> list[Pattern[str]]:
         """Compile patterns indicating auth IS present (used as negative check)."""
         return [
             # Python decorators

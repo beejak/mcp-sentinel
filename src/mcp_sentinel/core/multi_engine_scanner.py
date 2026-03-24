@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
-import aiofiles
+import aiofiles  # type: ignore[import-untyped]
 
 from mcp_sentinel.core.cache_manager import CacheManager
 from mcp_sentinel.core.exceptions import ScanError
@@ -53,7 +53,7 @@ class MultiEngineScanner:
         self.cache_manager = CacheManager()
 
     def _create_progress_callback(self, engine: BaseEngine) -> Callable[[ScanProgress], None]:
-        def callback(progress: ScanProgress):
+        def callback(progress: ScanProgress) -> None:
             if self.progress_callback:
                 self.progress_callback(engine.name, progress)
         return callback
@@ -115,7 +115,7 @@ class MultiEngineScanner:
             all_vulnerabilities: list[Vulnerability] = []
             for idx, result in enumerate(engine_results):
                 engine = self.active_engines[idx]
-                if isinstance(result, Exception):
+                if not isinstance(result, list):
                     logger.error(f"Engine {engine.name} failed: {result}")
                     continue
                 all_vulnerabilities.extend(result)
@@ -174,7 +174,7 @@ class MultiEngineScanner:
 
         all_vulnerabilities: list[Vulnerability] = []
         for result in engine_results:
-            if isinstance(result, Exception):
+            if not isinstance(result, list):
                 continue
             all_vulnerabilities.extend(result)
 
@@ -185,7 +185,7 @@ class MultiEngineScanner:
         vulnerabilities: list[Vulnerability],
     ) -> list[Vulnerability]:
         """Deduplicate vulnerabilities by (file, line, type, title)."""
-        groups: dict = defaultdict(list)
+        groups: dict[tuple[str, int, str, str], list[Vulnerability]] = defaultdict(list)
 
         for vuln in vulnerabilities:
             key = (vuln.file_path, vuln.line_number, vuln.type.value, vuln.title)

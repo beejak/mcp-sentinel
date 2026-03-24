@@ -113,6 +113,11 @@ warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = false
 
+[[tool.mypy.overrides]]
+module = "mcp_sentinel.cli.main"
+# click decorators don't preserve type signatures — inherent to click's design
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --cov=mcp_sentinel --cov-report=html --cov-report=term-missing"

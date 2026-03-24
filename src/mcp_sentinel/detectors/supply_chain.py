@@ -43,12 +43,12 @@ class SupplyChainDetector(BaseDetector):
     7. Known typosquatted package names (curated list from real incidents)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the supply chain detector."""
         super().__init__(name="SupplyChainDetector", enabled=True)
-        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern[str]]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> dict[str, list[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern[str]]]:
         """Compile regex patterns for supply chain attack detection."""
         return {
             # Encoded payload execution — base64-wrapped eval/exec
@@ -519,7 +519,7 @@ class SupplyChainDetector(BaseDetector):
             cvss_score=meta["cvss_score"],
             remediation=meta["remediation"],
             references=[
-                f"https://cwe.mitre.org/data/definitions/{meta['cwe_id'].split('-')[1]}.html",
+                f"https://cwe.mitre.org/data/definitions/{str(meta['cwe_id']).split('-')[1]}.html",
                 "https://owasp.org/www-project-top-ten/",
                 "https://slsa.dev/",
                 "https://blog.phylum.io/pypi-malware-rolls-out-red-team-tools/",

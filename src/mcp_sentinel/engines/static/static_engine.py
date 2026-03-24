@@ -22,7 +22,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import aiofiles
+import aiofiles  # type: ignore[import-untyped]
 
 from mcp_sentinel.core.cache_manager import CacheManager
 from mcp_sentinel.detectors.base import BaseDetector
@@ -56,7 +56,7 @@ class StaticAnalysisEngine(BaseEngine):
         self,
         detectors: Optional[list[BaseDetector]] = None,
         enabled: bool = True,
-    ):
+    ) -> None:
         """
         Initialize the static analysis engine.
 
@@ -73,7 +73,7 @@ class StaticAnalysisEngine(BaseEngine):
         self.process_pool = concurrent.futures.ProcessPoolExecutor()
         self.cache_manager = CacheManager()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Shutdown the process pool."""
         self.process_pool.shutdown()
 
