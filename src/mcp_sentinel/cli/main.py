@@ -12,6 +12,7 @@ import click
 import questionary
 from rich import box
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
@@ -325,21 +326,21 @@ def _print_terminal_results(result: ScanResult) -> None:
             severity_color = severity_colors.get(vuln.severity.value.upper(), "white")
 
             console.print(
-                f"[bold]{i}. [{severity_color}]{vuln.severity.value.upper()}[/][/bold] - {vuln.title}"
+                f"[bold]{i}. [{severity_color}]{vuln.severity.value.upper()}[/][/bold] - {escape(vuln.title)}"
             )
-            console.print(f"   File: [cyan]{vuln.file_path}:{vuln.line_number}[/cyan]")
-            console.print(f"   {vuln.description}")
+            console.print(f"   File: [cyan]{escape(vuln.file_path)}:{vuln.line_number}[/cyan]")
+            console.print(f"   {escape(vuln.description)}")
 
             if vuln.code_snippet:
-                console.print(f"   Code: [dim]{vuln.code_snippet}[/dim]")
+                console.print(f"   Code: [dim]{escape(vuln.code_snippet)}[/dim]")
 
             if vuln.remediation:
-                console.print(f"   [bold green]Remediation:[/bold green] {vuln.remediation}")
+                console.print(f"   [bold green]Remediation:[/bold green] {escape(vuln.remediation)}")
 
             if vuln.remediation_steps:
                 console.print("   [bold green]Steps to Fix:[/bold green]")
                 for step in vuln.remediation_steps:
-                    console.print(f"   - {step}")
+                    console.print(f"   - {escape(step)}")
 
             if vuln.diff:
                 console.print("   [bold green]Suggested Change:[/bold green]")

@@ -1,0 +1,164 @@
+{
+  "framework": "OWASP Agentic AI Top 10 2026",
+  "framework_url": "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+  "generated_at": "2026-03-31T17:47:33.649643+00:00",
+  "scan_target": "/home/user/Vulnerable-MCP-Server",
+  "scan_id": "scan-1774979253.580573",
+  "total_findings": 109,
+  "categories": {
+    "ASI01": {
+      "name": "Prompt Injection",
+      "description": "Adversarial inputs injected via tool descriptions, user data, or external content manipulate agent reasoning and override intended behaviour.",
+      "finding_count": 55,
+      "max_severity": "critical",
+      "severity_breakdown": {
+        "critical": 25,
+        "high": 23,
+        "medium": 7,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI02": {
+      "name": "Sensitive Data Exposure",
+      "description": "Agents inadvertently expose confidential data \u2014 credentials, PII, proprietary content \u2014 through outputs, logs, or tool responses.",
+      "finding_count": 3,
+      "max_severity": "critical",
+      "severity_breakdown": {
+        "critical": 2,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI03": {
+      "name": "Supply Chain Vulnerabilities",
+      "description": "Malicious or compromised plugins, tools, models, or dependencies introduce backdoors or exfiltration paths into the agent stack.",
+      "finding_count": 1,
+      "max_severity": "high",
+      "severity_breakdown": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI04": {
+      "name": "Insecure Direct Tool Invocation",
+      "description": "Agents invoke tools without adequate authorisation checks, allowing privilege escalation or unintended system access.",
+      "finding_count": 26,
+      "max_severity": "critical",
+      "severity_breakdown": {
+        "critical": 4,
+        "high": 22,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI05": {
+      "name": "Improper Output Handling / SSRF",
+      "description": "Agent outputs are passed to downstream systems without sanitisation, enabling SSRF, injection, or unauthorised network access.",
+      "finding_count": 11,
+      "max_severity": "critical",
+      "severity_breakdown": {
+        "critical": 11,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI06": {
+      "name": "Excessive Agency",
+      "description": "Agents are granted more permissions, network access, or action scope than needed, amplifying the blast radius of compromise.",
+      "finding_count": 1,
+      "max_severity": "medium",
+      "severity_breakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI07": {
+      "name": "Insecure Cryptography",
+      "description": "Use of weak, deprecated, or misapplied cryptographic algorithms undermines confidentiality and integrity guarantees.",
+      "finding_count": 0,
+      "max_severity": null,
+      "severity_breakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true,
+      "note": "No findings in this scan \u2014 detectors active"
+    },
+    "ASI08": {
+      "name": "Insecure Deserialization",
+      "description": "Deserializing untrusted data with unsafe libraries (pickle, yaml.load, ObjectInputStream) enables remote code execution.",
+      "finding_count": 1,
+      "max_severity": "critical",
+      "severity_breakdown": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI09": {
+      "name": "Improper Error Handling / Path Traversal",
+      "description": "Insufficient input validation allows path traversal attacks giving agents access to files outside the intended scope.",
+      "finding_count": 11,
+      "max_severity": "high",
+      "severity_breakdown": {
+        "critical": 0,
+        "high": 11,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true
+    },
+    "ASI10": {
+      "name": "Inadequate Audit and Monitoring",
+      "description": "Absence of comprehensive logging for agent actions, tool calls, and sampling events prevents detection and forensic analysis.",
+      "finding_count": 0,
+      "max_severity": null,
+      "severity_breakdown": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0
+      },
+      "has_detector": true,
+      "note": "No findings in this scan \u2014 detectors active"
+    }
+  },
+  "summary": {
+    "categories_with_findings": 8,
+    "categories_with_detectors": 10,
+    "categories_without_detectors": [],
+    "risk_distribution": {
+      "critical": 43,
+      "high": 58,
+      "medium": 8,
+      "low": 0,
+      "info": 0
+    }
+  }
+}
