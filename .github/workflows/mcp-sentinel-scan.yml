@@ -1,0 +1,140 @@
+# MCP Sentinel Security Scan
+#
+# Self-scan: runs MCP Sentinel on this repository's own source code.
+# Copy and adapt this workflow to scan your own MCP server repository.
+#
+# Setup for your MCP server:
+#   1. Copy this file to your repo at .github/workflows/mcp-sentinel-scan.yml
+#   2. Change the scan target from `src/` to `.` or your server's source directory
+#   3. Push — findings appear in Security → Code scanning alerts
+
+name: MCP Sentinel Security Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    permissions:
+      security-events: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install MCP Sentinel
+        run: |
+          pip install --upgrade pip
+          pip install mcp-sentinel
+
+      - name: Run scan (SARIF)
+        run: |
+          mcp-sentinel scan . \
+            --output sarif \
+            --json-file results.sarif \
+            --no-progress || true
+
+      - name: Run scan (JSON)
+        run: |
+          mcp-sentinel scan . \
+            --output json \
+            --json-file results.json \
+            --no-progress || true
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          category: mcp-sentinel
+
+      - name: Upload JSON artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mcp-sentinel-results-${{ github.sha }}
+          path: |
+            results.sarif
+            results.json
+          retention-days: 30
+
+      - name: Post PR summary
+        if: github.event_name == 'pull_request' && always()
+        run: |
+          python3 << 'EOF'
+          import json, os
+          from pathlib import Path
+
+          results_file = Path("results.json")
+          if not results_file.exists():
+              print("No results file — skipping summary")
+              exit(0)
+
+          with open(results_file) as f:
+              data = json.load(f)
+
+          vulns = data.get("vulnerabilities", [])
+          counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+          for v in vulns:
+              sev = v.get("severity", "info").lower()
+              counts[sev] = counts.get(sev, 0) + 1
+
+          total = len(vulns)
+          summary = f"""## MCP Sentinel Scan Results
+
+          **{total} finding(s)**
+
+          | Severity | Count |
+          |----------|-------|
+          | Critical | {counts['critical']} |
+          | High     | {counts['high']} |
+          | Medium   | {counts['medium']} |
+          | Low      | {counts['low']} |
+
+          """
+          if total == 0:
+              summary += "No security issues detected.\n"
+          else:
+              summary += f"Review findings in the [Security tab](../../security/code-scanning).\n"
+              if counts['critical'] > 0:
+                  summary += f"\n**{counts['critical']} critical issue(s) require attention.**\n"
+
+          with open("pr-summary.md", "w") as f:
+              f.write(summary)
+          EOF
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (!fs.existsSync('pr-summary.md')) return;
+            const body = fs.readFileSync('pr-summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });

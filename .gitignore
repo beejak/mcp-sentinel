@@ -1,0 +1,73 @@
+# Rust build artifacts
+/target/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test artifacts
+*.profraw
+*.profdata
+
+# Runtime artifacts
+*.log
+*.pid
+
+# Local configuration
+.env
+.env.local
+config.local.yaml
+
+# MCP Sentinel runtime files
+.mcp-sentinel/
+*.db
+*.sled/
+data/
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Reports
+*.html
+*.pdf
+*.sarif
+mcp-sentinel-report.*
+
+# Benchmark outputs
+/benches/results/
+
+# Coverage reports
+/coverage/
+lcov.info
+.coverage*
+coverage.xml
+
+# Test reports
+test-report.xml
+junit.xml
+reports/junit.xml
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Session documentation archive
+docs-archive/

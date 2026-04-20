@@ -1,0 +1,82 @@
+# MCP Sentinel - Simple CLI Docker Compose
+# For quick scanning without full infrastructure
+#
+# Usage:
+#   docker-compose -f docker-compose-cli.yml run scanner scan /scan
+#   docker-compose -f docker-compose-cli.yml run scanner scan /scan --engines all
+#   docker-compose -f docker-compose-cli.yml run scanner --help
+
+version: '3.8'
+
+services:
+  # Simple scanner service for CLI usage
+  scanner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-sentinel-scanner
+    environment:
+      # Optional: Add AI provider API keys
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+
+      # Scanner settings
+      PYTHONUNBUFFERED: 1
+      MCP_SENTINEL_VERSION: 4.3.0
+
+    volumes:
+      # Mount your project directory to /scan
+      - ${PROJECT_DIR:-.}:/scan:ro
+
+      # Mount reports output directory
+      - ${REPORTS_DIR:-./reports}:/reports
+
+      # Optional: Mount custom config
+      # - ./.mcp-sentinel.yaml:/app/.mcp-sentinel.yaml:ro
+
+    # Override entrypoint for direct command usage
+    entrypoint: ["mcp-sentinel"]
+
+    # Default: show help (override with docker-compose run)
+    command: ["--help"]
+
+    # No networking needed for CLI scanning
+    network_mode: "none"
+
+# Usage Examples:
+#
+# 1. Scan current directory:
+#    docker-compose -f docker-compose-cli.yml run --rm scanner scan /scan
+#
+# 2. Generate HTML report:
+#    docker-compose -f docker-compose-cli.yml run --rm scanner \
+#      scan /scan --output html --json-file /reports/report.html
+#
+# 3. Multi-engine scan:
+#    docker-compose -f docker-compose-cli.yml run --rm scanner \
+#      scan /scan --engines all
+#
+# 4. AI-powered scan (set ANTHROPIC_API_KEY in .env file):
+#    echo "ANTHROPIC_API_KEY=your-key" > .env
+#    docker-compose -f docker-compose-cli.yml run --rm scanner \
+#      scan /scan --engines all
+#
+# 5. Scan specific directory:
+#    PROJECT_DIR=/path/to/project docker-compose -f docker-compose-cli.yml run --rm scanner \
+#      scan /scan
+#
+# 6. Filter by severity:
+#    docker-compose -f docker-compose-cli.yml run --rm scanner \
+#      scan /scan --severity critical --severity high
+#
+# 7. Generate SARIF for GitHub:
+#    docker-compose -f docker-compose-cli.yml run --rm scanner \
+#      scan /scan --output sarif --json-file /reports/results.sarif
+#
+# Environment Variables:
+#   PROJECT_DIR - Directory to scan (default: current directory)
+#   REPORTS_DIR - Output directory for reports (default: ./reports)
+#   ANTHROPIC_API_KEY - For AI-powered scanning
+#   OPENAI_API_KEY - Alternative AI provider
+#   GOOGLE_API_KEY - Alternative AI provider

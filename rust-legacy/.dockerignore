@@ -1,0 +1,126 @@
+# MCP Sentinel - Docker Build Context Exclusions
+# Purpose: Optimize Docker build by excluding unnecessary files
+
+# ============================================================================
+# Build Artifacts
+# ============================================================================
+target/
+**/target/
+*.o
+*.so
+*.rlib
+
+# ============================================================================
+# Git & Version Control
+# ============================================================================
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ============================================================================
+# Documentation (not needed in image)
+# ============================================================================
+docs/
+*.md
+!README.md
+LICENSE
+
+# ============================================================================
+# Test Fixtures (large, not needed for build)
+# ============================================================================
+tests/fixtures/
+tests/**/*.json
+tests/**/*.log
+
+# ============================================================================
+# CI/CD Configuration
+# ============================================================================
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+.circleci/
+
+# ============================================================================
+# IDE & Editor Files
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================================================
+# Rust Development Files
+# ============================================================================
+# Cargo.lock
+# Note: We DO want Cargo.lock in the image for reproducible builds
+# So comment out if you want to include it
+
+# ============================================================================
+# Docker Files (don't copy Docker files into image)
+# ============================================================================
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# ============================================================================
+# Temporary & Log Files
+# ============================================================================
+*.log
+*.tmp
+*.temp
+tmp/
+temp/
+
+# ============================================================================
+# Security & Secrets (NEVER include)
+# ============================================================================
+*.pem
+*.key
+*.cert
+.env
+.env.*
+secrets/
+credentials/
+
+# ============================================================================
+# Package Manager Files
+# ============================================================================
+node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
+
+# ============================================================================
+# OS Generated Files
+# ============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================================
+# Sample & Example Files (large)
+# ============================================================================
+examples/
+samples/
+benchmarks/
+
+# ============================================================================
+# Build Context Size Optimization
+# ============================================================================
+# Excluding these files reduces Docker build context from ~100MB to ~5MB
+# This speeds up `docker build` significantly, especially on slow networks
+#
+# To see build context size:
+#   docker build --no-cache --progress=plain . 2>&1 | grep "Sending build context"
+#
+# Expected sizes:
+#   Without .dockerignore: ~100-200 MB
+#   With .dockerignore: ~5-10 MB
+# ============================================================================

@@ -1,0 +1,58 @@
+# MCP Sentinel — Bitbucket Pipelines
+# Copy to bitbucket-pipelines.yml in your repository root
+
+image: python:3.11-slim
+
+pipelines:
+
+  default:
+    - step:
+        name: Test
+        caches:
+          - pip
+        script:
+          - pip install --upgrade pip
+          - pip install -e ".[dev]"
+          - mkdir -p reports
+          - python -m pytest tests/
+              --junitxml=reports/junit.xml
+              --cov=src/mcp_sentinel
+              --cov-report=xml:reports/coverage.xml
+              -v
+        after-script:
+          - pipe: atlassian/checkstyle-report:0.4.0
+            variables:
+              REPORT_FILE: 'reports/junit.xml'
+        artifacts:
+          - reports/**
+
+    - step:
+        name: Security Scan
+        caches:
+          - pip
+        script:
+          - pip install -e .
+          - mkdir -p reports
+          - mcp-sentinel scan . --output sarif --json-file reports/sentinel.sarif --no-progress || true
+          - mcp-sentinel scan . --output json  --json-file reports/sentinel.json  --no-progress || true
+        artifacts:
+          - reports/sentinel.sarif
+          - reports/sentinel.json
+
+  pull-requests:
+    '**':
+      - step:
+          name: Test on PR
+          caches:
+            - pip
+          script:
+            - pip install --upgrade pip
+            - pip install -e ".[dev]"
+            - python -m pytest tests/ -v --tb=short
+      - step:
+          name: Security Scan on PR
+          caches:
+            - pip
+          script:
+            - pip install -e .
+            - mcp-sentinel scan . --output terminal --no-progress || true

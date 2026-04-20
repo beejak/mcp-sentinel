@@ -1,0 +1,124 @@
+[package]
+name = "mcp-sentinel"
+version = "2.6.0"
+edition = "2021"
+authors = ["MCP Sentinel Contributors"]
+description = "The Ultimate Security Scanner for MCP Servers - combining static analysis, semantic AST parsing, AI-powered detection, Semgrep integration, and enterprise reporting"
+license = "Apache-2.0"
+repository = "https://github.com/beejak/MCP_Scanner"
+keywords = ["mcp", "security", "scanner", "vulnerability", "ai-analysis"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# Core Framework
+tokio = { version = "1", features = ["full"] }
+clap = { version = "4", features = ["derive", "cargo", "env"] }
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Static Analysis
+tree-sitter = "0.20"
+tree-sitter-python = "0.20"
+tree-sitter-javascript = "0.20"
+tree-sitter-typescript = "0.20"
+regex = "1"
+walkdir = "2"
+ignore = "0.4"
+
+# Runtime Proxy
+axum = "0.7"
+hyper = { version = "1", features = ["full"] }
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# AI Analysis (Phase 2.0 - Multi-Provider Support)
+reqwest = { version = "0.11", features = ["json", "stream"] }
+async-openai = "0.20"              # OpenAI GPT-3.5/4
+async-trait = "0.1"                 # Async trait support for providers
+futures = "0.3"                     # Async utilities
+
+# Output Generation
+crossterm = "0.27"
+indicatif = "0.17"
+comfy-table = "7"
+syntect = "5"
+handlebars = "5"
+# printpdf = "0.7"       # For PDF generation (Phase 4)
+
+# Storage
+sled = "0.34"
+bincode = "1.3"                     # Binary serialization for cache
+
+# Utilities
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+base64 = "0.21"
+tempfile = "3"
+url = "2"
+once_cell = "1"
+num_cpus = "1"
+dirs = "5"
+
+# HTTP Client
+http = "1"
+
+# Phase 2.0: Git Integration & Diff-Aware Scanning
+git2 = "0.18"                       # Git repository operations
+glob = "0.3"                        # Glob pattern matching
+
+# Phase 2.0: Semantic Analysis
+tree-sitter-go = "0.20"             # Go language support
+
+# Phase 2.0: Enhanced Logging
+tracing-appender = "0.2"            # Log file rotation
+
+# Phase 2.0: Data Compression
+flate2 = "1.0"                      # Baseline compression
+
+# Phase 2.0: Async Runtime
+parking_lot = "0.12"                # Better mutexes
+dashmap = "5.5"                     # Concurrent hash map
+
+[[bin]]
+name = "mcp-sentinel"
+path = "src/main.rs"
+
+[lib]
+name = "mcp_sentinel"
+path = "src/lib.rs"
+
+[dev-dependencies]
+tokio-test = "0.4"
+criterion = "0.5"
+proptest = "1"
+mockall = "0.12"
+assert_cmd = "2"
+predicates = "3"
+
+[[bench]]
+name = "scan_benchmark"
+harness = false
+
+[[bench]]
+name = "detection_benchmark"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 0
+
+[profile.test]
+opt-level = 1

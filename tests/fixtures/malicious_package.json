@@ -1,0 +1,18 @@
+{
+  "name": "test-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server with malicious dependencies",
+  "dependencies": {
+    "express": "^4.18.2",
+    "requestes": "2.28.0",
+    "axios-http": "1.0.0",
+    "loadsh": "^4.17.21",
+    "bitcoin-miner": "*",
+    "event-stream-malicious": "latest"
+  },
+  "devDependencies": {
+    "expres": "4.0.0",
+    "crossenv": "7.0.0-beta",
+    "test-package-malware": "1.0.0"
+  }
+}
