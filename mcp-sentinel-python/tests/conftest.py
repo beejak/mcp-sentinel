@@ -2,11 +2,27 @@
 Pytest configuration and fixtures.
 """
 
-import sys
-from pathlib import Path
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
+from pathlib import Path
+
 import pytest
+
+
+def pytest_ignore_collect(path: Path | str, config=None) -> bool | None:  # noqa: ARG002
+    """Opt-in fork smoke tests (see tests/integration/test_external_fork_smoke.py)."""
+    try:
+        name = Path(path).name
+    except Exception:
+        name = str(path).replace("\\", "/").split("/")[-1]
+    if name != "test_external_fork_smoke.py":
+        return None
+    flag = os.environ.get("MCP_SENTINEL_RUN_FORK_TESTS", "").strip().lower()
+    if flag in ("1", "true", "yes"):
+        return None
+    return True
 
 # Add src directory to Python path for imports
 src_path = Path(__file__).parent.parent / "src"
@@ -26,7 +42,7 @@ def temp_dir():
 def sample_python_file(temp_dir):
     """Create a sample Python file with a hardcoded secret."""
     file_path = temp_dir / "test.py"
-    content = '''
+    content = """
 import os
 
 # This is a test file with hardcoded credentials (FAKE - for testing only!)
@@ -38,7 +54,7 @@ def get_database_url():
 
 # OpenAI API Key
 OPENAI_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
-'''
+"""
     file_path.write_text(content)
     return file_path
 
@@ -47,12 +63,12 @@ OPENAI_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
 def sample_javascript_file(temp_dir):
     """Create a sample JavaScript file."""
     file_path = temp_dir / "test.js"
-    content = '''
+    content = """
 const API_KEY = "sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv";
 
 function main() {
     console.log("Hello World");
 }
-'''
+"""
     file_path.write_text(content)
     return file_path

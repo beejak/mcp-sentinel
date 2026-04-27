@@ -1,0 +1,67 @@
+# Optional: scan reference MCP code (read-only clones + scan in container; does not run servers).
+# Scanner image is built from mcp-sentinel-python/ (see Dockerfile there).
+#
+# Fetched into the volume root:
+#   - modelcontextprotocol/servers (official samples)
+#   - beejak/vulnerable-mcp-server (deliberately vulnerable; good regression target for the scanner)
+#
+# 1) Clone repos into a named volume:
+#    docker compose -f docker-compose.mcp-samples.yml run --rm fetch-mcp-servers
+#
+# 2) Build scanner image (first time is slow) and scan everything under the volume:
+#    docker compose -f docker-compose.mcp-samples.yml run --rm scan-mcp-samples
+#
+# 3) Scan only the vulnerable sample (faster feedback):
+#    docker compose -f docker-compose.mcp-samples.yml run --rm scan-mcp-vulnerable-only
+#
+# 4) Remove the volume when finished:
+#    docker volume rm mcp-sentinel_mcp_samples 2>/dev/null || docker volume rm mcp-sentinel-mcp-samples_mcp_samples
+
+volumes:
+  mcp_samples:
+
+services:
+  fetch-mcp-servers:
+    image: alpine/git:latest
+    volumes:
+      - mcp_samples:/data
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        rm -rf /data/servers /data/vulnerable-mcp-server
+        git clone --depth 1 https://github.com/modelcontextprotocol/servers.git /data/servers
+        git clone --depth 1 https://github.com/beejak/vulnerable-mcp-server.git /data/vulnerable-mcp-server
+        echo "Cloned modelcontextprotocol/servers and beejak/vulnerable-mcp-server under /data"
+
+  scan-mcp-samples:
+    build:
+      context: ./mcp-sentinel-python
+      dockerfile: Dockerfile
+    user: root
+    volumes:
+      - mcp_samples:/workspace/samples:ro
+    entrypoint: ["mcp-sentinel"]
+    command:
+      - scan
+      - /workspace/samples
+      - --engines
+      - static,sast
+      - --output
+      - terminal
+
+  scan-mcp-vulnerable-only:
+    build:
+      context: ./mcp-sentinel-python
+      dockerfile: Dockerfile
+    user: root
+    volumes:
+      - mcp_samples:/workspace/samples:ro
+    entrypoint: ["mcp-sentinel"]
+    command:
+      - scan
+      - /workspace/samples/vulnerable-mcp-server
+      - --engines
+      - static,sast
+      - --output
+      - terminal

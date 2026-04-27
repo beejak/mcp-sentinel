@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Test Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/mcp-sentinel/mcp-sentinel-python)
-[![Tests](https://img.shields.io/badge/tests-274%20passing-success.svg)](https://github.com/mcp-sentinel/mcp-sentinel-python)
+[![Test Coverage](https://img.shields.io/badge/coverage-%7E80%25%20overall-brightgreen.svg)](https://github.com/mcp-sentinel/mcp-sentinel-python)
+[![Tests](https://img.shields.io/badge/tests-377%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
 
 <div align="center">
 
@@ -79,6 +79,50 @@ mcp-sentinel scan /path/to/mcp/server --engines static,sast --output html
 mcp-sentinel server --port 8000
 ```
 
+## Live MCP scanning, reports, and exit codes
+
+The CLI command `mcp-sentinel scan <path>` analyzes **files on disk** under `<path>` (for example a **cloned MCP server repository** or this repo’s `tests/fixtures`). It performs static (and optional SAST) analysis over the tree; it does **not** attach to a running MCP process over stdio or HTTP+SSE today. For a “live” assessment, clone the server (or your vulnerable sample), then point `scan` at that directory.
+
+**Good default targets before you pass a custom vulnerable repo URL**
+
+1. **`tests/fixtures/`** — small, always present, intentionally noisy samples (good for exercising HTML/SARIF/JSON output).
+2. **A vulnerable MCP server you clone locally** — for example [beejak/Vulnerable-MCP-Server](https://github.com/beejak/Vulnerable-MCP-Server): `git clone https://github.com/beejak/Vulnerable-MCP-Server.git` then `mcp-sentinel scan ./Vulnerable-MCP-Server --output html --json-file reports/scan.html` (create `reports/` first if you like; it is listed in `.gitignore`).
+3. **`src/mcp_sentinel`** — baseline scan of this scanner’s own code (typically fewer critical findings than fixtures).
+
+**Where outputs land**
+
+| Kind | Location |
+|------|----------|
+| **Scan reports** (HTML, JSON, SARIF) | Path you pass to `--json-file` (flag name is historical; it is the output file for all non-terminal formats). |
+| **pytest coverage (HTML)** | `htmlcov/index.html` after `pytest --cov=src --cov-report=html` |
+
+If the scan finds **critical** severity issues, the CLI **still writes** your report (JSON/SARIF/HTML or terminal summary), then exits with **code 1** (Click’s `Abort`) so CI can fail the job. That is **not** “the scan aborted before reporting.” Use **`--no-fail-on-critical`** for **exit 0** when triaging locally. Open the generated artifacts to review findings.
+
+### Windows / install notes
+
+- **`pip install -e .`** (or Poetry) on **Python 3.12** is the path most often used on Windows; optional deps **`uvloop`** and **`semgrep`** are skipped on win32 via environment markers in `pyproject.toml`.
+- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (377 tests, all passing as of the last maintenance pass).
+
+## Recent maintenance (2026)
+
+- **Detectors**: Hardened config security, path traversal, prompt injection, secrets, supply-chain manifests (e.g. `*requirements*.txt`, `*package*.json`), XSS, SARIF paths on Windows, and related unit/integration tests (full `pytest tests/` green).
+- **Models**: Replaced deprecated `datetime.utcnow()` with **timezone-aware UTC** (`datetime.now(UTC)`) and migrated Pydantic **`class Config` → `model_config = ConfigDict(...)`** on `Vulnerability` and `ScanResult`.
+
+## Complementary scanners (same org: [github.com/beejak](https://github.com/beejak))
+
+MCP Sentinel Python is **MCP server *source* static analysis** (and optional Semgrep/Bandit). Other public repos by the same author target different layers; they are **not** vendored into this package, but you can run them in the same security assessment.
+
+**Note on the beejak account:** many public repositories there are **forks** of upstream projects (MCP servers, FastAPI, LangChain, n8n, `modelcontextprotocol/servers`, and similar). Those are **ecosystem / integration / study** copies, not additional “MCP Sentinel” engines. You can still point **`mcp-sentinel scan <path>`** at a **local clone** of any of them to audit that code—but you do **not** need to wire each fork into this Python package.
+
+| Project | What it is | How to use it with an MCP server |
+|--------|------------|----------------------------------|
+| [**mcp-sentinel** (Rust)](https://github.com/beejak/mcp-sentinel) | Static scanner with a **broader Rust implementation** (e.g. additional OWASP-mapped detectors: missing auth, network binding, SSRF, weak crypto, rug pull, MCP sampling, etc.) | `mcp-sentinel scan <path>` on the same clone; **diff/merge** or **correlate** JSON/SARIF with this Python tool for defense in depth. |
+| [**docker-scanner**](https://github.com/beejak/docker-scanner) | **Container** vulnerability scanner (Go, Trivy; CVEs, CISA KEV, optional runc host checks, SBOM) | After `docker build` for your MCP image: `scanner scan --image <image:tag> --output-dir ./reports` (and/or use its [MCP server](https://github.com/beejak/docker-scanner/blob/main/docs/ide-and-mcp.md) for agent-driven image review). **Complements** code scanning: supply-chain CVs in the image, not Python patterns. |
+| [**Argus** (LLM Scanner)](https://github.com/beejak/Argus) | **Hugging Face model bundle** admission: `scan-bundle` / `admit-model` on weight and config trees, configlint, optional dynamic probe | Use when you **ship or download model weights** next to an MCP app. **Not** a substitute for scanning `server.py` / `package.json` in a normal MCP repo. |
+| [**NetSec**](https://github.com/beejak/NetSec) | **Network** security toolkit (scanning, DNS, SSL, traffic) | Relevant if the MCP server exposes custom ports or you are **hardening the host/network** around the server. |
+
+**Practical pipeline (example):** (1) `mcp-sentinel scan ./my-mcp` (and/or Rust `mcp-sentinel`) → (2) `docker build -t my-mcp:dev .` → (3) `docker-scanner` / Trivy on `my-mcp:dev` → (4) Argus only if you bundle ML artifacts.
+
 ## ✨ Current Features (Phase 4.1)
 
 ### 🚀 Multi-Engine Architecture
@@ -110,7 +154,7 @@ mcp-sentinel server --port 8000
 | **XSSDetector** | 6 categories, 18 patterns | 100% | ✅ Phase 3 |
 | **ConfigSecurityDetector** | 8 categories, 35 patterns | 96.49% | ✅ Phase 3 |
 | **PathTraversalDetector** | 5 categories, 22 patterns | 96.67% | ✅ Phase 3 |
-| **CommandInjectionDetector** | Python, JS/TS | 95%+ | ✅ Phase 1 |
+| **CodeInjectionDetector** | Python, JS/TS | 95%+ | ✅ Phase 1 |
 
 ### 🎯 98 Vulnerability Patterns Detected
 
@@ -191,7 +235,7 @@ MCP Sentinel now supports multiple output formats for seamless integration:
 - **Type-Safe**: Comprehensive type hints with Pydantic models
 - **Modular**: Clean detector architecture with BaseDetector pattern
 - **Extensible**: Easy to add new detectors and patterns
-- **Well-Tested**: 274 tests with ~95% average coverage
+- **Well-Tested**: 377 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
 - **Modern Python**: Python 3.11+ with latest best practices
 - **Multi-Format Reports**: Terminal, JSON, SARIF, and HTML outputs
 
@@ -255,6 +299,21 @@ poetry run pytest tests/unit/test_config_security.py
 poetry run pytest tests/unit/test_path_traversal.py
 ```
 
+### Optional: smoke-scan cloned forks (beejak mirrors)
+
+Use this when you want MCP Sentinel to exercise **real upstream-sized** trees (shallow clones), without committing them.
+
+1. Edit `tests/fork_targets.manifest` if you want different `owner/repo` lines (default lists a few **beejak** MCP-oriented forks).
+2. Run **`scripts/clone_fork_test_targets.ps1`** (Windows) or **`scripts/clone_fork_test_targets.sh`** — repos land in **`tests/external/<repo>/`** (gitignored).
+3. Enable collection of the opt-in test and run it (faster without coverage):
+
+```powershell
+$env:MCP_SENTINEL_RUN_FORK_TESTS = "1"
+pytest tests/integration/test_external_fork_smoke.py -m external_forks --no-cov
+```
+
+Without **`MCP_SENTINEL_RUN_FORK_TESTS`**, default **`pytest`** does not collect that module (see **`pytest_ignore_collect`** in `tests/conftest.py`).
+
 ## 🔧 Configuration (Phase 3)
 
 ### Current Configuration Options
@@ -312,7 +371,7 @@ reporting:
 Phase 3 focuses on comprehensive detector implementation and testing. You can test each detector individually:
 
 ```bash
-# Test all detectors (274 tests)
+# Test all detectors (377 tests)
 poetry run pytest
 
 # Test specific detector suites
@@ -496,7 +555,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
 ├──────────────────┤              ├──────────────────┤
 │ • Secrets        │              │ • ToolPoisoning  │
 │ • PromptInjection│              │ • SupplyChain    │
-│ • CmdInjection   │              │                  │
+│ • CodeInjection  │              │                  │
 └──────────────────┘              └──────────────────┘
 
               ┌──────────────────┐
@@ -512,7 +571,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
         ▼                         ▼
   ┌──────────┐            ┌──────────────┐
   │ Pydantic │            │  Test Suite  │
-  │  Models  │            │  (274 tests) │
+  │  Models  │            │  (377 tests) │
   └──────────┘            └──────────────┘
 ```
 
@@ -521,7 +580,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
 - **8 Specialized Detectors**: Complete vulnerability detection coverage
 - **Pydantic Models**: Type-safe data validation with Vulnerability, Confidence, Severity
 - **Async Detection**: Concurrent file processing with asyncio
-- **Comprehensive Tests**: 274 tests with ~95% average coverage
+- **Comprehensive Tests**: 377 tests; coverage see `pytest --cov=src`
 - **Pattern Matching**: 98 compiled regex patterns for fast detection
 
 ### Planned Components (Phase 4+)
@@ -576,7 +635,7 @@ mcp-sentinel-python/
 │   │   └── scan_result.py
 │   └── __init__.py
 ├── tests/
-│   ├── unit/               # ✅ 274 comprehensive tests
+│   ├── unit/               # ✅ 377 comprehensive tests
 │   │   ├── test_secrets_detector.py
 │   │   ├── test_prompt_injection.py
 │   │   ├── test_command_injection.py
@@ -601,7 +660,7 @@ mcp-sentinel-python/
 
 Phase 3 maintains enterprise-grade code quality:
 
-- **Test Coverage**: ~95% average across all detectors
+- **Test Coverage**: ~80% overall with `pytest --cov=src`; several detectors much higher
 - **Type Safety**: Full type hints with mypy strict mode
 - **Code Style**: Black formatting + Ruff linting
 - **Documentation**: Comprehensive docstrings (Google style)
@@ -613,7 +672,7 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] Core detector architecture with BaseDetector pattern
 - [x] SecretsDetector: 15+ secret types (AWS, OpenAI, JWT, private keys)
 - [x] PromptInjectionDetector: Jailbreaks, role confusion, system prompt manipulation
-- [x] CommandInjectionDetector: Python, JavaScript/TypeScript dangerous functions
+- [x] CodeInjectionDetector: Python, JavaScript/TypeScript dangerous functions
 - [x] Pydantic models for type-safe vulnerability data
 - [x] Async-first architecture with asyncio
 - [x] Initial test suite with fixtures
@@ -640,11 +699,11 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] **SARIF Report Generator**: SARIF 2.1.0 format with GitHub Code Scanning support
 - [x] **HTML Report Generator**: Beautiful interactive reports with executive dashboard
 - [x] **CLI Integration**: Multi-format output support (terminal, JSON, SARIF, HTML)
-- [x] 274 comprehensive tests (~90% pass rate, 95% coverage)
+- [x] 377 comprehensive tests (100% pass rate on `pytest tests/`)
 - [x] Enterprise documentation suite
 - [x] Contributing guidelines and development setup
 
-**Current Status**: 8/8 detectors, 98 patterns, 274 tests, 4 report formats, enterprise-ready ✅
+**Current Status**: 8/8 detectors, 98 patterns, 377 tests, 4 report formats, enterprise-ready ✅
 
 ---
 
@@ -920,8 +979,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 |--------|-------|
 | **Detectors** | 8 (100% parity) |
 | **Patterns** | 98 vulnerability patterns |
-| **Tests** | 274 comprehensive tests |
-| **Coverage** | ~95% average |
+| **Tests** | 377 (`pytest tests/`) |
+| **Coverage** | ~80% overall (`pytest --cov=src`) |
 | **Report Formats** | 4 (Terminal, JSON, SARIF, HTML) |
 | **Code Quality** | Black + Ruff + mypy |
 | **Documentation** | Enterprise-grade |
@@ -940,8 +999,8 @@ If you find MCP Sentinel Python Edition useful, please consider giving it a star
 
 ---
 
-**Current Version**: Phase 3 Complete (Jan 2026)
-**Next Milestone**: Phase 4 - Scanner Engine & CLI (Q1 2026)
+**Current Version**: 3.0.0 — Phase 4.1 multi-engine CLI & detectors maintained (Apr 2026)
+**Next Milestone**: Phase 4.2 semantic / deeper SAST integration
 
 **Made with 🛡️ by the MCP Sentinel Team**
 

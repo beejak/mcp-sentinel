@@ -1,3 +1,24 @@
+# Lessons learned — MCP Sentinel (`beejak/mcp-sentinel`)
+
+**Maintainership:** Append dated entries under **Rolling feature log** after each meaningful ship. Older release-process notes remain under **Historical**.
+
+---
+
+## Rolling feature log
+
+### 2026-04-27 — Documentation sync, CLI exit semantics, TS import false-positive reduction
+
+- Repository **README** at repo root rewritten for **Python-first** layout (`mcp-sentinel-python/`) and **github.com/beejak/mcp-sentinel**.
+- **`mcp-sentinel scan`:** Reports are written before exit. **Critical** findings use **exit code 1** (Click) for CI; added **`--no-fail-on-critical`** and clearer console text (not "silent abort before write").
+- **`PathTraversalDetector`:** Skip ES/TS relative **module** paths (`from "../x"`, `import("../x")`, `require("../x")`) to cut noise on TypeScript MCP servers.
+- **Tests:** `tests/unit/test_cli_scan_exit.py`, `test_ignore_typescript_relative_module_imports`; **377** `pytest` tests.
+- **Tooling:** Fork smoke clone scripts, `generate_scan_summary_pdf.py` (local PDF under gitignored `reports/`).
+- **Docs:** Repo-root rolling log is canonical; `mcp-sentinel-python/docs/LESSONS_LEARNED.md` points here and keeps long-form history.
+
+---
+
+## Historical: release and process notes
+
 # MCP Sentinel: Release Lessons Learned
 
 **Purpose**: Document what went wrong and right with each release to continuously improve our release process and avoid repeating mistakes.

@@ -2,22 +2,22 @@
 CLI entry point for MCP Sentinel.
 """
 
-import click
 import asyncio
 from pathlib import Path
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
+
+import click
 from rich import box
+from rich.console import Console
+from rich.markup import escape
+from rich.panel import Panel
+from rich.table import Table
 
 from mcp_sentinel import __version__
-from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
+from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.models.vulnerability import Severity
-from mcp_sentinel.reporting.generators import SARIFGenerator, HTMLGenerator
-
+from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
 
 console = Console()
 
@@ -26,27 +26,17 @@ console = Console()
 @click.version_option(version=__version__, prog_name="mcp-sentinel")
 def cli():
     """
-    MCP Sentinel - Enterprise Security Scanner for MCP Servers
+    MCP Sentinel - Enterprise Security Scanner for MCP Servers.
 
     Comprehensive security scanning with 8 specialized detectors covering:
-    • Hardcoded Secrets (AWS, API keys, tokens)
-    • Code Injection (SQL, command, eval)
-    • Prompt Injection & AI attacks
-    • XSS vulnerabilities (DOM, event handlers, frameworks)
-    • Configuration security issues
-    • Path traversal & directory attacks
-    • Tool poisoning & Unicode manipulation
-    • Supply chain security risks
+    secrets, code injection, prompt injection, XSS, configuration issues,
+    path traversal, tool poisoning, and supply chain risks.
 
-    Professional reporting in 4 formats:
-    • Terminal - Rich colored output
-    • JSON - Structured data for automation
-    • SARIF 2.1.0 - GitHub Code Scanning compatible
-    • HTML - Interactive executive dashboards
+    Reporting: terminal, JSON, SARIF 2.1.0, and HTML.
 
-    Version: {version}
+    Use ``mcp-sentinel --version`` for the build version.
     Documentation: https://github.com/beejak/mcp-sentinel
-    """.format(version=__version__)
+    """
     pass
 
 
@@ -81,7 +71,21 @@ def cli():
     is_flag=True,
     help="Disable progress output",
 )
-def scan(target: str, output: str, engines: str, severity: tuple, json_file: str, no_progress: bool):
+@click.option(
+    "--no-fail-on-critical",
+    is_flag=True,
+    help="Exit with code 0 even when critical findings exist (reports are still written). "
+    "Default: exit 1 on critical for CI.",
+)
+def scan(
+    target: str,
+    output: str,
+    engines: str,
+    severity: tuple,
+    json_file: str,
+    no_progress: bool,
+    no_fail_on_critical: bool,
+):
     """
     Scan a directory or file for security vulnerabilities.
 
@@ -112,6 +116,10 @@ def scan(target: str, output: str, engines: str, severity: tuple, json_file: str
         \b
         # Scan with multiple engines (Phase 4+)
         mcp-sentinel scan . --engines static,sast --output html --json-file report.html
+
+        \b
+        # Do not fail CI exit code when critical findings exist (reports still written)
+        mcp-sentinel scan . --output json --json-file out.json --no-fail-on-critical
     """
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
@@ -156,9 +164,22 @@ def scan(target: str, output: str, engines: str, severity: tuple, json_file: str
     elif output == "html":
         _print_html_results(result, json_file)
 
-    # Exit code based on findings
+    # Exit code based on findings (reports already written above)
     if result.has_critical_findings():
-        raise click.Abort()
+        if no_fail_on_critical:
+            console.print(
+                "[yellow]Critical findings present — exiting with code 0 "
+                "(--no-fail-on-critical). Reports were written above.[/yellow]"
+            )
+        else:
+            console.print(
+                "[bold red]Critical findings present — exiting with code 1 (CI fail).[/bold red]"
+            )
+            console.print(
+                "[dim]Reports were written above. "
+                "Use --no-fail-on-critical for exit 0 in local runs.[/dim]"
+            )
+            raise click.Abort()
 
 
 async def _run_scan(target: str) -> ScanResult:
@@ -218,7 +239,7 @@ async def _run_scan_multi_engine(
     Returns:
         ScanResult with findings from all enabled engines
     """
-    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
     # Track progress from all engines
     engine_progress = {}
@@ -284,7 +305,9 @@ def _print_terminal_results(result: ScanResult):
 
     summary_table.add_row("Target", result.target)
     summary_table.add_row("Status", result.status.upper())
-    summary_table.add_row("Files Scanned", f"{result.statistics.scanned_files}/{result.statistics.total_files}")
+    summary_table.add_row(
+        "Files Scanned", f"{result.statistics.scanned_files}/{result.statistics.total_files}"
+    )
     summary_table.add_row("Duration", f"{result.statistics.scan_duration_seconds:.2f}s")
     summary_table.add_row("Total Vulnerabilities", str(result.statistics.total_vulnerabilities))
 
@@ -345,13 +368,16 @@ def _print_terminal_results(result: ScanResult):
             severity_color = severity_colors.get(vuln.severity.value.upper(), "white")
 
             console.print(
-                f"[bold]{i}. [{severity_color}]{vuln.severity.value.upper()}[/][/bold] - {vuln.title}"
+                f"[bold]{i}. [{severity_color}]{vuln.severity.value.upper()}[/][/bold] - "
+                f"{escape(vuln.title)}"
             )
-            console.print(f"   File: [cyan]{vuln.file_path}:{vuln.line_number}[/cyan]")
-            console.print(f"   {vuln.description}")
+            console.print(
+                f"   File: [cyan]{escape(str(vuln.file_path))}:{vuln.line_number}[/cyan]",
+            )
+            console.print(f"   {escape(vuln.description)}")
 
             if vuln.code_snippet:
-                console.print(f"   Code: [dim]{vuln.code_snippet}[/dim]")
+                console.print(f"   Code: [dim]{escape(vuln.code_snippet)}[/dim]")
 
             console.print()
 
@@ -377,7 +403,6 @@ def _print_terminal_results(result: ScanResult):
 
 def _print_json_results(result: ScanResult, output_file: str | None = None):
     """Print results as JSON."""
-    import json
 
     json_output = result.model_dump_json(indent=2)
 

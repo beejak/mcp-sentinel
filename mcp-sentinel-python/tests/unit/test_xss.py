@@ -10,16 +10,15 @@ Tests all 6 XSS detection pattern categories across multiple languages:
 - jQuery XSS (.html(), .append())
 """
 
-import pytest
 from pathlib import Path
-from typing import List
+
+import pytest
 
 from mcp_sentinel.detectors.xss import XSSDetector
 from mcp_sentinel.models.vulnerability import (
-    Vulnerability,
-    VulnerabilityType,
-    Severity,
     Confidence,
+    Severity,
+    VulnerabilityType,
 )
 
 
@@ -382,7 +381,7 @@ $('#content').html(userData);
     assert vulns[0].confidence == Confidence.MEDIUM
     assert vulns[0].cvss_score == 7.2
     assert "jQuery" in vulns[0].title
-    assert ".html()" in vulns[0].code_snippet
+    assert ".html(" in vulns[0].code_snippet
 
 
 @pytest.mark.asyncio

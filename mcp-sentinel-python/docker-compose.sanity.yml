@@ -1,0 +1,27 @@
+# Fast static checks without installing the full Poetry dependency tree.
+# Uses Python 3.11 + ruff + compileall on the mounted source tree.
+#
+# From this directory (mcp-sentinel-python/):
+#   docker compose -f docker-compose.sanity.yml run --rm py-sanity
+#
+# Optional: also run a subset of tests that avoid heavy optional imports (may still skip/fail if deps missing):
+#   docker compose -f docker-compose.sanity.yml run --rm py-sanity sh -c "pip install -q pytest pytest-asyncio && pytest tests/unit/test_logger.py -q --tb=no || true"
+
+services:
+  py-sanity:
+    image: python:3.11-slim
+    working_dir: /project
+    volumes:
+      - .:/project:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        pip install --no-cache-dir -q "ruff>=0.6,<0.9"
+        # Bind mount is :ro — bytecode and ruff cache must not write under /project
+        export PYTHONPYCACHEPREFIX=/tmp/pycache
+        export RUFF_CACHE_DIR=/tmp/ruff_cache
+        python -m compileall -q src
+        ruff check src tests
+        echo "Sanity checks finished OK."

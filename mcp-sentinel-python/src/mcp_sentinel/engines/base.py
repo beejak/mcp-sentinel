@@ -5,15 +5,16 @@ All analysis engines (Static, Semantic, SAST, AI) implement this interface.
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Callable
-from pathlib import Path
+from collections.abc import Callable
 from enum import Enum
+from pathlib import Path
 
 from mcp_sentinel.models.vulnerability import Vulnerability
 
 
 class EngineType(Enum):
     """Types of analysis engines."""
+
     STATIC = "static"
     SEMANTIC = "semantic"
     SAST = "sast"
@@ -22,6 +23,7 @@ class EngineType(Enum):
 
 class EngineStatus(Enum):
     """Engine execution status."""
+
     IDLE = "idle"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -36,7 +38,7 @@ class ScanProgress:
         engine_type: EngineType,
         total_files: int,
         scanned_files: int = 0,
-        current_file: Optional[Path] = None,
+        current_file: Path | None = None,
         vulnerabilities_found: int = 0,
     ):
         self.engine_type = engine_type
@@ -87,7 +89,7 @@ class BaseEngine(ABC):
         self.engine_type = engine_type
         self.enabled = enabled
         self.status = EngineStatus.IDLE
-        self._progress_callback: Optional[Callable[[ScanProgress], None]] = None
+        self._progress_callback: Callable[[ScanProgress], None] | None = None
 
     def set_progress_callback(self, callback: Callable[[ScanProgress], None]) -> None:
         """
@@ -108,8 +110,8 @@ class BaseEngine(ABC):
         self,
         file_path: Path,
         content: str,
-        file_type: Optional[str] = None,
-    ) -> List[Vulnerability]:
+        file_type: str | None = None,
+    ) -> list[Vulnerability]:
         """
         Scan a single file for vulnerabilities.
 
@@ -127,8 +129,8 @@ class BaseEngine(ABC):
     async def scan_directory(
         self,
         target_path: Path,
-        file_patterns: Optional[List[str]] = None,
-    ) -> List[Vulnerability]:
+        file_patterns: list[str] | None = None,
+    ) -> list[Vulnerability]:
         """
         Scan a directory for vulnerabilities.
 
@@ -145,7 +147,7 @@ class BaseEngine(ABC):
     def is_applicable(
         self,
         file_path: Path,
-        file_type: Optional[str] = None,
+        file_type: str | None = None,
     ) -> bool:
         """
         Check if this engine can analyze the given file.
@@ -160,7 +162,7 @@ class BaseEngine(ABC):
         pass
 
     @abstractmethod
-    def get_supported_languages(self) -> List[str]:
+    def get_supported_languages(self) -> list[str]:
         """
         Get list of supported programming languages.
 

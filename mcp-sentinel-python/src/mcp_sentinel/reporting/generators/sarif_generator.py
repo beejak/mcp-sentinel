@@ -8,14 +8,13 @@ Generates SARIF 2.1.0 format reports compatible with:
 - VS Code SARIF Viewer
 """
 
-from typing import Dict, List, Any
-from datetime import datetime
-from pathlib import Path
 import json
+from pathlib import Path
+from typing import Any
 
-from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.models.vulnerability import Vulnerability, Severity
 from mcp_sentinel import __version__
+from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 
 class SARIFGenerator:
@@ -29,7 +28,7 @@ class SARIFGenerator:
     SARIF_VERSION = "2.1.0"
     SCHEMA_URI = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
 
-    def generate(self, result: ScanResult) -> Dict[str, Any]:
+    def generate(self, result: ScanResult) -> dict[str, Any]:
         """
         Generate SARIF report from scan result.
 
@@ -44,6 +43,20 @@ class SARIFGenerator:
             "version": self.SARIF_VERSION,
             "runs": [self._create_run(result)],
         }
+
+    def _artifact_uri(self, file_path: str, scan_target: str) -> str:
+        """Path relative to scan root (forward slashes) for portable SARIF."""
+        base = Path(scan_target).resolve()
+        path = Path(str(file_path))
+        try:
+            rel = path.resolve().relative_to(base)
+            return rel.as_posix()
+        except (ValueError, OSError):
+            return path.name
+
+    def _working_directory_uri(self, scan_target: str) -> str:
+        """file:// URI for invocation working directory (GitHub-friendly)."""
+        return Path(scan_target).resolve().as_uri()
 
     def generate_json(self, result: ScanResult, indent: int = 2) -> str:
         """
@@ -71,12 +84,12 @@ class SARIFGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(sarif_json, encoding="utf-8")
 
-    def _create_run(self, result: ScanResult) -> Dict[str, Any]:
+    def _create_run(self, result: ScanResult) -> dict[str, Any]:
         """Create SARIF run object."""
         return {
             "tool": self._create_tool(),
             "invocations": [self._create_invocation(result)],
-            "results": [self._create_result(vuln) for vuln in result.vulnerabilities],
+            "results": [self._create_result(vuln, result) for vuln in result.vulnerabilities],
             "columnKind": "utf16CodeUnits",
             "properties": {
                 "scanStatistics": {
@@ -94,7 +107,7 @@ class SARIFGenerator:
             },
         }
 
-    def _create_tool(self) -> Dict[str, Any]:
+    def _create_tool(self) -> dict[str, Any]:
         """Create SARIF tool object."""
         return {
             "driver": {
@@ -103,9 +116,7 @@ class SARIFGenerator:
                 "informationUri": "https://github.com/beejak/mcp-sentinel",
                 "semanticVersion": __version__,
                 "organization": "MCP Sentinel Contributors",
-                "shortDescription": {
-                    "text": "Enterprise Security Scanner for MCP Servers"
-                },
+                "shortDescription": {"text": "Enterprise Security Scanner for MCP Servers"},
                 "fullDescription": {
                     "text": (
                         "MCP Sentinel is a comprehensive security scanner that detects "
@@ -117,7 +128,7 @@ class SARIFGenerator:
             }
         }
 
-    def _create_rules(self) -> List[Dict[str, Any]]:
+    def _create_rules(self) -> list[dict[str, Any]]:
         """Create SARIF rules for all detectors."""
         # Define rules for each vulnerability type
         # In production, this should be dynamically generated from detectors
@@ -175,11 +186,11 @@ class SARIFGenerator:
         ]
         return rules
 
-    def _create_invocation(self, result: ScanResult) -> Dict[str, Any]:
+    def _create_invocation(self, result: ScanResult) -> dict[str, Any]:
         """Create SARIF invocation object."""
         invocation = {
             "executionSuccessful": result.status == "completed",
-            "workingDirectory": {"uri": f"file:///{result.target}"},
+            "workingDirectory": {"uri": self._working_directory_uri(result.target)},
         }
 
         if result.completed_at:
@@ -195,7 +206,7 @@ class SARIFGenerator:
 
         return invocation
 
-    def _create_result(self, vuln: Vulnerability) -> Dict[str, Any]:
+    def _create_result(self, vuln: Vulnerability, result: ScanResult) -> dict[str, Any]:
         """Create SARIF result object from vulnerability."""
         return {
             "ruleId": vuln.type.value.upper(),
@@ -207,7 +218,7 @@ class SARIFGenerator:
                 {
                     "physicalLocation": {
                         "artifactLocation": {
-                            "uri": vuln.file_path,
+                            "uri": self._artifact_uri(vuln.file_path, result.target),
                             "uriBaseId": "%SRCROOT%",
                         },
                         "region": {
@@ -222,7 +233,9 @@ class SARIFGenerator:
             "properties": {
                 "vulnerability_id": vuln.id,
                 "title": vuln.title,
-                "confidence": vuln.confidence.value if hasattr(vuln.confidence, "value") else str(vuln.confidence),
+                "confidence": vuln.confidence.value
+                if hasattr(vuln.confidence, "value")
+                else str(vuln.confidence),
                 "cwe_id": vuln.cwe_id,
                 "cvss_score": vuln.cvss_score,
                 "detector": vuln.detector,
@@ -235,7 +248,9 @@ class SARIFGenerator:
                         "text": vuln.remediation if vuln.remediation else "No remediation provided"
                     }
                 }
-            ] if vuln.remediation else [],
+            ]
+            if vuln.remediation
+            else [],
         }
 
     def _severity_to_sarif_level(self, severity: Severity) -> str:

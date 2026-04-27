@@ -9,15 +9,15 @@ Detects:
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -35,9 +35,9 @@ class PromptInjectionDetector(BaseDetector):
     def __init__(self):
         """Initialize the prompt injection detector."""
         super().__init__(name="PromptInjectionDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for prompt injection detection."""
         return {
             # Family 1: Role Manipulation
@@ -48,9 +48,7 @@ class PromptInjectionDetector(BaseDetector):
                 re.compile(r"\byou\s+must\s+act\b", re.IGNORECASE),
                 re.compile(r"\bfrom\s+now\s+on\b", re.IGNORECASE),
                 re.compile(r"\byou\s+will\s+be\b", re.IGNORECASE),
-                re.compile(r"\bbecome\s+a\b", re.IGNORECASE),
             ],
-
             # Family 2: System Prompt Indicators
             "system_prompt": [
                 re.compile(r"\bsystem\s+prompt\b", re.IGNORECASE),
@@ -59,7 +57,6 @@ class PromptInjectionDetector(BaseDetector):
                 re.compile(r"\bassistant\s+prompt\b", re.IGNORECASE),
                 re.compile(r"\bprompt\s+template\b", re.IGNORECASE),
             ],
-
             # Family 3: Role Assignment (in configs/code)
             "role_assignment": [
                 re.compile(r"[\"']role[\"']\s*:\s*[\"']system[\"']", re.IGNORECASE),
@@ -67,7 +64,6 @@ class PromptInjectionDetector(BaseDetector):
                 re.compile(r"[\"']role[\"']\s*:\s*[\"']user[\"']", re.IGNORECASE),
                 re.compile(r"\brole\s*=\s*[\"']system[\"']", re.IGNORECASE),
             ],
-
             # Family 4: Jailbreak Keywords
             "jailbreak": [
                 re.compile(r"\bjailbreak\b", re.IGNORECASE),
@@ -82,7 +78,7 @@ class PromptInjectionDetector(BaseDetector):
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -96,22 +92,38 @@ class PromptInjectionDetector(BaseDetector):
         if file_type:
             # Apply to most file types that could contain prompts
             return file_type in [
-                "python", "javascript", "typescript", "json", "yaml",
-                "markdown", "text", "config"
+                "python",
+                "javascript",
+                "typescript",
+                "json",
+                "yaml",
+                "markdown",
+                "text",
+                "config",
             ]
 
         # Check file extension
         applicable_extensions = [
-            ".py", ".js", ".jsx", ".ts", ".tsx",
-            ".json", ".yaml", ".yml",
-            ".txt", ".md", ".prompt",
-            ".cfg", ".conf", ".config",
+            ".py",
+            ".js",
+            ".jsx",
+            ".ts",
+            ".tsx",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".txt",
+            ".md",
+            ".prompt",
+            ".cfg",
+            ".conf",
+            ".config",
         ]
         return file_path.suffix.lower() in applicable_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect prompt injection vulnerabilities in file content.
 
@@ -123,8 +135,9 @@ class PromptInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
+        seen_line_family_match: set[tuple[int, str, str]] = set()
 
         # Scan for each pattern family
         for family_name, patterns in self.patterns.items():
@@ -135,9 +148,20 @@ class PromptInjectionDetector(BaseDetector):
                     if self._is_comment(stripped, file_path):
                         continue
 
+                    if self._is_role_json_line_suppressing_system_prompt(
+                        line, family_name
+                    ):
+                        continue
+
                     matches = pattern.finditer(line)
 
                     for match in matches:
+                        if self._is_benign_role_manipulation(line, match.group(0), family_name):
+                            continue
+                        key = (line_num, family_name, match.group(0))
+                        if key in seen_line_family_match:
+                            continue
+                        seen_line_family_match.add(key)
                         vuln = self._create_vulnerability(
                             family_name=family_name,
                             pattern_text=pattern.pattern,
@@ -149,6 +173,31 @@ class PromptInjectionDetector(BaseDetector):
                         vulnerabilities.append(vuln)
 
         return vulnerabilities
+
+    def _is_role_json_line_suppressing_system_prompt(self, line: str, family_name: str) -> bool:
+        """Avoid flagging chat JSON 'system' role lines as system-prompt extraction."""
+        if family_name != "system_prompt":
+            return False
+        if '"role"' not in line and "'role'" not in line:
+            return False
+        return '"content"' in line or "'content'" in line
+
+    def _is_benign_role_manipulation(self, line: str, matched: str, family_name: str) -> bool:
+        """Skip common educational phrasing for role_manipulation."""
+        if family_name != "role_manipulation":
+            return False
+        ll = line.lower()
+        if "act as" in matched.lower() and any(
+            phrase in ll
+            for phrase in (
+                "act as a responsible",
+                "act as a good",
+                "act as a professional",
+                "act as an ethical",
+            )
+        ):
+            return True
+        return False
 
     def _is_comment(self, line: str, file_path: Path) -> bool:
         """Check if a line is a comment based on file type."""

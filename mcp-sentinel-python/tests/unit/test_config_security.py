@@ -4,16 +4,15 @@ Unit tests for ConfigSecurityDetector.
 Tests all 8 configuration security pattern categories.
 """
 
-import pytest
 from pathlib import Path
-from typing import List
+
+import pytest
 
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.models.vulnerability import (
-    Vulnerability,
-    VulnerabilityType,
-    Severity,
     Confidence,
+    Severity,
+    VulnerabilityType,
 )
 
 

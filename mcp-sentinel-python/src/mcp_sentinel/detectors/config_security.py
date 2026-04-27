@@ -8,15 +8,15 @@ Critical for ensuring MCP servers follow security best practices in deployment.
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -38,9 +38,9 @@ class ConfigSecurityDetector(BaseDetector):
     def __init__(self):
         """Initialize the Config Security detector."""
         super().__init__(name="ConfigSecurityDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for configuration security detection."""
         return {
             # Pattern 1: Debug mode enabled
@@ -51,68 +51,88 @@ class ConfigSecurityDetector(BaseDetector):
                 re.compile(r"environment\s*:\s*['\"]development['\"]", re.IGNORECASE),
                 re.compile(r"NODE_ENV\s*=\s*['\"]development['\"]", re.IGNORECASE),
             ],
-
             # Pattern 2: Weak authentication
             "weak_auth": [
                 re.compile(r"auth\s*=\s*False", re.IGNORECASE),
+                re.compile(r"['\"]auth['\"]\s*:\s*False", re.IGNORECASE),
                 re.compile(r"authentication\s*:\s*false", re.IGNORECASE),
                 re.compile(r"require_auth\s*=\s*False", re.IGNORECASE),
                 re.compile(r"ALLOW_ANONYMOUS\s*=\s*True", re.IGNORECASE),
                 re.compile(r"password\s*=\s*['\"](?:admin|password|123|test)['\"]", re.IGNORECASE),
+                re.compile(
+                    r"password\s*:\s*['\"]?(?:admin|password|123|test)['\"]?", re.IGNORECASE
+                ),
             ],
-
             # Pattern 3: Insecure CORS
             "insecure_cors": [
-                re.compile(r"Access-Control-Allow-Origin\s*:\s*\*", re.IGNORECASE),
+                re.compile(
+                    r"['\"]?Access-Control-Allow-Origin['\"]?\s*:\s*['\"]?\*['\"]?", re.IGNORECASE
+                ),
                 re.compile(r"cors\s*\(\s*\*\s*\)", re.IGNORECASE),
                 re.compile(r"CORS_ORIGINS?\s*=\s*\[\s*['\"\*]", re.IGNORECASE),
                 re.compile(r"allow_origins\s*=\s*\[\s*['\"\*]", re.IGNORECASE),
                 re.compile(r"AllowedOrigins?\s*:\s*\[\s*['\"\*]", re.IGNORECASE),
             ],
-
             # Pattern 4: Missing/insecure security headers
             "security_headers": [
-                re.compile(r"X-Frame-Options\s*:\s*(?!DENY|SAMEORIGIN)", re.IGNORECASE),
+                re.compile(
+                    r"['\"]?X-Frame-Options['\"]?\s*:\s*['\"]?(?!DENY|SAMEORIGIN)[^'\"}\]]+",
+                    re.IGNORECASE,
+                ),
                 re.compile(r"Strict-Transport-Security.*max-age\s*=\s*0", re.IGNORECASE),
                 re.compile(r"Content-Security-Policy\s*:\s*['\"]?unsafe", re.IGNORECASE),
                 re.compile(r"HSTS\s*=\s*False", re.IGNORECASE),
             ],
-
             # Pattern 5: Weak secrets/session config
             "weak_secrets": [
-                re.compile(r"SECRET_KEY\s*=\s*['\"](?:secret|changeme|default|test|dev)['\"]", re.IGNORECASE),
-                re.compile(r"session_secret\s*=\s*['\"](?:secret|key|password)['\"]", re.IGNORECASE),
+                re.compile(
+                    r"SECRET_KEY\s*=\s*['\"](?:secret|changeme|default|test|dev)['\"]",
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r"session_secret\s*=\s*['\"](?:secret|key|password)['\"]", re.IGNORECASE
+                ),
+                re.compile(
+                    r"secret\s*:\s*['\"](?:secret|key|password|changeme|default|test|dev)['\"]",
+                    re.IGNORECASE,
+                ),
                 re.compile(r"SESSION_COOKIE_SECURE\s*=\s*False", re.IGNORECASE),
                 re.compile(r"SESSION_COOKIE_HTTPONLY\s*=\s*False", re.IGNORECASE),
+                re.compile(r"secure\s*:\s*false", re.IGNORECASE),
                 re.compile(r"secure\s*:\s*false.*cookie", re.IGNORECASE),
             ],
-
             # Pattern 6: Missing rate limiting
             "rate_limiting": [
                 re.compile(r"rate_limit\s*=\s*(?:None|False|0)", re.IGNORECASE),
+                re.compile(r"['\"]rate_limit['\"]\s*:\s*None", re.IGNORECASE),
                 re.compile(r"RATE_LIMIT\s*=\s*(?:None|False|0)", re.IGNORECASE),
+                re.compile(r"rateLimit\s*:\s*False", re.IGNORECASE),
                 re.compile(r"disable_rate_limit\s*=\s*True", re.IGNORECASE),
                 re.compile(r"throttle\s*=\s*False", re.IGNORECASE),
             ],
-
             # Pattern 7: Insecure SSL/TLS
             "insecure_ssl": [
                 re.compile(r"SSL_VERIFY\s*=\s*False", re.IGNORECASE),
-                re.compile(r"verify\s*=\s*False.*(?:ssl|tls|https)", re.IGNORECASE),
+                re.compile(r"verify\s*=\s*False", re.IGNORECASE),
                 re.compile(r"ssl_version\s*=\s*SSLv[23]", re.IGNORECASE),
                 re.compile(r"TLS_VERSION\s*=\s*['\"]1\.[01]['\"]", re.IGNORECASE),
                 re.compile(r"check_hostname\s*=\s*False", re.IGNORECASE),
             ],
-
             # Pattern 8: Exposed debug/admin endpoints
             "exposed_endpoints": [
                 re.compile(r"@app\.route\(['\"](?:/debug|/admin)['\"].*\)", re.IGNORECASE),
-                re.compile(r"path\s*:\s*['\"](?:/debug|/admin|/__debug__|/graphql)['\"]", re.IGNORECASE),
+                re.compile(
+                    r"\.(?:get|post|put|delete|patch)\s*\(\s*['\"]/(?:debug|admin)(?:/[^'\"]*)?['\"]",
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r"path\s*:\s*['\"](?:/debug|/admin|/__debug__|/graphql)['\"]", re.IGNORECASE
+                ),
                 re.compile(r"ALLOWED_HOSTS\s*=\s*\[\s*['\"\*]", re.IGNORECASE),
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -125,33 +145,58 @@ class ConfigSecurityDetector(BaseDetector):
         """
         if file_type:
             return file_type in [
-                "python", "javascript", "typescript", "yaml", "json",
-                "toml", "ini", "env", "config"
+                "python",
+                "javascript",
+                "typescript",
+                "yaml",
+                "json",
+                "toml",
+                "ini",
+                "env",
+                "config",
             ]
 
         # Check file extensions and names
         config_extensions = [
-            ".py", ".js", ".ts", ".yaml", ".yml", ".json",
-            ".toml", ".ini", ".env", ".conf", ".config"
+            ".py",
+            ".js",
+            ".ts",
+            ".yaml",
+            ".yml",
+            ".json",
+            ".toml",
+            ".ini",
+            ".env",
+            ".conf",
+            ".config",
         ]
 
         config_names = [
-            "settings.py", "config.py", "configuration.py",
-            "app.py", "server.py", "main.py",
-            ".env", ".env.local", ".env.production",
-            "config.json", "app.json", "package.json",
-            "docker-compose.yml", "docker-compose.yaml",
-            "nginx.conf", "apache.conf"
+            "settings.py",
+            "config.py",
+            "configuration.py",
+            "app.py",
+            "server.py",
+            "main.py",
+            ".env",
+            ".env.local",
+            ".env.production",
+            "config.json",
+            "app.json",
+            "package.json",
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "nginx.conf",
+            "apache.conf",
         ]
 
         return (
-            file_path.suffix.lower() in config_extensions or
-            file_path.name.lower() in config_names
+            file_path.suffix.lower() in config_extensions or file_path.name.lower() in config_names
         )
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect configuration security vulnerabilities in file content.
 
@@ -163,7 +208,7 @@ class ConfigSecurityDetector(BaseDetector):
         Returns:
             List of detected configuration security vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -178,7 +223,9 @@ class ConfigSecurityDetector(BaseDetector):
 
                     for match in matches:
                         # Additional context checks to reduce false positives
-                        if not self._is_likely_false_positive(line, match.group(0), category):
+                        if not self._is_likely_false_positive(
+                            line, match.group(0), category, file_path
+                        ):
                             vuln = self._create_vulnerability(
                                 category=category,
                                 matched_text=match.group(0),
@@ -190,7 +237,7 @@ class ConfigSecurityDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
+    def _is_comment(self, line: str, file_type: str | None) -> bool:
         """
         Check if line is a comment.
 
@@ -217,7 +264,9 @@ class ConfigSecurityDetector(BaseDetector):
 
         return False
 
-    def _is_likely_false_positive(self, line: str, matched_text: str, category: str) -> bool:
+    def _is_likely_false_positive(
+        self, line: str, matched_text: str, category: str, file_path: Path
+    ) -> bool:
         """
         Check if the match is likely a false positive.
 
@@ -231,8 +280,15 @@ class ConfigSecurityDetector(BaseDetector):
         """
         # Check for test/example indicators
         test_indicators = [
-            "test", "example", "sample", "demo", "mock",
-            "fixture", "stub", "TODO", "FIXME"
+            "test",
+            "example",
+            "sample",
+            "demo",
+            "mock",
+            "fixture",
+            "stub",
+            "TODO",
+            "FIXME",
         ]
 
         line_lower = line.lower()
@@ -240,9 +296,26 @@ class ConfigSecurityDetector(BaseDetector):
             if indicator in line_lower:
                 return True
 
-        # For debug mode, allow if explicitly marked as local/dev config
+        # For debug mode, skip typical local-only settings files (filename-based)
         if category == "debug_mode":
-            if any(marker in line_lower for marker in ["local", ".env.local", "development.py", "settings_dev"]):
+            path_lower = file_path.as_posix().lower()
+            name_lower = file_path.name.lower()
+            if any(
+                marker in path_lower
+                for marker in (
+                    "settings_local",
+                    "_local.py",
+                    ".env.local",
+                    "settings_dev",
+                    "/local/",
+                    "\\local\\",
+                )
+            ) or name_lower.endswith("_local.py"):
+                return True
+            if any(
+                marker in line_lower
+                for marker in [".env.local", "development.py", "settings_dev"]
+            ):
                 return True
 
         # For secrets, allow if using environment variables

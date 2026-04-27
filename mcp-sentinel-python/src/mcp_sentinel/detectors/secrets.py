@@ -3,15 +3,15 @@ Secrets detector for finding hardcoded credentials and API keys.
 """
 
 import re
-from typing import List, Dict, Pattern
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -32,59 +32,46 @@ class SecretsDetector(BaseDetector):
     def __init__(self):
         """Initialize the secrets detector."""
         super().__init__(name="SecretsDetector", enabled=True)
-        self.patterns: Dict[str, Pattern] = self._compile_patterns()
+        self.patterns: dict[str, Pattern] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, Pattern]:
+    def _compile_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for secret detection."""
         return {
             # AWS Access Keys
-            "aws_access_key": re.compile(r"(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}"),
-
+            "aws_access_key": re.compile(
+                r"(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}"
+            ),
             # AWS Secret Keys
             "aws_secret_key": re.compile(r"(?i)aws(.{0,20})?['\"][0-9a-zA-Z/+]{40}['\"]"),
-
-            # OpenAI API Keys
-            "openai_api_key": re.compile(r"sk-[a-zA-Z0-9]{48}"),
-            "openai_legacy_key": re.compile(r"sk-[a-zA-Z0-9]{32}"),
-
+            # OpenAI API Keys (prefix sk-; length varies by key vintage)
+            "openai_api_key": re.compile(r"sk-[a-zA-Z0-9]{20,}"),
             # Anthropic Claude API Keys
-            "anthropic_api_key": re.compile(r"sk-ant-api03-[a-zA-Z0-9\-_]{95,}"),
-
+            "anthropic_api_key": re.compile(r"sk-ant-api03-[a-zA-Z0-9\-_]{40,}"),
             # Google API Keys
             "google_api_key": re.compile(r"AIza[0-9A-Za-z\-_]{35}"),
-
             # GitHub Personal Access Tokens
             "github_token": re.compile(r"ghp_[0-9a-zA-Z]{36}"),
             "github_oauth": re.compile(r"gho_[0-9a-zA-Z]{36}"),
-
             # Slack Tokens
             "slack_token": re.compile(r"xox[baprs]-([0-9a-zA-Z]{10,48})"),
-
             # JWT Tokens
             "jwt_token": re.compile(r"eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*"),
-
             # RSA Private Keys
             "rsa_private_key": re.compile(r"-----BEGIN RSA PRIVATE KEY-----"),
-
             # EC Private Keys
             "ec_private_key": re.compile(r"-----BEGIN EC PRIVATE KEY-----"),
-
             # OpenSSH Private Keys
             "openssh_private_key": re.compile(r"-----BEGIN OPENSSH PRIVATE KEY-----"),
-
             # Generic Private Keys
             "generic_private_key": re.compile(r"-----BEGIN PRIVATE KEY-----"),
-
             # PostgreSQL Connection Strings
             "postgres_url": re.compile(
-                r"postgres(?:ql)?://[a-zA-Z0-9_-]+:[a-zA-Z0-9_!@#$%^&*()+-]+@[a-zA-Z0-9.-]+:\d+/[a-zA-Z0-9_-]+"
+                r"postgres(?:ql)?://[^:]+:[^@\s\"']+@[a-zA-Z0-9.-]+:\d+/[a-zA-Z0-9_-]+"
             ),
-
             # MySQL Connection Strings
             "mysql_url": re.compile(
                 r"mysql://[a-zA-Z0-9_-]+:[a-zA-Z0-9_!@#$%^&*()+-]+@[a-zA-Z0-9.-]+:\d+/[a-zA-Z0-9_-]+"
             ),
-
             # Generic API Keys
             "generic_api_key": re.compile(
                 r"(?i)(api[_-]?key|apikey|secret[_-]?key)['\"]?\s*[:=]\s*['\"]([a-zA-Z0-9_\-]{32,})['\"]"
@@ -93,7 +80,7 @@ class SecretsDetector(BaseDetector):
 
     async def detect(
         self, file_path: Path, content: str, file_type: str | None = None
-    ) -> List[Vulnerability]:
+    ) -> list[Vulnerability]:
         """
         Detect hardcoded secrets in file content.
 
@@ -105,10 +92,11 @@ class SecretsDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Split content into lines for line number tracking
         lines = content.split("\n")
+        seen_line_type: set[tuple[int, str]] = set()
 
         for secret_type, pattern in self.patterns.items():
             for line_num, line in enumerate(lines, start=1):
@@ -122,10 +110,17 @@ class SecretsDetector(BaseDetector):
                     if self._is_placeholder(secret_value):
                         continue
 
+                    dedupe_key = (line_num, secret_type)
+                    if dedupe_key in seen_line_type:
+                        continue
+                    seen_line_type.add(dedupe_key)
+
+                    title = self._secret_title(secret_type)
+
                     # Create vulnerability
                     vuln = Vulnerability(
                         type=VulnerabilityType.SECRET_EXPOSURE,
-                        title=f"Hardcoded {self._format_secret_type(secret_type)}",
+                        title=title,
                         description=self._generate_description(secret_type, secret_value),
                         severity=self._determine_severity(secret_type),
                         confidence=self._determine_confidence(secret_type, secret_value),
@@ -141,7 +136,9 @@ class SecretsDetector(BaseDetector):
                         ],
                         detector=self.name,
                         engine="static",
-                        mitre_attack_ids=["T1552.001"],  # Unsecured Credentials: Credentials In Files
+                        mitre_attack_ids=[
+                            "T1552.001"
+                        ],  # Unsecured Credentials: Credentials In Files
                     )
 
                     vulnerabilities.append(vuln)
@@ -165,11 +162,36 @@ class SecretsDetector(BaseDetector):
             "111",
         ]
         secret_lower = secret.lower()
-        return any(placeholder in secret_lower for placeholder in placeholders)
+        for placeholder in placeholders:
+            if placeholder not in secret_lower:
+                continue
+            # AWS publishes sample keys ending in EXAMPLE; do not treat as placeholder
+            if placeholder == "example" and re.search(
+                r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|A3T)[A-Z0-9]{16}\b",
+                secret,
+                re.IGNORECASE,
+            ):
+                continue
+            return True
+        return False
 
     def _format_secret_type(self, secret_type: str) -> str:
         """Format secret type for display."""
         return secret_type.replace("_", " ").title()
+
+    def _secret_title(self, secret_type: str) -> str:
+        """Human-readable vulnerability title for secret_type."""
+        labels = {
+            "postgres_url": "PostgreSQL Database Connection String",
+            "mysql_url": "MySQL Database Connection String",
+            "openai_api_key": "OpenAI API Key",
+            "anthropic_api_key": "Anthropic Claude API Key",
+            "aws_access_key": "AWS Access Key",
+            "github_token": "GitHub Personal Access Token",
+        }
+        if secret_type in labels:
+            return f"Hardcoded {labels[secret_type]}"
+        return f"Hardcoded {self._format_secret_type(secret_type)}"
 
     def _generate_description(self, secret_type: str, secret_value: str) -> str:
         """Generate vulnerability description."""

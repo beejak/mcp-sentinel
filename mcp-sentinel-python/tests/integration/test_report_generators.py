@@ -4,15 +4,16 @@ Integration tests for report generators.
 Tests the end-to-end flow of generating SARIF and HTML reports.
 """
 
-import pytest
 import json
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
+
+import pytest
 
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.engines.base import EngineType
-from mcp_sentinel.reporting.generators import SARIFGenerator, HTMLGenerator
+from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
 
 
 @pytest.fixture
@@ -22,7 +23,7 @@ def temp_project():
 
     # Create a Python file with vulnerabilities
     py_file = temp_dir / "app.py"
-    py_file.write_text('''
+    py_file.write_text("""
 import os
 import subprocess
 
@@ -33,17 +34,17 @@ def run_command(user_input):
     # Command injection vulnerability
     subprocess.call(f"cat {user_input}", shell=True)
     os.system(user_input)
-''')
+""")
 
     # Create a JavaScript file with XSS vulnerability
     js_file = temp_dir / "app.js"
-    js_file.write_text('''
+    js_file.write_text("""
 const apiKey = "sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyz";
 
 function displayUser(name) {
     document.getElementById("user").innerHTML = name;  // XSS vulnerability
 }
-''')
+""")
 
     yield temp_dir
     shutil.rmtree(temp_dir)
@@ -153,12 +154,12 @@ async def test_html_generator_end_to_end(temp_project):
     assert "MCP Sentinel Security Report" in html_content
     assert "Executive Summary" in html_content
     assert "Risk Score" in html_content
-    assert "Vulnerabilities by Severity" in html_content
+    assert "Severity Breakdown" in html_content
     assert "Detailed Findings" in html_content
 
     # Verify statistics are included
     assert "Files Scanned" in html_content
-    assert "Total Vulnerabilities" in html_content
+    assert "Vulnerabilities Found" in html_content
     assert "Scan Duration" in html_content
 
     # Verify CSS is embedded
@@ -215,7 +216,7 @@ async def test_html_generator_self_contained(temp_project):
     assert "<link" not in html_content or "stylesheet" not in html_content
 
     # Verify no external script sources
-    assert '<script src=' not in html_content
+    assert "<script src=" not in html_content
 
     # Verify CSS is inline
     assert "<style>" in html_content
@@ -266,9 +267,7 @@ async def test_report_generators_with_severity_filtering(temp_project):
     assert original_count >= 3
 
     # Filter to only critical vulnerabilities
-    result.vulnerabilities = [
-        v for v in result.vulnerabilities if v.severity.value == "critical"
-    ]
+    result.vulnerabilities = [v for v in result.vulnerabilities if v.severity.value == "critical"]
     result.statistics.total_vulnerabilities = len(result.vulnerabilities)
 
     # Generate reports with filtered results
@@ -346,16 +345,16 @@ async def test_html_report_executive_dashboard(temp_project):
 
     # Verify dashboard elements
     assert "Executive Summary" in html_content
-    assert "metric-card" in html_content  # Dashboard card class
+    assert "summary-card" in html_content  # Executive summary metric tiles
 
     # Verify key metrics
     assert "Files Scanned" in html_content
-    assert "Total Vulnerabilities" in html_content
+    assert "Vulnerabilities Found" in html_content
     assert "Risk Score" in html_content
     assert "Scan Duration" in html_content
 
     # Verify severity breakdown
-    assert "Vulnerabilities by Severity" in html_content
+    assert "Severity Breakdown" in html_content
     assert "severity-bar" in html_content or "chart" in html_content.lower()
 
     # Verify detailed findings section

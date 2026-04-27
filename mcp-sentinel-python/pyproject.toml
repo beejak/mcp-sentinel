@@ -30,7 +30,8 @@ alembic = "^1.13.0"
 
 # Async & Performance
 uvicorn = {extras = ["standard"], version = "^0.26.0"}
-uvloop = "^0.19.0"
+# uvloop is not supported on Windows (see uvloop docs).
+uvloop = {version = "^0.19.0", markers = "sys_platform != 'win32'"}
 aiofiles = "^23.2.1"
 aiohttp = "^3.9.1"
 aiocache = "^0.12.2"
@@ -48,13 +49,14 @@ transformers = "^4.36.2"
 sentence-transformers = "^2.2.2"
 chromadb = "^0.4.22"
 
-# Code Analysis
-tree-sitter = "^0.20.4"
-tree-sitter-python = "^0.20.4"
-tree-sitter-javascript = "^0.20.3"
-tree-sitter-typescript = "^0.20.3"
+# Code Analysis (0.20.x grammar wheels are gone from PyPI; stay on a consistent 0.21.x line)
+tree-sitter = ">=0.21.0,<0.24"
+tree-sitter-python = "^0.21.0"
+tree-sitter-javascript = "^0.21.0"
+tree-sitter-typescript = "^0.21.0"
 libcst = "^1.1.0"
-semgrep = "^1.55.2"
+# Semgrep has limited/no Windows support for recent releases; keep optional on win32.
+semgrep = {version = "^1.55.2", markers = "sys_platform != 'win32'"}
 bandit = "^1.7.6"
 
 # API & Microservices
@@ -85,7 +87,7 @@ hypothesis = "^6.96.1"
 locust = "^2.20.0"
 mypy = "^1.8.0"
 black = "^23.12.1"
-ruff = "^0.1.11"
+ruff = ">=0.8.0,<0.9"
 
 # Enterprise Integrations
 jira = "^3.6.0"
@@ -157,6 +159,8 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -172,8 +176,9 @@ ignore = [
     "C901",  # too complex
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+"tests/fixtures/*.py" = ["F821", "F401", "E402", "F841"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -204,6 +209,9 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q --strict-markers --cov=mcp_sentinel --cov-report=html --cov-report=term-missing"
+markers = [
+    "external_forks: optional smoke scans against repos cloned under tests/external (see scripts/clone_fork_test_targets.*)",
+]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]

@@ -3,7 +3,6 @@ Integration tests for Scanner.
 """
 
 import pytest
-from pathlib import Path
 
 from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.models.vulnerability import Severity

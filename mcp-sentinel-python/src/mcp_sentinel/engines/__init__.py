@@ -10,8 +10,8 @@ MCP Sentinel supports 4 analysis engines:
 
 from mcp_sentinel.engines.base import (
     BaseEngine,
-    EngineType,
     EngineStatus,
+    EngineType,
     ScanProgress,
 )
 

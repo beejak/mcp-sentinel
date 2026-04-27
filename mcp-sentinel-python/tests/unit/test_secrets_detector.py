@@ -2,8 +2,9 @@
 Tests for SecretsDetector.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.models.vulnerability import Severity, VulnerabilityType
@@ -44,9 +45,9 @@ async def test_detect_anthropic_api_key():
     """Test detection of Anthropic Claude API keys."""
     detector = SecretsDetector()
 
-    content = '''
+    content = """
 API_KEY = "sk-ant-api03-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuv"
-'''
+"""
     file_path = Path("config.py")
 
     vulns = await detector.detect(file_path, content)
@@ -60,11 +61,11 @@ async def test_detect_private_key():
     """Test detection of private keys."""
     detector = SecretsDetector()
 
-    content = '''
+    content = """
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEA1234567890...
 -----END RSA PRIVATE KEY-----
-'''
+"""
     file_path = Path("key.pem")
 
     vulns = await detector.detect(file_path, content)
@@ -93,11 +94,11 @@ async def test_ignore_placeholders():
     """Test that placeholder values are ignored."""
     detector = SecretsDetector()
 
-    content = '''
+    content = """
 API_KEY = "your_api_key_here"
 SECRET = "placeholder_secret"
 TOKEN = "example_token"
-'''
+"""
     file_path = Path("example.py")
 
     vulns = await detector.detect(file_path, content)
@@ -111,11 +112,11 @@ async def test_line_number_tracking():
     """Test that line numbers are correctly tracked."""
     detector = SecretsDetector()
 
-    content = '''line 1
+    content = """line 1
 line 2
 AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
 line 4
-'''
+"""
     file_path = Path("test.py")
 
     vulns = await detector.detect(file_path, content)
@@ -129,11 +130,11 @@ async def test_multiple_secrets_in_file():
     """Test detection of multiple secrets in one file."""
     detector = SecretsDetector()
 
-    content = '''
+    content = """
 AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
 OPENAI_KEY = "sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ"
 GITHUB_TOKEN = "ghp_1234567890abcdefghijklmnopqrstuvwxyz"
-'''
+"""
     file_path = Path("secrets.py")
 
     vulns = await detector.detect(file_path, content)

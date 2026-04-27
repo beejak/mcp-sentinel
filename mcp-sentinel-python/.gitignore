@@ -42,6 +42,9 @@ poetry.lock
 *~
 .DS_Store
 
+# Optional cloned forks for integration smoke (see tests/fork_targets.manifest)
+tests/external/
+
 # Testing
 .pytest_cache/
 .coverage

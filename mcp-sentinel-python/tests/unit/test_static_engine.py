@@ -2,13 +2,14 @@
 Unit tests for Static Analysis Engine.
 """
 
-import pytest
-from pathlib import Path
-import tempfile
 import shutil
+import tempfile
+from pathlib import Path
 
+import pytest
+
+from mcp_sentinel.engines.base import EngineStatus, EngineType
 from mcp_sentinel.engines.static.static_engine import StaticAnalysisEngine
-from mcp_sentinel.engines.base import EngineType, EngineStatus
 
 
 @pytest.fixture
@@ -18,7 +19,7 @@ def temp_project():
 
     # Create a Python file with vulnerabilities
     py_file = temp_dir / "app.py"
-    py_file.write_text('''
+    py_file.write_text("""
 import os
 
 # Hardcoded credentials
@@ -28,18 +29,18 @@ db_password = "super_secret_password"
 def run_command(user_input):
     # Command injection vulnerability
     os.system(f"cat {user_input}")
-''')
+""")
 
     # Create a JS file
     js_file = temp_dir / "script.js"
-    js_file.write_text('''
+    js_file.write_text("""
 const apiKey = "sk-1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJ";
 
 function displayUser(name) {
     // XSS vulnerability
     document.getElementById("user").innerHTML = name;
 }
-''')
+""")
 
     yield temp_dir
 

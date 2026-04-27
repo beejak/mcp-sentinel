@@ -2,7 +2,7 @@
 
 **Version**: 3.0.0
 **Purpose**: Complete overview of all process and structure documentation
-**Status**: Phase 3 Complete - Enterprise Ready
+**Status**: Phase 4.1 multi-engine CLI + 8 detectors maintained; see root [README.md](../README.md) for current test counts, Windows install notes, and how scan reports are produced.
 
 ---
 
@@ -43,7 +43,8 @@ This directory contains comprehensive documentation for the MCP Sentinel Python 
 | Document | Purpose | Key Sections |
 |----------|---------|--------------|
 | **[DOCKER.md](DOCKER.md)** | Container deployment guide | Multi-stage builds, Docker Compose, optimization strategies, security best practices |
-| **[LESSONS_LEARNED.md](LESSONS_LEARNED.md)** | Development insights | Async architecture trade-offs, performance optimizations, team collaboration |
+| **[LESSONS_LEARNED.md](../../LESSONS_LEARNED.md)** (repo root) | **Rolling “what we learned” log** — update after each feature ship | CLI semantics, detector tuning, benchmarks |
+| **[LESSONS_LEARNED.md](LESSONS_LEARNED.md)** (this folder) | Long-form historical notes | Async architecture trade-offs, performance optimizations, team collaboration |
 
 ### Analysis Documentation
 

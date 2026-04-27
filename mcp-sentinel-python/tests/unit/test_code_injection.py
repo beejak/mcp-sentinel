@@ -4,16 +4,15 @@ Unit tests for CodeInjectionDetector.
 Tests all 9 detection patterns across Python and JavaScript/TypeScript.
 """
 
-import pytest
 from pathlib import Path
-from typing import List
+
+import pytest
 
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.models.vulnerability import (
-    Vulnerability,
-    VulnerabilityType,
-    Severity,
     Confidence,
+    Severity,
+    VulnerabilityType,
 )
 
 

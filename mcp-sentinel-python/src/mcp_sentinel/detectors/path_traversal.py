@@ -8,15 +8,15 @@ Critical for MCP servers that handle file operations or serve files.
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -35,55 +35,74 @@ class PathTraversalDetector(BaseDetector):
     def __init__(self):
         """Initialize the Path Traversal detector."""
         super().__init__(name="PathTraversalDetector", enabled=True)
-        self.patterns: Dict[str, List[Pattern]] = self._compile_patterns()
+        self.patterns: dict[str, list[Pattern]] = self._compile_patterns()
 
-    def _compile_patterns(self) -> Dict[str, List[Pattern]]:
+    def _compile_patterns(self) -> dict[str, list[Pattern]]:
         """Compile regex patterns for path traversal detection."""
         return {
             # Pattern 1: Direct path manipulation
             "path_manipulation": [
-                re.compile(r"open\s*\([^)]*(?:request|params|query|input|user)[^)]*\)", re.IGNORECASE),
+                re.compile(
+                    r"open\s*\([^)]*(?:request|params|query|input|user)[^)]*\)", re.IGNORECASE
+                ),
+                re.compile(r"with\s+open\s*\(\s*filename\s*\)", re.IGNORECASE),
+                re.compile(r"open\s*\(\s*filename\s*\)", re.IGNORECASE),
                 re.compile(r"readFile\s*\([^)]*(?:req|params|query|input)[^)]*\)", re.IGNORECASE),
+                re.compile(r"readFile\s*\(\s*filePath\s*\)", re.IGNORECASE),
                 re.compile(r"writeFile\s*\([^)]*(?:req|params|query|input)[^)]*\)", re.IGNORECASE),
                 re.compile(r"Path\s*\([^)]*(?:request|params|query|user)[^)]*\)", re.IGNORECASE),
             ],
-
             # Pattern 2: Unsafe file operations
             "unsafe_file_ops": [
                 re.compile(r"open\s*\([^)]*\+\s*[^)]*\)", re.IGNORECASE),  # Concatenation in open()
                 re.compile(r"\.read\s*\(\s*[^)]*(?:input|user|request)[^)]*\)", re.IGNORECASE),
-                re.compile(r"file_get_contents\s*\([^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE),  # PHP
+                re.compile(
+                    r"file_get_contents\s*\([^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE
+                ),  # PHP
                 re.compile(r"fopen\s*\([^)]*\$_(?:GET|POST|REQUEST)", re.IGNORECASE),  # PHP
             ],
-
             # Pattern 3: Directory traversal sequences
             "traversal_sequences": [
                 re.compile(r"['\"]\.\.\/", re.IGNORECASE),  # Literal "../" in strings
-                re.compile(r"['\"]\.\.\\\\", re.IGNORECASE),  # Literal "..\" in strings
+                re.compile(r"['\"]\.\.\\", re.IGNORECASE),  # Literal "..\" (Windows) in strings
                 re.compile(r"\.\.\/.*\.\.\/", re.IGNORECASE),  # Multiple "../" sequences
                 re.compile(r"\%2e\%2e\%2f", re.IGNORECASE),  # URL-encoded "../"
                 re.compile(r"\%2e\%2e\/", re.IGNORECASE),  # Partially encoded
             ],
-
             # Pattern 4: Archive extraction (Zip Slip)
             "zip_slip": [
                 re.compile(r"\.extract\s*\([^)]*\)", re.IGNORECASE),  # Python zipfile.extract()
-                re.compile(r"\.extractall\s*\([^)]*\)", re.IGNORECASE),  # Python zipfile.extractall()
+                re.compile(
+                    r"\.extractall\s*\([^)]*\)", re.IGNORECASE
+                ),  # Python zipfile.extractall()
                 re.compile(r"ZipFile.*extract", re.IGNORECASE),
                 re.compile(r"tarfile\.extract", re.IGNORECASE),
                 re.compile(r"unzip\s+.*\$", re.IGNORECASE),  # Shell unzip with variable
             ],
-
             # Pattern 5: Path joining without sanitization
             "unsafe_path_join": [
-                re.compile(r"os\.path\.join\s*\([^)]*(?:request|params|query|input|user)[^)]*\)", re.IGNORECASE),
+                re.compile(
+                    r"os\.path\.join\s*\([^)]*(?:request|params|query|input|user)[^)]*\)",
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r"os\.path\.join\s*\([^)]*,\s*filename\s*\)", re.IGNORECASE
+                ),
                 re.compile(r"path\.join\s*\([^)]*(?:req|params|query)[^)]*\)", re.IGNORECASE),
-                re.compile(r"File\s*\([^)]*,\s*[^)]*(?:request|params|input)", re.IGNORECASE),  # Java
+                re.compile(
+                    r"path\.join\s*\([^)]*filename[^)]*\)", re.IGNORECASE
+                ),
+                re.compile(
+                    r"File\s*\([^)]*,\s*[^)]*(?:request|params|input)", re.IGNORECASE
+                ),  # Java
+                re.compile(
+                    r"new\s+File\s*\(\s*[\"'][^\"']+[\"']\s*,\s*\w+\s*\)", re.IGNORECASE
+                ),
                 re.compile(r"Paths\.get\s*\([^)]*(?:request|params|query)", re.IGNORECASE),  # Java
             ],
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -96,26 +115,41 @@ class PathTraversalDetector(BaseDetector):
         """
         if file_type:
             return file_type in [
-                "python", "javascript", "typescript", "java", "php",
-                "ruby", "go", "rust", "csharp"
+                "python",
+                "javascript",
+                "typescript",
+                "java",
+                "php",
+                "ruby",
+                "go",
+                "rust",
+                "csharp",
             ]
 
         # Check file extensions
         code_extensions = [
-            ".py", ".js", ".ts", ".jsx", ".tsx",  # Python, JavaScript/TypeScript
-            ".java", ".kt",  # Java, Kotlin
-            ".php", ".php5",  # PHP
+            ".py",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",  # Python, JavaScript/TypeScript
+            ".java",
+            ".kt",  # Java, Kotlin
+            ".php",
+            ".php5",  # PHP
             ".rb",  # Ruby
             ".go",  # Go
             ".rs",  # Rust
             ".cs",  # C#
-            ".cpp", ".c", ".h",  # C/C++
+            ".cpp",
+            ".c",
+            ".h",  # C/C++
         ]
         return file_path.suffix.lower() in code_extensions
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect path traversal vulnerabilities in file content.
 
@@ -127,7 +161,7 @@ class PathTraversalDetector(BaseDetector):
         Returns:
             List of detected path traversal vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for line_num, line in enumerate(lines, start=1):
@@ -154,7 +188,7 @@ class PathTraversalDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _is_comment(self, line: str, file_type: Optional[str]) -> bool:
+    def _is_comment(self, line: str, file_type: str | None) -> bool:
         """
         Check if line is a comment.
 
@@ -195,15 +229,15 @@ class PathTraversalDetector(BaseDetector):
         """
         # Check for path sanitization functions
         sanitization_patterns = [
-            r"\.resolve\s*\(",           # path.resolve()
-            r"realpath\s*\(",            # realpath()
-            r"abspath\s*\(",             # os.path.abspath()
-            r"normpath\s*\(",            # os.path.normpath()
-            r"canonical",                # getCanonicalPath()
-            r"sanitize",                 # sanitize_path()
-            r"validate",                 # validate_path()
-            r"is_safe_path",             # is_safe_path()
-            r"\.normalize\s*\(",         # path.normalize()
+            r"\.resolve\s*\(",  # path.resolve()
+            r"realpath\s*\(",  # realpath()
+            r"abspath\s*\(",  # os.path.abspath()
+            r"normpath\s*\(",  # os.path.normpath()
+            r"canonical",  # getCanonicalPath()
+            r"sanitize",  # sanitize_path()
+            r"validate",  # validate_path()
+            r"is_safe_path",  # is_safe_path()
+            r"\.normalize\s*\(",  # path.normalize()
         ]
 
         for pattern in sanitization_patterns:
@@ -221,12 +255,44 @@ class PathTraversalDetector(BaseDetector):
         if category == "traversal_sequences":
             if any(marker in line_lower for marker in ["test", "example", "comment", "doc"]):
                 return True
-
-        # For zip extraction, allow if checking member names
-        if category == "zip_slip":
-            if "member" in line_lower and any(check in line_lower for check in ["startswith", "in", "if"]):
+            # ES/TS/CJS relative *module* paths (../foo), not directory traversal in FS APIs
+            if self._is_relative_module_import_line(line):
                 return True
 
+        # For zip extraction, allow validation-only lines (not the extract call itself)
+        if category == "zip_slip":
+            if re.search(r"\.extract\s*\(\s*member\s*\)", line, re.IGNORECASE):
+                return True
+            if ".extract" in line_lower or ".extractall" in line_lower:
+                return False
+            if "member" in line_lower and any(
+                check in line_lower for check in ["startswith", "in", "if"]
+            ):
+                return True
+
+        return False
+
+    def _is_relative_module_import_line(self, line: str) -> bool:
+        """
+        True when '../' appears only as a JS/TS relative module specifier.
+
+        Avoids flagging lines like `from "../utils.js"` which are not path-traversal sinks.
+        """
+        # import foo from "../x" / export ... from "../x"
+        if re.search(
+            r"""^\s*(?:import|export)\s+[\s\S]*?\bfrom\s+["']\.\./""",
+            line,
+        ):
+            return True
+        # dynamic import("../x") (may be prefixed with await/const)
+        if re.search(r"""\bimport\s*\(\s*["']\.\./""", line):
+            return True
+        # side-effect: import "../styles.css"
+        if re.search(r"""^\s*import\s+["']\.\./""", line):
+            return True
+        # require("../x")
+        if re.search(r"""\brequire\s*\(\s*["']\.\./""", line):
+            return True
         return False
 
     def _create_vulnerability(
@@ -308,12 +374,12 @@ class PathTraversalDetector(BaseDetector):
                 "cvss_score": 8.6,
                 "description": (
                     f"Detected directory traversal sequence: '{matched_text}'. "
-                    "Hardcoded or dynamically constructed paths containing '../' or '..\' sequences "
+                    "Hardcoded or dynamically constructed paths containing '../' or '..' sequences "
                     "can allow attackers to navigate outside intended directories. This includes "
                     "URL-encoded variants like %2e%2e%2f used to bypass simple filters."
                 ),
                 "remediation": (
-                    "1. Block or sanitize '../', '..\', and encoded variants\n"
+                    "1. Block or sanitize '../', '..', and encoded variants\n"
                     "2. Use canonical path resolution\n"
                     "3. Validate resolved paths stay within allowed directory\n"
                     "4. Implement strict input validation\n"

@@ -1,8 +1,5 @@
 # MCP Sentinel - Docker Compose Configuration
-# Version: 2.5.0
-# Purpose: Easy orchestration of MCP Sentinel scans
-
-version: '3.8'
+# Purpose: Easy orchestration of MCP Sentinel scans (Python implementation)
 
 # ============================================================================
 # Services
@@ -13,22 +10,18 @@ services:
   # --------------------------------------------------------------------------
   mcp-sentinel:
     build:
-      context: .
+      context: ./mcp-sentinel-python
       dockerfile: Dockerfile
-      args:
-        - RUST_VERSION=1.70
-    image: mcp-sentinel:2.5.0
+    image: mcp-sentinel:3.0.0
     container_name: mcp-sentinel-scanner
 
     # Mount current directory as workspace
     volumes:
       - ./:/workspace:ro  # Read-only for security
-      - scan-cache:/home/mcp/.mcp-sentinel  # Persistent cache
+      - scan-cache:/home/sentinel/.cache  # Writable cache for the non-root image user
 
     # Environment variables
     environment:
-      # Logging
-      - RUST_LOG=${RUST_LOG:-info}
       - MCP_SENTINEL_LOG_LEVEL=${MCP_SENTINEL_LOG_LEVEL:-info}
 
       # API keys (optional - for AI analysis)
@@ -60,7 +53,16 @@ services:
     network_mode: bridge
 
     # Default command (can be overridden)
-    command: ["scan", "/workspace", "--enable-semgrep"]
+    entrypoint: ["mcp-sentinel"]
+    command:
+      [
+        "scan",
+        "/workspace",
+        "--engines",
+        "static,sast",
+        "--output",
+        "terminal",
+      ]
 
   # --------------------------------------------------------------------------
   # CI/CD scanner service (for automated pipelines)
@@ -71,18 +73,23 @@ services:
 
     # CI-specific settings
     environment:
-      - RUST_LOG=warn  # Less verbose in CI
-      - NO_COLOR=1  # Disable colors for CI logs
-      - MCP_SENTINEL_NO_PROGRESS=1  # No progress bars in CI
+      - NO_COLOR=1
+      - TERM=dumb
 
     # Override command for CI
-    command: [
-      "scan", "/workspace",
-      "--enable-semgrep",
-      "--fail-on", "high",
-      "--output", "json",
-      "--output-file", "/workspace/scan-results.json"
-    ]
+    entrypoint: ["mcp-sentinel"]
+    command:
+      [
+        "scan",
+        "/workspace",
+        "--engines",
+        "static,sast",
+        "--output",
+        "json",
+        "--json-file",
+        "/workspace/scan-results.json",
+        "--no-progress",
+      ]
 
     # CI doesn't need read-only (needs to write results)
     read_only: false
@@ -134,14 +141,18 @@ services:
     environment:
       - OLLAMA_HOST=http://ollama:11434
 
-    command: [
-      "scan", "/workspace",
-      "--mode", "deep",
-      "--enable-semgrep",
-      "--llm-provider", "ollama",
-      "--output", "html",
-      "--output-file", "/workspace/comprehensive-audit.html"
-    ]
+    entrypoint: ["mcp-sentinel"]
+    command:
+      [
+        "scan",
+        "/workspace",
+        "--engines",
+        "static,sast",
+        "--output",
+        "html",
+        "--json-file",
+        "/workspace/comprehensive-audit.html",
+      ]
 
     read_only: false  # Needs to write HTML report
 
@@ -202,7 +213,6 @@ networks:
 # Create .env file in same directory as docker-compose.yml:
 #
 # # Logging
-# RUST_LOG=debug
 # MCP_SENTINEL_LOG_LEVEL=debug
 #
 # # API Keys (for cloud LLM providers)

@@ -1,5 +1,9 @@
 # Lessons Learned - Python Edition Development
 
+> **Rolling changelog (preferred for 2026+):** after each significant feature or release, append to the repo-root **[`LESSONS_LEARNED.md`](../../LESSONS_LEARNED.md)** next to `mcp-sentinel-python/`. This file keeps **long-form historical notes** below.
+
+---
+
 **Version**: 2.0.0
 **Date**: 2026-01-06
 **Repository**: mcp-sentinel-python

@@ -1,5 +1,11 @@
-# Rust build artifacts
+# Build artifacts (local / archived trees)
 /target/
+/rust-legacy/target/
+/rust-legacy/
+
+# Local Python venv experiments
+.venv312/
+mcp-sentinel-python/.venv312/
 
 # IDE files
 .vscode/
@@ -43,3 +49,7 @@ mcp-sentinel-report.*
 # Coverage reports
 /coverage/
 lcov.info
+
+# Windows reserved device name (accidental `> nul` in repo root) / local IDE
+nul
+.cursorignore

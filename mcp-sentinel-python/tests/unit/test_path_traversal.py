@@ -4,15 +4,15 @@ Unit tests for PathTraversalDetector.
 Tests all 5 path traversal pattern categories.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.models.vulnerability import (
-    Vulnerability,
-    VulnerabilityType,
-    Severity,
     Confidence,
+    Severity,
+    VulnerabilityType,
 )
 
 
@@ -163,6 +163,22 @@ path = "%2e%2e%2f%2e%2e%2fetc%2fpasswd"
     vulns = await detector.detect(Path("bypass.py"), content, "python")
 
     assert len(vulns) >= 1
+
+
+@pytest.mark.asyncio
+async def test_ignore_typescript_relative_module_imports(detector):
+    """Regression: '../' in ES module import paths is not filesystem traversal."""
+    content = """
+import { createLogger } from "../utils/logger.js";
+import type { Foo } from "../types.js";
+export { bar } from "../bar.js";
+const x = await import("../dynamic.js");
+import "../side-effect.css";
+const y = require("../legacy.cjs");
+"""
+    vulns = await detector.detect(Path("tools.ts"), content, "typescript")
+    trav = [v for v in vulns if "Traversal Sequence" in v.title]
+    assert len(trav) == 0
 
 
 # ============================================================================

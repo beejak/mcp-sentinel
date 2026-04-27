@@ -7,15 +7,15 @@ Detects:
 """
 
 import re
-from typing import List, Dict, Pattern, Optional
 from pathlib import Path
+from re import Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
+    Confidence,
+    Severity,
     Vulnerability,
     VulnerabilityType,
-    Severity,
-    Confidence,
 )
 
 
@@ -30,56 +30,55 @@ class CodeInjectionDetector(BaseDetector):
     - JavaScript code execution (eval, Function constructor)
     """
 
+    _MULTILINE_SUBPROCESS_PYTHON = frozenset(
+        {"subprocess_call_shell", "subprocess_run_shell", "subprocess_popen_shell"}
+    )
+
     def __init__(self):
         """Initialize the code injection detector."""
         super().__init__(name="CodeInjectionDetector", enabled=True)
-        self.python_patterns: Dict[str, Pattern] = self._compile_python_patterns()
-        self.javascript_patterns: Dict[str, Pattern] = self._compile_javascript_patterns()
+        self.python_patterns: dict[str, Pattern] = self._compile_python_patterns()
+        self.javascript_patterns: dict[str, Pattern] = self._compile_javascript_patterns()
 
-    def _compile_python_patterns(self) -> Dict[str, Pattern]:
+    def _compile_python_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for Python code injection detection."""
         return {
             # os.system() - Direct command execution
             "os_system": re.compile(r"os\.system\s*\("),
-
-            # subprocess.call() with shell=True
+            # subprocess.*(..., shell=True) — allow newlines inside the call
             "subprocess_call_shell": re.compile(
-                r"subprocess\.call\s*\([^)]*shell\s*=\s*True"
+                r"subprocess\.call\s*\([\s\S]*?shell\s*=\s*True", re.MULTILINE
             ),
-
-            # subprocess.run() with shell=True
             "subprocess_run_shell": re.compile(
-                r"subprocess\.run\s*\([^)]*shell\s*=\s*True"
+                r"subprocess\.run\s*\([\s\S]*?shell\s*=\s*True", re.MULTILINE
             ),
-
-            # subprocess.Popen() with shell=True
             "subprocess_popen_shell": re.compile(
-                r"subprocess\.Popen\s*\([^)]*shell\s*=\s*True"
+                r"subprocess\.Popen\s*\([\s\S]*?shell\s*=\s*True", re.MULTILINE
             ),
-
             # eval() - Code execution
             "eval_usage": re.compile(r"\beval\s*\("),
-
             # exec() - Code execution
             "exec_usage": re.compile(r"\bexec\s*\("),
         }
 
-    def _compile_javascript_patterns(self) -> Dict[str, Pattern]:
+    def _compile_javascript_patterns(self) -> dict[str, Pattern]:
         """Compile regex patterns for JavaScript/TypeScript code injection detection."""
         return {
             # child_process.exec() - Command execution
             "child_process_exec": re.compile(
-                r"(child_process|require\s*\(\s*['\"]child_process['\"]\s*\))\.exec\s*\("
+                r"(?:"
+                r"(?:child_process|require\s*\(\s*['\"]child_process['\"]\s*\))\.exec\s*\("
+                r"|"
+                r"\bexec\s*\("
+                r")"
             ),
-
             # eval() - Code execution
             "eval_usage": re.compile(r"\beval\s*\("),
-
             # Function() constructor - Dynamic code execution
             "function_constructor": re.compile(r"\bnew\s+Function\s*\("),
         }
 
-    def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
+    def is_applicable(self, file_path: Path, file_type: str | None = None) -> bool:
         """
         Check if this detector should run on the given file.
 
@@ -97,8 +96,8 @@ class CodeInjectionDetector(BaseDetector):
         return file_path.suffix.lower() in [".py", ".js", ".jsx", ".ts", ".tsx"]
 
     async def detect(
-        self, file_path: Path, content: str, file_type: Optional[str] = None
-    ) -> List[Vulnerability]:
+        self, file_path: Path, content: str, file_type: str | None = None
+    ) -> list[Vulnerability]:
         """
         Detect code injection vulnerabilities in file content.
 
@@ -110,26 +109,20 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of detected vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
 
         # Determine which patterns to use based on file type
         if not file_type:
             file_type = self._guess_file_type(file_path)
 
         if file_type == "python":
-            vulnerabilities.extend(
-                self._detect_python_injection(file_path, content)
-            )
+            vulnerabilities.extend(self._detect_python_injection(file_path, content))
         elif file_type in ["javascript", "typescript"]:
-            vulnerabilities.extend(
-                self._detect_javascript_injection(file_path, content)
-            )
+            vulnerabilities.extend(self._detect_javascript_injection(file_path, content))
 
         return vulnerabilities
 
-    def _detect_python_injection(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    def _detect_python_injection(self, file_path: Path, content: str) -> list[Vulnerability]:
         """
         Detect Python code injection vulnerabilities.
 
@@ -140,10 +133,23 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for pattern_name, pattern in self.python_patterns.items():
+            if pattern_name in self._MULTILINE_SUBPROCESS_PYTHON:
+                for match in pattern.finditer(content):
+                    line_num = content.count("\n", 0, match.start()) + 1
+                    line = lines[line_num - 1] if line_num - 1 < len(lines) else ""
+                    vuln = self._create_python_vulnerability(
+                        pattern_name=pattern_name,
+                        file_path=file_path,
+                        line_number=line_num,
+                        code_snippet=line.strip(),
+                    )
+                    vulnerabilities.append(vuln)
+                continue
+
             for line_num, line in enumerate(lines, start=1):
                 # Skip comments
                 if line.strip().startswith("#"):
@@ -151,7 +157,7 @@ class CodeInjectionDetector(BaseDetector):
 
                 matches = pattern.finditer(line)
 
-                for match in matches:
+                for _match in matches:
                     vuln = self._create_python_vulnerability(
                         pattern_name=pattern_name,
                         file_path=file_path,
@@ -162,9 +168,7 @@ class CodeInjectionDetector(BaseDetector):
 
         return vulnerabilities
 
-    def _detect_javascript_injection(
-        self, file_path: Path, content: str
-    ) -> List[Vulnerability]:
+    def _detect_javascript_injection(self, file_path: Path, content: str) -> list[Vulnerability]:
         """
         Detect JavaScript/TypeScript code injection vulnerabilities.
 
@@ -175,19 +179,29 @@ class CodeInjectionDetector(BaseDetector):
         Returns:
             List of vulnerabilities
         """
-        vulnerabilities: List[Vulnerability] = []
+        vulnerabilities: list[Vulnerability] = []
         lines = content.split("\n")
 
         for pattern_name, pattern in self.javascript_patterns.items():
+            in_block_comment = False
             for line_num, line in enumerate(lines, start=1):
-                # Skip comments
                 stripped = line.strip()
-                if stripped.startswith("//") or stripped.startswith("/*"):
+
+                # Track multiline block comments to avoid false positives.
+                if in_block_comment:
+                    if "*/" in stripped:
+                        in_block_comment = False
+                    continue
+                if stripped.startswith("/*"):
+                    if "*/" not in stripped:
+                        in_block_comment = True
+                    continue
+                if stripped.startswith("//"):
                     continue
 
                 matches = pattern.finditer(line)
 
-                for match in matches:
+                for _match in matches:
                     vuln = self._create_javascript_vulnerability(
                         pattern_name=pattern_name,
                         file_path=file_path,
@@ -384,7 +398,7 @@ class CodeInjectionDetector(BaseDetector):
             mitre_attack_ids=["T1059.007"],  # Command and Scripting Interpreter: JavaScript
         )
 
-    def _guess_file_type(self, file_path: Path) -> Optional[str]:
+    def _guess_file_type(self, file_path: Path) -> str | None:
         """Guess file type from extension."""
         extension_map = {
             ".py": "python",

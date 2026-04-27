@@ -1,0 +1,8 @@
+# One `owner/repo` per line for scripts/clone_fork_test_targets.{ps1,sh}.
+# Repos clone into tests/external/<repo>/ (gitignored).
+# Prefer smaller MCP-oriented beejak forks; comment with # to skip.
+
+beejak/fastmcp
+beejak/exa-mcp-server
+beejak/mcp-agent
+beejak/notion-mcp-server
