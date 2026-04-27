@@ -13,7 +13,7 @@
 - **`PathTraversalDetector`:** Skip ES/TS relative **module** paths (`from "../x"`, `import("../x")`, `require("../x")`) to cut noise on TypeScript MCP servers.
 - **`PromptInjectionDetector`:** Skip **`role_assignment`** when **`user`** / **`assistant`** sits in the same **`{ ... }`** object as a **`"content":`** / **`'content':`** key — **brace pairing** skips strings and **`/* */` / `//`** comments, tracks **`[` / `]`** with **`{` / `}`**, so array-wrapped payloads and commented-out snippets do not corrupt spans. Matches whose **offset** sits inside **`/* */` / `//`** are ignored.
 - **`PrototypePollutionDetector`:** **CWE-1321** (`VulnerabilityType.PROTOTYPE_POLLUTION`) — **`__proto__`** literals, **`.__proto__`**, **`setPrototypeOf`**; **`/* */`** stripped on the scan line before matching; **deep-merge + taint**: full-file scan with **balanced parentheses** so **`req.body` / `JSON.parse` / …** inside **multi-line** `_.merge(...)` argument lists are detected. Wired into **Scanner** + **StaticAnalysisEngine** (9 default detectors).
-- **Tests:** Full **`pytest`** suite (**399** tests); **`tests/unit/test_prompt_injection.py`**, **`tests/unit/test_prototype_pollution.py`** regressions for brackets, comments, merges.
+- **Tests:** Full **`pytest`** suite (**409** tests); **10** new **integration** cases in **`tests/integration/test_static_detectors_integration.py`**; unit suites for prompt-injection, prototype-pollution, etc.
 - **Tooling:** Fork smoke clone scripts, `generate_scan_summary_pdf.py` (local PDF under gitignored `reports/`).
 - **Docs:** Repo-root rolling log is canonical; `mcp-sentinel-python/docs/LESSONS_LEARNED.md` points here and keeps long-form history.
 

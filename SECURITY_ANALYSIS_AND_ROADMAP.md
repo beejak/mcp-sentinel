@@ -953,7 +953,7 @@ Based on 2025 research analysis:
 1. ✅ Complete Docker publishing (reminder created)
 2. ✅ Prototype pollution detection — shipped in **Python** (`PrototypePollutionDetector`, CWE-1321 patterns + merge/taint heuristics). *True inter-procedural taint is **parked** (see below).*
 3. ⚠️ Add config fingerprinting to baseline.rs
-4. ⚠️ Create 10 additional integration tests
+4. ✅ **10 additional integration tests** — `mcp-sentinel-python/tests/integration/test_static_detectors_integration.py` (Scanner + PP, prompt-injection, mixed tree)
 
 **Quick Wins:**
 - Add VulnerableMCP API as threat intel source
@@ -1025,6 +1025,19 @@ Based on 2025 research analysis:
 | **After rule churn slows** | Pollution/merge **sink lists** and suppressions have **stabilized** so the taint layer isn’t chasing a moving pattern floor. |
 
 **Suggested era:** **Phase 4.2–4.3** (semantic / AST story) **or** parallel **Phase 3.0 medium-term** “Data flow tracking” milestone — whichever lands first with a **maintainable** IR for JS/TS.
+
+**Re-evaluate before each major release** (or when kicking off semantic / dataflow work): search this file for `Parked — inter-procedural taint`.
+
+**Reminder checklist — start IFDS / real taint only when all are true:**
+
+| # | Gate | How you’ll know |
+|---|------|-----------------|
+| 1 | **AST / IR or bundled taint engine** exists for JS/TS in-repo or is an explicit dependency | ADR, merged PR, or Phase 4.2 milestone closed |
+| 2 | **Heuristic ceiling** documented | At least one **missed** real sink or **systematic FP** recorded in `LESSONS_LEARNED.md` or an issue, tied to “regex / merge-span” limits |
+| 3 | **Owner + milestone** | Named owner and a **time-boxed** milestone (not a background thread) |
+| 4 | **Detector churn quiet** | No material rewrite of PP/merge rules in the **last release cycle** (stable sinks/sources lists) |
+
+*I can’t alert you on a calendar—paste “check taint gates” in a future chat and we’ll score this table against the repo.*
 
 ---
 
