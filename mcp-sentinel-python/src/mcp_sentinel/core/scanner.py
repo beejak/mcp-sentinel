@@ -7,6 +7,7 @@ from pathlib import Path
 
 from mcp_sentinel.core.config import build_scan_config_metadata
 from mcp_sentinel.core.exceptions import ScanError
+from mcp_sentinel.core.tool_versioning import build_tool_definition_metadata
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
@@ -87,6 +88,7 @@ class Scanner:
             detector_names=[detector.name for detector in self.detectors],
             engine_names=["static"],
         )
+        scan_result.config.update(build_tool_definition_metadata(target_path))
 
         start_time = datetime.now(UTC)
 

@@ -957,7 +957,7 @@ Based on 2025 research analysis:
 
 **Quick Wins:**
 - ✅ **VulnerableMCP threat intel** — Python scanner enriches findings via the upstream [`vulnerabilities.json`](https://github.com/vineethsai/vulnerablemcp/blob/main/data/vulnerabilities.json) feed (see `mcp_sentinel.threat_intel`, README callouts).
-- Create security researcher monitoring dashboard
+- 🅿️ **Parked**: security researcher monitoring dashboard (defer until post-Phase-2.6 core detection milestones)
 - ✅ **Document zero-day detection roadmap publicly** — [`mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md`](mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md) (this file remains the full strategic depth)
 
 ---
