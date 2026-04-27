@@ -956,9 +956,9 @@ Based on 2025 research analysis:
 4. ✅ **10 additional integration tests** — `mcp-sentinel-python/tests/integration/test_static_detectors_integration.py` (Scanner + PP, prompt-injection, mixed tree)
 
 **Quick Wins:**
-- Add VulnerableMCP API as threat intel source
+- ✅ **VulnerableMCP threat intel** — Python scanner enriches findings via the upstream [`vulnerabilities.json`](https://github.com/vineethsai/vulnerablemcp/blob/main/data/vulnerabilities.json) feed (see `mcp_sentinel.threat_intel`, README callouts).
 - Create security researcher monitoring dashboard
-- Document zero-day detection roadmap publicly
+- ✅ **Document zero-day detection roadmap publicly** — [`mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md`](mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md) (this file remains the full strategic depth)
 
 ---
 

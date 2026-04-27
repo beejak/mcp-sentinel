@@ -953,6 +953,7 @@ Phase 3 maintains enterprise-grade code quality:
 
 ### Available Now
 - **[📖 Architecture](docs/ARCHITECTURE.md)** - System design and detector architecture
+- **[🎯 Zero-day roadmap](docs/ZERO_DAY_ROADMAP.md)** - Public plan for behavioral/anomaly detection (vs signatures only)
 - **[🤝 Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute to the project
 - **[🛠️ Development Setup](docs/DEVELOPMENT_SETUP.md)** - Complete setup instructions
 - **[📝 Lessons Learned](docs/LESSONS_LEARNED.md)** - Development insights and best practices

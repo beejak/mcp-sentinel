@@ -29,6 +29,7 @@ mcp-sentinel scan /path/to/mcp-server-repo --engines static --output html --json
 | Doc | Purpose |
 |-----|---------|
 | [`mcp-sentinel-python/README.md`](mcp-sentinel-python/README.md) | Install, CLI, detectors, **VulnerableMCP threat intel**, roadmap, complementary tools |
+| [`mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md`](mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md) | **Public zero-day / behavioral detection roadmap** (Phase 2.6 alignment, scope boundaries) |
 | [`mcp-sentinel-python/docs/README.md`](mcp-sentinel-python/docs/README.md) | Doc index |
 | [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | Running log of engineering decisions and releases |
 

@@ -50,6 +50,7 @@ This directory contains comprehensive documentation for the MCP Sentinel Python 
 
 | Document | Purpose | Key Sections |
 |----------|---------|--------------|
+| **[ZERO_DAY_ROADMAP.md](ZERO_DAY_ROADMAP.md)** | Public roadmap for behavioral / anomaly (“zero-day style”) detection | Today vs planned, Phase 2.6 alignment, out-of-scope (IFDS / runtime), responsible shipping |
 | **[MISSING_COMPONENTS.md](MISSING_COMPONENTS.md)** | Gap analysis | Feature comparison, implementation status, priority assessment |
 | **[VULNERABILITY_COMPARISON.md](VULNERABILITY_COMPARISON.md)** | Security coverage analysis | Detection capabilities, false positive rates, performance metrics |
 

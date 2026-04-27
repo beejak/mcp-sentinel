@@ -8,6 +8,7 @@
 
 ### 2026-04-27 — Documentation sync, CLI exit semantics, TS import false-positive reduction
 
+- **`mcp-sentinel-python/docs/ZERO_DAY_ROADMAP.md`:** Public companion to **[`SECURITY_ANALYSIS_AND_ROADMAP.md`](SECURITY_ANALYSIS_AND_ROADMAP.md)** explaining what “zero-day style” detection means for MCP Sentinel (baseline/anomaly scoring vs signatures), Phase 2.6 alignment, IFDS/runtime explicitly out of scope pointers, and responsible shipping — linked from repo README and Python README docs list.
 - Repository **README** at repo root rewritten for **Python-first** layout (`mcp-sentinel-python/`) and **github.com/beejak/mcp-sentinel**.
 - **`mcp-sentinel scan`:** Reports are written before exit. **Critical** findings use **exit code 1** (Click) for CI; added **`--no-fail-on-critical`** and clearer console text (not "silent abort before write").
 - **`PathTraversalDetector`:** Skip ES/TS relative **module** paths (`from "../x"`, `import("../x")`, `require("../x")`) to cut noise on TypeScript MCP servers.
