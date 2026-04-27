@@ -23,6 +23,19 @@ Modern Python implementation with async-first architecture, multi-engine scannin
 
 </div>
 
+> [!IMPORTANT]
+> ### What you get: VulnerableMCP threat intelligence (included)
+>
+> After each **completed** directory scan, MCP Sentinel can **enrich your findings** using the same open dataset that powers **[The Vulnerable MCP Project](https://vulnerablemcp.info)** — a curated catalog of MCP-related security issues (prompt injection, SSRF, RCE chains, trust-model flaws, and more), with **CVE/advisory links** and references when they exist in the feed.
+>
+> | | |
+> |---|---|
+> | **Source** | Public JSON published with the upstream project ([`vineethsai/vulnerablemcp`](https://github.com/vineethsai/vulnerablemcp) → `data/vulnerabilities.json`). |
+> | **Where it shows up** | Each enriched finding gets `threat_intel.vulnerable_mcp` (feed URL plus **matched_records**: id, title, severity, CVEs, links). Visible in **JSON** reports and any consumer of the scan API/model. |
+> | **Requirements** | Network access to fetch the feed (cached in-process after the first successful download). **CI / air-gapped:** set `VULNERABLE_MCP_DISABLED=true`. **Off:** `ENABLE_THREAT_INTEL=false`. |
+>
+> Full options and behavior: **[VulnerableMCP threat intelligence](#vulnerablemcp-threat-intelligence)**.
+
 ## 🎉 What's New - Phase 4.1: Multi-Engine SAST Integration!
 
 We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **Semgrep** and **Bandit** for industry-standard static analysis alongside our custom pattern-based detectors:
@@ -31,6 +44,7 @@ We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **S
 |-----------|--------|---------|
 | **Multi-Engine Scanner** | ✅ Complete | Concurrent execution of multiple analysis engines |
 | **SAST Engine** | ✅ Complete | Semgrep + Bandit integration with 50+ mappings |
+| **VulnerableMCP threat intel** | ✅ Complete | Post-scan enrichment vs. [vulnerablemcp.info](https://vulnerablemcp.info) JSON feed (CVE/title/slug matching); optional disable for CI |
 | **9 static detectors** | ✅ Complete | Includes **PrototypePollutionDetector** (CWE-1321) plus Phase 1–3 suite |
 | **26 SAST Tests** | ✅ Passing | 100% pass rate, 70-80% coverage |
 | **100+ patterns** | ✅ Implemented | Compiled regex patterns across static detectors |
@@ -40,6 +54,7 @@ We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **S
 **Recent Additions (Phase 4.1):**
 - ✅ **SAST Engine** - Integrates Semgrep (multi-language) + Bandit (Python security)
 - ✅ **Multi-Engine Architecture** - Concurrent scanning with multiple engines
+- ✅ **VulnerableMCP enrichment** - Matches findings to the community MCP vulnerability database (see callout above)
 - ✅ **Vulnerability Type Mapping** - 50+ tool-specific to MCP Sentinel type mappings
 - ✅ **Graceful Degradation** - Works even when external tools are missing
 - ✅ **26 Comprehensive Tests** - All passing with mock-based and real tool testing
@@ -79,6 +94,28 @@ mcp-sentinel scan /path/to/mcp/server --engines static,sast --output html
 # Start API server
 mcp-sentinel server --port 8000
 ```
+
+## VulnerableMCP threat intelligence
+
+This scanner **does not replace** your own code analysis — it **adds context** by correlating local findings with **[The Vulnerable MCP Project](https://vulnerablemcp.info)** dataset (research-backed write-ups, CVEs, and taxonomy). When a finding’s text overlaps known advisories (CVE/GHSA/TRA where present), record identifiers, or distinctive titles, enrichment attaches **reference-grade links** so reviewers see *why an MCP-specific issue matters*, not just a generic rule hit.
+
+| Question | Answer |
+|----------|--------|
+| **What is being matched?** | Your finding’s title, description, file path, code snippet, and detector metadata are compared to the feed (advisory IDs, long record slugs, strong keywords from titles/aliases). Up to **5** related records per finding. |
+| **Where is the data loaded from?** | Default: GitHub raw JSON [`vineethsai/vulnerablemcp` → `data/vulnerabilities.json`](https://github.com/vineethsai/vulnerablemcp/blob/main/data/vulnerabilities.json). Same content family as the public site. |
+| **What appears on each finding?** | `threat_intel.vulnerable_mcp.feed_url` and `matched_records[]` with `id`, `title`, `severity`, `category`, `cveIds`, primary `url`, and `vulnerablemcp_page` when applicable. |
+| **Performance & reliability** | The feed is fetched **once per process** (TTL aligned with `CACHE_TTL`, default 1 hour). If the download fails, enrichment is skipped for that window so scans still complete. |
+
+**Environment variables** (see also `.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `ENABLE_THREAT_INTEL` | Master switch (`true` / `false`). When `false`, no feed fetch and no enrichment. |
+| `VULNERABLE_MCP_JSON_URL` | Override the JSON URL (mirror or pinned raw file). |
+| `VULNERABLE_MCP_TIMEOUT` | HTTP timeout in seconds (default `10`). |
+| `VULNERABLE_MCP_DISABLED` | Set to `1` / `true` / `yes` to skip enrichment **without** disabling other future threat-intel sources — **recommended for pytest/CI** so jobs stay offline. |
+
+**Implementation:** `mcp_sentinel.threat_intel` (fetch + match + enrich after `Scanner` and `MultiEngineScanner` complete successfully).
 
 ## Live MCP scanning, reports, and exit codes
 

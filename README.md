@@ -4,6 +4,9 @@
 
 Security scanner for [Model Context Protocol (MCP)](https://modelcontextprotocol.io) **server source code**: static pattern analysis, optional SAST (Semgrep, Bandit), and reports (terminal, JSON, SARIF, HTML).
 
+> [!TIP]
+> **Built-in context:** The Python scanner can **enrich findings** against **[The Vulnerable MCP Project](https://vulnerablemcp.info)** (community MCP vulnerability database + CVE links). Turn off with `ENABLE_THREAT_INTEL=false` or `VULNERABLE_MCP_DISABLED=true` for CI. Details: [`mcp-sentinel-python/README.md` → VulnerableMCP threat intelligence](mcp-sentinel-python/README.md#vulnerablemcp-threat-intelligence).
+
 | | |
 |---|---|
 | **Implementation** | Python package in [`mcp-sentinel-python/`](mcp-sentinel-python/README.md) (primary) — **9** default static detectors, including prototype pollution (**CWE-1321**) |
@@ -25,7 +28,7 @@ mcp-sentinel scan /path/to/mcp-server-repo --engines static --output html --json
 
 | Doc | Purpose |
 |-----|---------|
-| [`mcp-sentinel-python/README.md`](mcp-sentinel-python/README.md) | Install, CLI, detectors, roadmap, complementary tools |
+| [`mcp-sentinel-python/README.md`](mcp-sentinel-python/README.md) | Install, CLI, detectors, **VulnerableMCP threat intel**, roadmap, complementary tools |
 | [`mcp-sentinel-python/docs/README.md`](mcp-sentinel-python/docs/README.md) | Doc index |
 | [`LESSONS_LEARNED.md`](LESSONS_LEARNED.md) | Running log of engineering decisions and releases |
 
