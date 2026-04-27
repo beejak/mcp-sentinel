@@ -951,7 +951,7 @@ Based on 2025 research analysis:
 
 **P0 - Critical Fixes:**
 1. ✅ Complete Docker publishing (reminder created)
-2. ⚠️ Implement prototype pollution detection
+2. ✅ Prototype pollution detection — shipped in **Python** (`PrototypePollutionDetector`, CWE-1321 patterns + merge/taint heuristics). *True inter-procedural taint is **parked** (see below).*
 3. ⚠️ Add config fingerprinting to baseline.rs
 4. ⚠️ Create 10 additional integration tests
 
@@ -1006,6 +1006,25 @@ Based on 2025 research analysis:
 3. Quantum-resistant cryptography scanning
 4. Blockchain audit trails
 5. Homomorphic encryption support
+
+---
+
+### Parked — inter-procedural taint (prototype pollution / merge sinks)
+
+**What this is:** Source-to-sink **dataflow** (e.g. untrusted HTTP input → deep merge / pollution sinks) beyond today’s **regex + balanced-paren argument scan** in the Python static engine.
+
+**Why parked:** Full **IFDS-style** or production-grade taint needs an **AST + control flow** substrate (or deep Semgrep/taint integration), sustained **false-positive tuning**, and **perf** work on large trees. That belongs with **semantic / dataflow** roadmap items, not duplicate ad-hoc engines.
+
+**When to schedule (pull criteria):**
+
+| Gate | Rationale |
+|------|-----------|
+| **Semantic / dataflow direction exists** | Attach taint to **Phase 4.2+** semantic engine or **“Data flow tracking”** (medium-term §P1) so we build **once**, not a one-off JS analyzer. |
+| **Heuristic ceiling proven** | Recurring **missed** real issues or **high-value** FPs where “same-line / merge-span regex” is demonstrably insufficient. |
+| **Capacity** | Dedicated time for **graph building**, aliasing, framework stubs (`express`, `fetch`), and **benchmark** budgets. |
+| **After rule churn slows** | Pollution/merge **sink lists** and suppressions have **stabilized** so the taint layer isn’t chasing a moving pattern floor. |
+
+**Suggested era:** **Phase 4.2–4.3** (semantic / AST story) **or** parallel **Phase 3.0 medium-term** “Data flow tracking” milestone — whichever lands first with a **maintainable** IR for JS/TS.
 
 ---
 
