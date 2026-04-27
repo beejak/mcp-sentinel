@@ -43,16 +43,51 @@ def _skip_quoted_string(text: str, start: int) -> int:
     return len(text)
 
 
+def _skip_block_comment(text: str, start: int) -> int:
+    """Advance past a C-style ``/* ... */`` block starting at ``start``."""
+    if start + 1 >= len(text) or text[start : start + 2] != "/*":
+        return start
+    i = start + 2
+    while i + 1 < len(text):
+        if text[i : i + 2] == "*/":
+            return i + 2
+        i += 1
+    return len(text)
+
+
+def _skip_line_comment_slash(text: str, start: int) -> int:
+    """Advance past ``// ...`` to newline (guards ``://`` in URLs)."""
+    if start + 1 >= len(text) or text[start : start + 2] != "//":
+        return start
+    if start > 0 and text[start - 1] == ":":
+        return start
+    i = start + 2
+    while i < len(text) and text[i] != "\n":
+        i += 1
+    return i
+
+
+def _skip_line_comment_hash(text: str, start: int) -> int:
+    """Advance past ``# ...`` to newline (Python-style)."""
+    if start >= len(text) or text[start] != "#":
+        return start
+    i = start + 1
+    while i < len(text) and text[i] != "\n":
+        i += 1
+    return i
+
+
 def _innermost_brace_open_before(text: str, anchor: int) -> int | None:
     """
     Return the index of the innermost ``{{`` whose matching ``}}`` encloses ``anchor``.
 
-    Strings are skipped so braces inside literals do not affect the stack. If ``anchor`` lies
-    inside a string literal, returns ``None``.
+    Skips strings, ``/* */``, ``//``, and ``#`` line comments. Tracks ``[`` / ``]`` so nested
+    arrays and objects align with JSON/JS structure. If ``anchor`` lies inside a string or
+    comment, returns ``None``.
     """
     if anchor <= 0 or anchor > len(text):
         return None
-    stack: list[int] = []
+    stack: list[tuple[str, int]] = []
     i = 0
     while i < anchor:
         ch = text[i]
@@ -62,16 +97,51 @@ def _innermost_brace_open_before(text: str, anchor: int) -> int | None:
                 return None
             i = end
             continue
-        if ch == "{":
-            stack.append(i)
+        if i + 1 < len(text) and text[i : i + 2] == "/*":
+            end = _skip_block_comment(text, i)
+            if i < anchor < end:
+                return None
+            i = end
+            continue
+        if i + 1 < len(text) and text[i : i + 2] == "//":
+            end = _skip_line_comment_slash(text, i)
+            if end == i:
+                i += 1
+                continue
+            if i < anchor < end:
+                return None
+            i = end
+            continue
+        if ch == "#":
+            end = _skip_line_comment_hash(text, i)
+            if i < anchor < end:
+                return None
+            i = end
+            continue
+        if ch == "[":
+            stack.append(("[", i))
+            i += 1
+        elif ch == "{":
+            stack.append(("{", i))
             i += 1
         elif ch == "}":
-            if stack:
+            while stack and stack[-1][0] != "{":
+                stack.pop()
+            if stack and stack[-1][0] == "{":
+                stack.pop()
+            i += 1
+        elif ch == "]":
+            while stack and stack[-1][0] == "{":
+                stack.pop()
+            if stack and stack[-1][0] == "[":
                 stack.pop()
             i += 1
         else:
             i += 1
-    return stack[-1] if stack else None
+    for kind, pos in reversed(stack):
+        if kind == "{":
+            return pos
+    return None
 
 
 def _matching_close_brace(text: str, open_idx: int) -> int | None:
@@ -85,6 +155,19 @@ def _matching_close_brace(text: str, open_idx: int) -> int | None:
         if ch in "\"'":
             i = _skip_quoted_string(text, i)
             continue
+        if i + 1 < len(text) and text[i : i + 2] == "/*":
+            i = _skip_block_comment(text, i)
+            continue
+        if i + 1 < len(text) and text[i : i + 2] == "//":
+            ni = _skip_line_comment_slash(text, i)
+            if ni == i:
+                i += 1
+            else:
+                i = ni
+            continue
+        if ch == "#":
+            i = _skip_line_comment_hash(text, i)
+            continue
         if ch == "{":
             depth += 1
         elif ch == "}":
@@ -93,6 +176,44 @@ def _matching_close_brace(text: str, open_idx: int) -> int | None:
                 return i
         i += 1
     return None
+
+
+def _block_comment_spans_line(line: str) -> list[tuple[int, int]]:
+    """Return ``(start, end)`` spans for ``/* ... */`` on a single line."""
+    spans: list[tuple[int, int]] = []
+    i = 0
+    while i < len(line):
+        if i + 1 < len(line) and line[i : i + 2] == "/*":
+            close = line.find("*/", i + 2)
+            if close == -1:
+                spans.append((i, len(line)))
+                break
+            spans.append((i, close + 2))
+            i = close + 2
+            continue
+        i += 1
+    return spans
+
+
+def _slash_line_comment_span(line: str) -> tuple[int, int] | None:
+    """Span of ``// ...`` through end-of-line if present (guards ``://``)."""
+    i = 0
+    while i + 1 < len(line):
+        if line[i : i + 2] == "//" and (i == 0 or line[i - 1] != ":"):
+            return (i, len(line))
+        i += 1
+    return None
+
+
+def _match_offset_in_skipped_comment(line: str, offset: int) -> bool:
+    """True if ``offset`` falls inside a ``/* */`` block or ``//`` line comment on ``line``."""
+    for a, b in _block_comment_spans_line(line):
+        if a <= offset < b:
+            return True
+    sl = _slash_line_comment_span(line)
+    if sl and sl[0] <= offset < sl[1]:
+        return True
+    return False
 
 
 def _chat_api_content_key_in_same_brace_dict(full_text: str, anchor: int) -> bool:
@@ -242,6 +363,8 @@ class PromptInjectionDetector(BaseDetector):
                     matches = pattern.finditer(line)
 
                     for match in matches:
+                        if _match_offset_in_skipped_comment(line, match.start()):
+                            continue
                         if self._is_benign_role_manipulation(line, match.group(0), family_name):
                             continue
                         if self._is_benign_chat_api_role_assignment(

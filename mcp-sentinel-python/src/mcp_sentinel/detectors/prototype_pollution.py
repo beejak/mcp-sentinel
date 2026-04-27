@@ -19,6 +19,12 @@ from mcp_sentinel.models.vulnerability import (
 )
 
 
+def _strip_block_comments_one_line(line: str) -> str:
+    """Remove ``/* ... */`` spans on a single line so matches are not triggered inside comments."""
+    out = re.sub(r"/\*.*?\*/", "", line)
+    return re.sub(r"/\*.*", "", out)
+
+
 class PrototypePollutionDetector(BaseDetector):
     """
     Static patterns for JavaScript prototype pollution (CWE-1321).
@@ -39,6 +45,14 @@ class PrototypePollutionDetector(BaseDetector):
             "set_prototype_of": [
                 re.compile(r"Object\s*\.\s*setPrototypeOf\s*\("),
                 re.compile(r"Reflect\s*\.\s*setPrototypeOf\s*\("),
+            ],
+            # Deep-merge sinks + heuristic untrusted-input hints (no full dataflow).
+            "deep_merge_taint": [
+                re.compile(
+                    r"(?:^|[^\w.])(?:_\.(?:merge|mergeWith|defaultsDeep)|lodash\.(?:merge|mergeWith|defaultsDeep))\s*\("
+                    r"[^;\n]{0,600}?(?:req\.(?:body|query|params)|request\.(?:body|query)|JSON\.parse\b|axios\b|fetch\s*\(|payload\b|\buntrusted\b)",
+                    re.IGNORECASE,
+                ),
             ],
         }
 
@@ -72,9 +86,11 @@ class PrototypePollutionDetector(BaseDetector):
             if self._is_comment_line(line.strip(), file_path):
                 continue
 
+            scan_line = _strip_block_comments_one_line(line)
+
             for category, plist in self.patterns.items():
                 for pattern in plist:
-                    for match in pattern.finditer(line):
+                    for match in pattern.finditer(scan_line):
                         mt = match.group(0)
                         key = (line_num, category, mt)
                         if key in seen:
@@ -110,7 +126,7 @@ class PrototypePollutionDetector(BaseDetector):
         line_number: int,
         code_snippet: str,
     ) -> Vulnerability:
-        meta = {
+        meta_map = {
             "proto_key_literal": {
                 "title": "Prototype Pollution: __proto__ object key",
                 "description": (
@@ -145,7 +161,21 @@ class PrototypePollutionDetector(BaseDetector):
                 "confidence": Confidence.MEDIUM,
                 "cvss_score": 6.5,
             },
-        }[category]
+            "deep_merge_taint": {
+                "title": "Prototype Pollution risk: deep merge with untrusted hint",
+                "description": (
+                    f"Detected lodash-style deep merge (match: {matched_text[:100]!r}{'...' if len(matched_text) > 100 else ''}) with a nearby "
+                    "identifier that often denotes **untrusted** input (e.g. `req.body`, "
+                    "`JSON.parse`, `payload`). Deep merges are common prototype-pollution sinks "
+                    "when user-controlled objects include `__proto__` or `constructor` paths "
+                    "(CWE-1321). Verify inputs are sanitized or use safe merge utilities."
+                ),
+                "severity": Severity.MEDIUM,
+                "confidence": Confidence.MEDIUM,
+                "cvss_score": 6.8,
+            },
+        }
+        meta = meta_map[category]
 
         return Vulnerability(
             type=VulnerabilityType.PROTOTYPE_POLLUTION,

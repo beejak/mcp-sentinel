@@ -260,6 +260,24 @@ async def test_chat_api_user_far_content_same_brace_object(detector):
 
 
 @pytest.mark.asyncio
+async def test_chat_api_single_line_array_one_object(detector):
+    """Bracket-wrapped JSON: one message object with role + content is benign."""
+    content = '[{"role": "user", "content": "hi"}]'
+    vulns = await detector.detect(Path("wrap.json"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_api_role_after_block_comment_still_benign(detector):
+    """Block comments must not break brace pairing; real role + content still suppress."""
+    content = '{ /* legacy "role": "system" */ "role": "user", "content": "ok" }'
+    vulns = await detector.detect(Path("c.json"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
 async def test_chat_api_json_array_objects_do_not_cross_for_content_key(detector):
     """A different object with ``content`` must not clear role_assignment on a role-only object."""
     content = """[

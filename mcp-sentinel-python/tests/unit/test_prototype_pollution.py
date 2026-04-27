@@ -85,3 +85,37 @@ async def test_skip_js_line_comment(detector):
     vulns = await detector.detect(Path("fine.js"), content)
 
     assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_skip_proto_inside_block_comment_on_line(detector):
+    content = 'const x = { /* "__proto__": true */ ok: 1 };'
+    vulns = await detector.detect(Path("fine.js"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_deep_merge_with_req_body(detector):
+    content = "_.defaultsDeep(cfg, req.body);"
+    vulns = await detector.detect(Path("srv.ts"), content)
+
+    assert len(vulns) == 1
+    assert "deep merge" in vulns[0].title.lower()
+    assert vulns[0].type == VulnerabilityType.PROTOTYPE_POLLUTION
+
+
+@pytest.mark.asyncio
+async def test_deep_merge_clean_two_locals_no_finding(detector):
+    content = "_.merge(defaults, localOpts);"
+    vulns = await detector.detect(Path("safe.js"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_deep_merge_json_parse_hint(detector):
+    content = 'lodash.merge(dst, JSON.parse(raw));'
+    vulns = await detector.detect(Path("api.js"), content)
+
+    assert len(vulns) == 1
