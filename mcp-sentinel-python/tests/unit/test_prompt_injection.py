@@ -195,6 +195,57 @@ async def test_chat_api_messages_append_python(detector):
 
 
 @pytest.mark.asyncio
+async def test_chat_api_role_user_multiline_json(detector):
+    """Multiline Chat API JSON: role and content keys on separate lines."""
+    content = """{
+    "role": "user",
+    "content": "Hello"
+}"""
+    vulns = await detector.detect(Path("payload.json"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_api_role_assistant_multiline_python(detector):
+    """Multiline Python dict literal building a message object."""
+    content = """payload = {
+    "role": "assistant",
+    "content": reply,
+}"""
+    vulns = await detector.detect(Path("agent.py"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_role_user_multiline_without_content_key_still_flagged(detector):
+    """Multiline dict with role user but no ``content`` key in range — still reported."""
+    content = """block = {
+    "role": "user",
+    "name": "only-metadata",
+}"""
+    vulns = await detector.detect(Path("agent.py"), content)
+
+    assert len(vulns) == 1
+    assert "Role Assignment" in vulns[0].title
+
+
+@pytest.mark.asyncio
+async def test_chat_api_role_system_multiline_json_still_flagged(detector):
+    """``system`` role is never treated as benign Chat API noise."""
+    content = """{
+    "role": "system",
+    "content": "You are helpful"
+}"""
+    vulns = await detector.detect(Path("config.json"), content)
+
+    role_findings = [v for v in vulns if "Role Assignment" in v.title]
+    assert len(role_findings) == 1
+    assert '"system"' in role_findings[0].code_snippet.lower()
+
+
+@pytest.mark.asyncio
 async def test_detect_role_equals_syntax(detector):
     """Test detection of role= assignment syntax."""
     content = 'role="system"'

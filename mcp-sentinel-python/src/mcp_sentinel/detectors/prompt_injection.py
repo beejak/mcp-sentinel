@@ -20,6 +20,12 @@ from mcp_sentinel.models.vulnerability import (
     VulnerabilityType,
 )
 
+# JSON/Python-style ``"content":`` / ``'content':`` key near a ``role`` field (Chat API payloads).
+_CHAT_API_CONTENT_KEY = re.compile(r"""["']content["']\s*:""")
+
+# Max lines forward from the ``role`` line to search for a sibling ``content`` key (multiline dicts).
+_CHAT_API_ROLE_BLOCK_LINES = 24
+
 
 class PromptInjectionDetector(BaseDetector):
     """
@@ -159,7 +165,11 @@ class PromptInjectionDetector(BaseDetector):
                         if self._is_benign_role_manipulation(line, match.group(0), family_name):
                             continue
                         if self._is_benign_chat_api_role_assignment(
-                            line, family_name, match.group(0)
+                            line,
+                            family_name,
+                            match.group(0),
+                            lines,
+                            line_num,
                         ):
                             continue
                         key = (line_num, family_name, match.group(0))
@@ -204,25 +214,35 @@ class PromptInjectionDetector(BaseDetector):
         return False
 
     def _is_benign_chat_api_role_assignment(
-        self, line: str, family_name: str, matched_segment: str
+        self,
+        line: str,
+        family_name: str,
+        matched_segment: str,
+        lines: list[str],
+        line_num: int,
     ) -> bool:
         """
-        Skip OpenAI/Anthropic-style chat message shapes: user/assistant + content on one line.
+        Skip OpenAI/Anthropic-style chat message shapes: ``user`` / ``assistant`` plus a nearby
+        ``content`` key (same line or within the next few lines of a dict/list literal).
 
-        These are normal API payloads, not privilege misuse. Still flag ``role: system`` and
-        bare ``role: user`` without a sibling ``content`` key (higher ambiguity).
+        Still flag ``role: system`` and bare ``role: user`` with no ``content`` key in range.
         """
         if family_name != "role_assignment":
             return False
-        if "content" not in line.lower():
-            return False
         ms = matched_segment.lower()
-        return (
+        is_user_or_assistant = (
             '"user"' in ms
             or "'user'" in ms
             or '"assistant"' in ms
             or "'assistant'" in ms
         )
+        if not is_user_or_assistant:
+            return False
+
+        idx = line_num - 1
+        end = min(len(lines), idx + _CHAT_API_ROLE_BLOCK_LINES)
+        block = "\n".join(lines[idx:end])
+        return bool(_CHAT_API_CONTENT_KEY.search(block))
 
     def _is_comment(self, line: str, file_path: Path) -> bool:
         """Check if a line is a comment based on file type."""
