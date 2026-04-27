@@ -119,3 +119,17 @@ async def test_deep_merge_json_parse_hint(detector):
     vulns = await detector.detect(Path("api.js"), content)
 
     assert len(vulns) == 1
+
+
+@pytest.mark.asyncio
+async def test_deep_merge_multiline_req_body(detector):
+    content = """_.merge(
+  defaults,
+  req.body
+);
+"""
+    vulns = await detector.detect(Path("routes.ts"), content)
+
+    assert len(vulns) == 1
+    assert vulns[0].line_number == 1
+    assert "deep merge" in vulns[0].title.lower()
