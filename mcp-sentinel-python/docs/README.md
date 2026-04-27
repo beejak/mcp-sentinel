@@ -2,7 +2,7 @@
 
 **Version**: 3.0.0
 **Purpose**: Complete overview of all process and structure documentation
-**Status**: Phase 4.1 multi-engine CLI + 8 detectors maintained; see root [README.md](../README.md) for current test counts, Windows install notes, and how scan reports are produced.
+**Status**: Phase 4.1 multi-engine CLI + **9** static detectors maintained; see root [README.md](../README.md) for current test counts, Windows install notes, and how scan reports are produced.
 
 ---
 

@@ -5,7 +5,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Test Coverage](https://img.shields.io/badge/coverage-%7E80%25%20overall-brightgreen.svg)](https://github.com/mcp-sentinel/mcp-sentinel-python)
-[![Tests](https://img.shields.io/badge/tests-377%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
+[![Tests](https://img.shields.io/badge/tests-393%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
 
 <div align="center">
 
@@ -31,9 +31,9 @@ We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **S
 |-----------|--------|---------|
 | **Multi-Engine Scanner** | ✅ Complete | Concurrent execution of multiple analysis engines |
 | **SAST Engine** | ✅ Complete | Semgrep + Bandit integration with 50+ mappings |
-| **8/8 Detectors** | ✅ Complete | All vulnerability detectors implemented with high coverage |
+| **9 static detectors** | ✅ Complete | Includes **PrototypePollutionDetector** (CWE-1321) plus Phase 1–3 suite |
 | **26 SAST Tests** | ✅ Passing | 100% pass rate, 70-80% coverage |
-| **98 Patterns** | ✅ Implemented | Comprehensive vulnerability detection patterns |
+| **100+ patterns** | ✅ Implemented | Compiled regex patterns across static detectors |
 | **4 Report Formats** | ✅ Complete | Terminal, JSON, SARIF 2.1.0, HTML interactive reports |
 | **Enterprise Docs** | ✅ Complete | Full documentation suite with guides and examples |
 
@@ -48,6 +48,7 @@ We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **S
 - ✅ **XSSDetector** - 6 pattern categories, 18 patterns, 100% coverage
 - ✅ **ConfigSecurityDetector** - 8 categories, 35 patterns, 96.49% coverage
 - ✅ **PathTraversalDetector** - 5 categories, 22 patterns, 96.67% coverage
+- ✅ **PrototypePollutionDetector** - JavaScript/TypeScript **CWE-1321** (`__proto__`, `setPrototypeOf`), Apr 2026
 - ✅ **SARIF Report Generator** - GitHub Code Scanning compatible, SARIF 2.1.0 standard
 - ✅ **HTML Report Generator** - Beautiful interactive reports with executive dashboard
 
@@ -101,11 +102,11 @@ If the scan finds **critical** severity issues, the CLI **still writes** your re
 ### Windows / install notes
 
 - **`pip install -e .`** (or Poetry) on **Python 3.12** is the path most often used on Windows; optional deps **`uvloop`** and **`semgrep`** are skipped on win32 via environment markers in `pyproject.toml`.
-- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (377 tests, all passing as of the last maintenance pass).
+- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (393 tests, all passing as of the last maintenance pass).
 
 ## Recent maintenance (2026)
 
-- **Detectors**: Hardened config security, path traversal, prompt injection, secrets, supply-chain manifests (e.g. `*requirements*.txt`, `*package*.json`), XSS, SARIF paths on Windows, and related unit/integration tests (full `pytest tests/` green).
+- **Detectors**: **Prototype pollution** (CWE-1321) for JS/TS/JSON; **prompt injection** noise reduction for Chat API-style **`role`** / **`content`** (string-aware brace pairing); path traversal skips for ES/TS **relative module imports**; hardened config security, secrets, supply-chain manifests, XSS; SARIF paths on Windows; full `pytest tests/` green.
 - **Models**: Replaced deprecated `datetime.utcnow()` with **timezone-aware UTC** (`datetime.now(UTC)`) and migrated Pydantic **`class Config` → `model_config = ConfigDict(...)`** on `Vulnerability` and `ScanResult`.
 
 ## Complementary scanners (same org: [github.com/beejak](https://github.com/beejak))
@@ -131,7 +132,7 @@ MCP Sentinel Python is **MCP server *source* static analysis** (and optional Sem
 
 | Engine | Status | Description | Tools |
 |--------|--------|-------------|-------|
-| **Static Analysis** | ✅ Active | Pattern-based detection with 8 specialized detectors | MCP Sentinel (custom) |
+| **Static Analysis** | ✅ Active | Pattern-based detection with **9** specialized detectors | MCP Sentinel (custom) |
 | **SAST Integration** | ✅ Active | Industry-standard static analysis | Semgrep + Bandit |
 | **Semantic Analysis** | 🚧 Phase 4.2 | AST-based dataflow and taint tracking | Tree-sitter (planned) |
 | **AI Analysis** | 🚧 Phase 4.3 | LLM-powered vulnerability detection | LangChain + GPT-4/Claude (planned) |
@@ -143,7 +144,7 @@ MCP Sentinel Python is **MCP server *source* static analysis** (and optional Sem
 - ✅ Graceful degradation (works even if tools missing)
 - ✅ Configurable via `--engines` flag
 
-### 🔍 8 Comprehensive Vulnerability Detectors (Static Engine)
+### 🔍 9 comprehensive vulnerability detectors (static engine)
 
 | Detector | Patterns | Coverage | Status |
 |----------|----------|----------|--------|
@@ -155,8 +156,9 @@ MCP Sentinel Python is **MCP server *source* static analysis** (and optional Sem
 | **ConfigSecurityDetector** | 8 categories, 35 patterns | 96.49% | ✅ Phase 3 |
 | **PathTraversalDetector** | 5 categories, 22 patterns | 96.67% | ✅ Phase 3 |
 | **CodeInjectionDetector** | Python, JS/TS | 95%+ | ✅ Phase 1 |
+| **PrototypePollutionDetector** | CWE-1321 (`__proto__` keys, `.__proto__=`, `setPrototypeOf`) | — | ✅ 2026 |
 
-### 🎯 98 Vulnerability Patterns Detected
+### 🎯 100+ vulnerability patterns (static engine)
 
 **Secrets & Credentials:**
 - AWS Access Keys (AKIA*, ASIA*), Secret Keys
@@ -197,6 +199,10 @@ MCP Sentinel Python is **MCP server *source* static analysis** (and optional Sem
 - Tool description poisoning
 - Invisible Unicode manipulation
 
+**Prototype pollution (JavaScript / TypeScript, CWE-1321):**
+- `__proto__` / `constructor` style keys in object literals
+- Direct `__proto__` assignment, `Object.setPrototypeOf` / `Reflect.setPrototypeOf` (review call sites)
+
 **Supply Chain:**
 - Malicious install scripts (preinstall, postinstall)
 - Insecure HTTP/Git dependencies
@@ -235,7 +241,7 @@ MCP Sentinel now supports multiple output formats for seamless integration:
 - **Type-Safe**: Comprehensive type hints with Pydantic models
 - **Modular**: Clean detector architecture with BaseDetector pattern
 - **Extensible**: Easy to add new detectors and patterns
-- **Well-Tested**: 377 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
+- **Well-Tested**: 393 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
 - **Modern Python**: Python 3.11+ with latest best practices
 - **Multi-Format Reports**: Terminal, JSON, SARIF, and HTML outputs
 
@@ -290,13 +296,14 @@ poetry run black src/
 ### Quick Verification
 
 ```bash
-# Test all 8 detectors
+# Test all 9 static detectors
 poetry run pytest tests/unit/
 
 # Test Phase 3 detectors specifically
 poetry run pytest tests/unit/test_xss.py
 poetry run pytest tests/unit/test_config_security.py
 poetry run pytest tests/unit/test_path_traversal.py
+poetry run pytest tests/unit/test_prototype_pollution.py
 ```
 
 ### Optional: smoke-scan cloned forks (beejak mirrors)
@@ -321,7 +328,7 @@ Without **`MCP_SENTINEL_RUN_FORK_TESTS`**, default **`pytest`** does not collect
 ```yaml
 # .mcp-sentinel.yaml (Phase 3 - Static Analysis Focus)
 scan:
-  # Detectors to enable (all 8 detectors available)
+  # Detectors to enable (all 9 static detectors available)
   detectors:
     - secrets
     - prompt_injection
@@ -371,7 +378,7 @@ reporting:
 Phase 3 focuses on comprehensive detector implementation and testing. You can test each detector individually:
 
 ```bash
-# Test all detectors (377 tests)
+# Test all detectors (393 tests)
 poetry run pytest
 
 # Test specific detector suites
@@ -382,6 +389,7 @@ poetry run pytest tests/unit/test_supply_chain.py          # Phase 2: Supply Cha
 poetry run pytest tests/unit/test_xss.py                   # Phase 3: XSS (89 tests)
 poetry run pytest tests/unit/test_config_security.py       # Phase 3: Config (68 tests)
 poetry run pytest tests/unit/test_path_traversal.py        # Phase 3: Path Traversal (60 tests)
+poetry run pytest tests/unit/test_prototype_pollution.py   # CWE-1321 prototype pollution
 
 # Run with coverage report
 poetry run pytest --cov=mcp_sentinel --cov-report=html
@@ -564,6 +572,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
               │ • XSS            │
               │ • ConfigSecurity │
               │ • PathTraversal  │
+              │ • PrototypePollution │
               └──────────────────┘
                      │
         ┌────────────┴────────────┐
@@ -571,17 +580,17 @@ See [Roadmap](#-roadmap) for complete feature timeline.
         ▼                         ▼
   ┌──────────┐            ┌──────────────┐
   │ Pydantic │            │  Test Suite  │
-  │  Models  │            │  (377 tests) │
+  │  Models  │            │  (393 tests) │
   └──────────┘            └──────────────┘
 ```
 
 ### Current Components (Phase 3)
 
-- **8 Specialized Detectors**: Complete vulnerability detection coverage
+- **9 Specialized Detectors**: Complete vulnerability detection coverage (including prototype pollution)
 - **Pydantic Models**: Type-safe data validation with Vulnerability, Confidence, Severity
 - **Async Detection**: Concurrent file processing with asyncio
-- **Comprehensive Tests**: 377 tests; coverage see `pytest --cov=src`
-- **Pattern Matching**: 98 compiled regex patterns for fast detection
+- **Comprehensive Tests**: 393 tests; coverage see `pytest --cov=src`
+- **Pattern Matching**: 100+ compiled regex patterns across static detectors
 
 ### Planned Components (Phase 4+)
 
@@ -606,16 +615,17 @@ See [Roadmap](#-roadmap) for complete feature timeline.
 ```
 mcp-sentinel-python/
 ├── src/mcp_sentinel/
-│   ├── detectors/           # ✅ 8 vulnerability detectors
+│   ├── detectors/           # ✅ 9 vulnerability detectors
 │   │   ├── base.py         # BaseDetector abstract class
 │   │   ├── secrets.py      # Phase 1: Secrets detection
 │   │   ├── prompt_injection.py  # Phase 1: Prompt injection
-│   │   ├── command_injection.py # Phase 1: Command injection
+│   │   ├── code_injection.py    # Phase 1: Code/command injection
 │   │   ├── tool_poisoning.py    # Phase 2: Tool poisoning
 │   │   ├── supply_chain.py      # Phase 2: Supply chain
 │   │   ├── xss.py          # Phase 3: XSS detection
 │   │   ├── config_security.py   # Phase 3: Config security
-│   │   └── path_traversal.py    # Phase 3: Path traversal
+│   │   ├── path_traversal.py    # Phase 3: Path traversal
+│   │   └── prototype_pollution.py # CWE-1321 (JS/TS/JSON)
 │   ├── core/               # ✅ Core scanning infrastructure
 │   │   ├── scanner.py      # Legacy scanner
 │   │   ├── multi_engine_scanner.py  # Multi-engine orchestration
@@ -635,7 +645,7 @@ mcp-sentinel-python/
 │   │   └── scan_result.py
 │   └── __init__.py
 ├── tests/
-│   ├── unit/               # ✅ 377 comprehensive tests
+│   ├── unit/               # ✅ 393 comprehensive tests
 │   │   ├── test_secrets_detector.py
 │   │   ├── test_prompt_injection.py
 │   │   ├── test_command_injection.py
@@ -643,7 +653,8 @@ mcp-sentinel-python/
 │   │   ├── test_supply_chain.py
 │   │   ├── test_xss.py              # 89 tests, 100% coverage
 │   │   ├── test_config_security.py  # 68 tests, 96.49% coverage
-│   │   └── test_path_traversal.py   # 60 tests, 96.67% coverage
+│   │   ├── test_path_traversal.py   # 60 tests, 96.67% coverage
+│   │   └── test_prototype_pollution.py
 │   ├── integration/        # 🔜 Phase 4: End-to-end tests
 │   └── conftest.py
 ├── docs/                   # ✅ Enterprise documentation
@@ -696,14 +707,15 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] PathTraversalDetector: 5 categories, 22 patterns, 96.67% coverage
   - Directory traversal, unsafe file ops, Zip Slip
   - Path manipulation, missing sanitization
+- [x] PrototypePollutionDetector: CWE-1321 patterns for JS/TS/JSON (`__proto__`, `setPrototypeOf`)
 - [x] **SARIF Report Generator**: SARIF 2.1.0 format with GitHub Code Scanning support
 - [x] **HTML Report Generator**: Beautiful interactive reports with executive dashboard
 - [x] **CLI Integration**: Multi-format output support (terminal, JSON, SARIF, HTML)
-- [x] 377 comprehensive tests (100% pass rate on `pytest tests/`)
+- [x] 393 comprehensive tests (100% pass rate on `pytest tests/`)
 - [x] Enterprise documentation suite
 - [x] Contributing guidelines and development setup
 
-**Current Status**: 8/8 detectors, 98 patterns, 377 tests, 4 report formats, enterprise-ready ✅
+**Current Status**: **9** static detectors, **100+** patterns, **393** tests, 4 report formats, enterprise-ready ✅
 
 ---
 
@@ -736,7 +748,7 @@ Phase 3 maintains enterprise-grade code quality:
   - Automated remediation suggestions
 
 - [ ] **Static Analysis Engine** (centralized pattern registry)
-  - Unified pattern registry for all 8 detectors
+  - Unified pattern registry for all static detectors
   - Optimized pattern matching engine
   - Batch processing for efficiency
   - Plugin architecture for custom patterns
@@ -977,9 +989,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 | Metric | Value |
 |--------|-------|
-| **Detectors** | 8 (100% parity) |
-| **Patterns** | 98 vulnerability patterns |
-| **Tests** | 377 (`pytest tests/`) |
+| **Detectors** | **9** (static engine default set) |
+| **Patterns** | **100+** (compiled regex across static detectors) |
+| **Tests** | **393** (`pytest tests/`) |
 | **Coverage** | ~80% overall (`pytest --cov=src`) |
 | **Report Formats** | 4 (Terminal, JSON, SARIF, HTML) |
 | **Code Quality** | Black + Ruff + mypy |

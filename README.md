@@ -6,7 +6,7 @@ Security scanner for [Model Context Protocol (MCP)](https://modelcontextprotocol
 
 | | |
 |---|---|
-| **Implementation** | Python package in [`mcp-sentinel-python/`](mcp-sentinel-python/README.md) (primary) |
+| **Implementation** | Python package in [`mcp-sentinel-python/`](mcp-sentinel-python/README.md) (primary) — **9** default static detectors, including prototype pollution (**CWE-1321**) |
 | **Version** | See `mcp_sentinel.__version__` in the Python package (e.g. 3.x) |
 | **License** | See [LICENSE](LICENSE) in this repository |
 
