@@ -18,6 +18,7 @@ from mcp_sentinel.engines.sast import SASTEngine
 from mcp_sentinel.engines.static import StaticAnalysisEngine
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
+from mcp_sentinel.threat_intel.enricher import enrich_scan_result_vulnerable_mcp
 
 
 class MultiEngineScanner:
@@ -164,6 +165,8 @@ class MultiEngineScanner:
             scan_result.statistics.scan_duration_seconds = (
                 scan_result.completed_at - start_time
             ).total_seconds()
+
+            await enrich_scan_result_vulnerable_mcp(scan_result)
 
         except Exception as e:
             scan_result.status = "failed"

@@ -108,6 +108,16 @@ class Settings(BaseSettings):
     cache_ttl: int = Field(default=3600, alias="CACHE_TTL")
     parallel_execution: bool = Field(default=True, alias="PARALLEL_EXECUTION")
 
+    # Threat intelligence feeds (optional; see mcp_sentinel.threat_intel)
+    vulnerable_mcp_json_url: str = Field(
+        default=(
+            "https://raw.githubusercontent.com/vineethsai/vulnerablemcp/main/"
+            "data/vulnerabilities.json"
+        ),
+        alias="VULNERABLE_MCP_JSON_URL",
+    )
+    vulnerable_mcp_timeout_seconds: float = Field(default=10.0, alias="VULNERABLE_MCP_TIMEOUT")
+
     # CORS
     cors_allowed_origins: list[str] = Field(
         default=["http://localhost:3000"], alias="CORS_ALLOWED_ORIGINS"

@@ -19,6 +19,7 @@ from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.xss import XSSDetector
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
+from mcp_sentinel.threat_intel.enricher import enrich_scan_result_vulnerable_mcp
 
 
 class Scanner:
@@ -114,6 +115,8 @@ class Scanner:
             scan_result.statistics.scan_duration_seconds = (
                 scan_result.completed_at - start_time
             ).total_seconds()
+
+            await enrich_scan_result_vulnerable_mcp(scan_result)
 
         except Exception as e:
             scan_result.status = "failed"

@@ -30,6 +30,12 @@ if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
 
+@pytest.fixture(autouse=True)
+def _disable_vulnerable_mcp_feed_by_default(monkeypatch):
+    """Avoid outbound HTTP during tests unless explicitly overridden."""
+    monkeypatch.setenv("VULNERABLE_MCP_DISABLED", "1")
+
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for tests."""
