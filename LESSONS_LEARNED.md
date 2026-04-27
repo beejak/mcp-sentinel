@@ -11,7 +11,8 @@
 - Repository **README** at repo root rewritten for **Python-first** layout (`mcp-sentinel-python/`) and **github.com/beejak/mcp-sentinel**.
 - **`mcp-sentinel scan`:** Reports are written before exit. **Critical** findings use **exit code 1** (Click) for CI; added **`--no-fail-on-critical`** and clearer console text (not "silent abort before write").
 - **`PathTraversalDetector`:** Skip ES/TS relative **module** paths (`from "../x"`, `import("../x")`, `require("../x")`) to cut noise on TypeScript MCP servers.
-- **Tests:** `tests/unit/test_cli_scan_exit.py`, `test_ignore_typescript_relative_module_imports`; **377** `pytest` tests.
+- **`PromptInjectionDetector`:** Skip **`role_assignment`** on lines that look like normal Chat API message objects (`"role": "user"` / `"assistant"` with **`content`** on the same line). Still flag **`system`**, and **`user`** without **`content`** (ambiguous). Reduces noise on MCP/Python codebases using OpenAI-style payloads.
+- **Tests:** `tests/unit/test_cli_scan_exit.py`, `test_ignore_typescript_relative_module_imports`; full `pytest` suite green (includes new prompt-injection regression cases).
 - **Tooling:** Fork smoke clone scripts, `generate_scan_summary_pdf.py` (local PDF under gitignored `reports/`).
 - **Docs:** Repo-root rolling log is canonical; `mcp-sentinel-python/docs/LESSONS_LEARNED.md` points here and keeps long-form history.
 

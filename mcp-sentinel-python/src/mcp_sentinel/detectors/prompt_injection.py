@@ -158,6 +158,10 @@ class PromptInjectionDetector(BaseDetector):
                     for match in matches:
                         if self._is_benign_role_manipulation(line, match.group(0), family_name):
                             continue
+                        if self._is_benign_chat_api_role_assignment(
+                            line, family_name, match.group(0)
+                        ):
+                            continue
                         key = (line_num, family_name, match.group(0))
                         if key in seen_line_family_match:
                             continue
@@ -198,6 +202,27 @@ class PromptInjectionDetector(BaseDetector):
         ):
             return True
         return False
+
+    def _is_benign_chat_api_role_assignment(
+        self, line: str, family_name: str, matched_segment: str
+    ) -> bool:
+        """
+        Skip OpenAI/Anthropic-style chat message shapes: user/assistant + content on one line.
+
+        These are normal API payloads, not privilege misuse. Still flag ``role: system`` and
+        bare ``role: user`` without a sibling ``content`` key (higher ambiguity).
+        """
+        if family_name != "role_assignment":
+            return False
+        if "content" not in line.lower():
+            return False
+        ms = matched_segment.lower()
+        return (
+            '"user"' in ms
+            or "'user'" in ms
+            or '"assistant"' in ms
+            or "'assistant'" in ms
+        )
 
     def _is_comment(self, line: str, file_path: Path) -> bool:
         """Check if a line is a comment based on file type."""

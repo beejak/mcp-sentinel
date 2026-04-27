@@ -159,8 +159,26 @@ async def test_detect_role_system_json(detector):
 
 @pytest.mark.asyncio
 async def test_detect_role_assistant_json(detector):
-    """Test detection of role:assistant in JSON."""
+    """Standard Chat API assistant message objects are benign (same line as content)."""
     content = '{"role": "assistant", "content": "Hello"}'
+    vulns = await detector.detect(Path("config.json"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_detect_role_user_json(detector):
+    """Standard Chat API user message objects are benign (same line as content)."""
+    content = '{"role": "user", "content": "Hi there"}'
+    vulns = await detector.detect(Path("config.json"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_detect_role_user_json_without_content_still_flagged(detector):
+    """Bare role:user without a sibling content key stays ambiguous — still reported."""
+    content = '{"role": "user"}'
     vulns = await detector.detect(Path("config.json"), content)
 
     assert len(vulns) == 1
@@ -168,13 +186,12 @@ async def test_detect_role_assistant_json(detector):
 
 
 @pytest.mark.asyncio
-async def test_detect_role_user_json(detector):
-    """Test detection of role:user in JSON."""
-    content = '{"role": "user", "content": "Hi there"}'
-    vulns = await detector.detect(Path("config.json"), content)
+async def test_chat_api_messages_append_python(detector):
+    """Python append of OpenAI-style messages should not spam role_assignment."""
+    content = 'messages.append({"role": "user", "content": task})'
+    vulns = await detector.detect(Path("agent.py"), content)
 
-    assert len(vulns) == 1
-    assert "Role Assignment" in vulns[0].title
+    assert len(vulns) == 0
 
 
 @pytest.mark.asyncio
@@ -189,7 +206,7 @@ async def test_detect_role_equals_syntax(detector):
 
 @pytest.mark.asyncio
 async def test_multiple_role_assignments(detector):
-    """Test detection of multiple role assignments in one file."""
+    """Only system role + content on a line is reported; user/assistant + content are benign."""
     content = """
     {"role": "system", "content": "System message"}
     {"role": "user", "content": "User message"}
@@ -197,8 +214,9 @@ async def test_multiple_role_assignments(detector):
     """
     vulns = await detector.detect(Path("chat.json"), content)
 
-    assert len(vulns) == 3
-    assert all("Role Assignment" in v.title for v in vulns)
+    assert len(vulns) == 1
+    assert "Role Assignment" in vulns[0].title
+    assert '"system"' in vulns[0].code_snippet.lower()
 
 
 # ============================================================================
