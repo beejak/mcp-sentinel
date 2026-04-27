@@ -246,6 +246,33 @@ async def test_chat_api_role_system_multiline_json_still_flagged(detector):
 
 
 @pytest.mark.asyncio
+async def test_chat_api_user_far_content_same_brace_object(detector):
+    """``content`` many lines after ``role`` still suppresses when it is the same ``{...}`` object."""
+    fillers = ",\n".join(f'    "k{i}": {i}' for i in range(50))
+    content = f"""{{
+    "role": "user",
+{fillers},
+    "content": "end"
+}}"""
+    vulns = await detector.detect(Path("big.json"), content)
+
+    assert len(vulns) == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_api_json_array_objects_do_not_cross_for_content_key(detector):
+    """A different object with ``content`` must not clear role_assignment on a role-only object."""
+    content = """[
+  { "role": "user" },
+  { "content": "orphan" }
+]"""
+    vulns = await detector.detect(Path("x.json"), content)
+
+    assert len(vulns) == 1
+    assert "Role Assignment" in vulns[0].title
+
+
+@pytest.mark.asyncio
 async def test_detect_role_equals_syntax(detector):
     """Test detection of role= assignment syntax."""
     content = 'role="system"'

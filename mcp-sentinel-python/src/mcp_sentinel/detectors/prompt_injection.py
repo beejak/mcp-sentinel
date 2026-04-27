@@ -10,7 +10,7 @@ Detects:
 
 import re
 from pathlib import Path
-from re import Pattern
+from re import Match, Pattern
 
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.models.vulnerability import (
@@ -23,8 +23,88 @@ from mcp_sentinel.models.vulnerability import (
 # JSON/Python-style ``"content":`` / ``'content':`` key near a ``role`` field (Chat API payloads).
 _CHAT_API_CONTENT_KEY = re.compile(r"""["']content["']\s*:""")
 
-# Max lines forward from the ``role`` line to search for a sibling ``content`` key (multiline dicts).
-_CHAT_API_ROLE_BLOCK_LINES = 24
+
+def _skip_quoted_string(text: str, start: int) -> int:
+    """Advance past a ``"..."`` or ``'...'`` segment starting at ``start`` (opening quote)."""
+    if start >= len(text):
+        return len(text)
+    quote = text[start]
+    if quote not in "\"'":
+        return start + 1
+    i = start + 1
+    while i < len(text):
+        ch = text[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == quote:
+            return i + 1
+        i += 1
+    return len(text)
+
+
+def _innermost_brace_open_before(text: str, anchor: int) -> int | None:
+    """
+    Return the index of the innermost ``{{`` whose matching ``}}`` encloses ``anchor``.
+
+    Strings are skipped so braces inside literals do not affect the stack. If ``anchor`` lies
+    inside a string literal, returns ``None``.
+    """
+    if anchor <= 0 or anchor > len(text):
+        return None
+    stack: list[int] = []
+    i = 0
+    while i < anchor:
+        ch = text[i]
+        if ch in "\"'":
+            end = _skip_quoted_string(text, i)
+            if i < anchor < end:
+                return None
+            i = end
+            continue
+        if ch == "{":
+            stack.append(i)
+            i += 1
+        elif ch == "}":
+            if stack:
+                stack.pop()
+            i += 1
+        else:
+            i += 1
+    return stack[-1] if stack else None
+
+
+def _matching_close_brace(text: str, open_idx: int) -> int | None:
+    """Index of the ``}}`` matching ``{{`` at ``open_idx``, or ``None`` if unbalanced."""
+    if open_idx >= len(text) or text[open_idx] != "{":
+        return None
+    depth = 0
+    i = open_idx
+    while i < len(text):
+        ch = text[i]
+        if ch in "\"'":
+            i = _skip_quoted_string(text, i)
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return None
+
+
+def _chat_api_content_key_in_same_brace_dict(full_text: str, anchor: int) -> bool:
+    """True if ``full_text`` has a quoted ``content`` key inside the brace object enclosing ``anchor``."""
+    open_brace = _innermost_brace_open_before(full_text, anchor)
+    if open_brace is None:
+        return False
+    close_brace = _matching_close_brace(full_text, open_brace)
+    if close_brace is None:
+        return False
+    span = full_text[open_brace : close_brace + 1]
+    return bool(_CHAT_API_CONTENT_KEY.search(span))
 
 
 class PromptInjectionDetector(BaseDetector):
@@ -165,9 +245,9 @@ class PromptInjectionDetector(BaseDetector):
                         if self._is_benign_role_manipulation(line, match.group(0), family_name):
                             continue
                         if self._is_benign_chat_api_role_assignment(
-                            line,
+                            content,
                             family_name,
-                            match.group(0),
+                            match,
                             lines,
                             line_num,
                         ):
@@ -215,21 +295,21 @@ class PromptInjectionDetector(BaseDetector):
 
     def _is_benign_chat_api_role_assignment(
         self,
-        line: str,
+        full_text: str,
         family_name: str,
-        matched_segment: str,
+        match: Match[str],
         lines: list[str],
         line_num: int,
     ) -> bool:
         """
-        Skip OpenAI/Anthropic-style chat message shapes: ``user`` / ``assistant`` plus a nearby
-        ``content`` key (same line or within the next few lines of a dict/list literal).
+        Skip OpenAI/Anthropic-style payloads: ``user`` / ``assistant`` with a ``content`` key
+        in the **same brace-delimited object** as the ``role`` field (string-aware brace matching).
 
-        Still flag ``role: system`` and bare ``role: user`` with no ``content`` key in range.
+        Still flag ``role: system`` and bare ``role: user`` objects with no sibling ``content``.
         """
         if family_name != "role_assignment":
             return False
-        ms = matched_segment.lower()
+        ms = match.group(0).lower()
         is_user_or_assistant = (
             '"user"' in ms
             or "'user'" in ms
@@ -240,9 +320,9 @@ class PromptInjectionDetector(BaseDetector):
             return False
 
         idx = line_num - 1
-        end = min(len(lines), idx + _CHAT_API_ROLE_BLOCK_LINES)
-        block = "\n".join(lines[idx:end])
-        return bool(_CHAT_API_CONTENT_KEY.search(block))
+        line_offset = sum(len(lines[i]) + 1 for i in range(idx))
+        anchor = line_offset + match.start()
+        return _chat_api_content_key_in_same_brace_dict(full_text, anchor)
 
     def _is_comment(self, line: str, file_path: Path) -> bool:
         """Check if a line is a comment based on file type."""
