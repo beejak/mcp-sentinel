@@ -88,6 +88,8 @@ async def test_multi_engine_scan_directory(temp_project):
     assert result.statistics.total_files >= 2
     assert result.statistics.scanned_files >= 2
     assert result.statistics.scan_duration_seconds > 0
+    assert "config_fingerprint" in result.config
+    assert len(result.config["config_fingerprint"]) == 64
 
 
 @pytest.mark.asyncio

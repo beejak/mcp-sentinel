@@ -18,6 +18,8 @@ async def test_scan_directory(temp_dir, sample_python_file):
     assert result.status == "completed"
     assert result.statistics.scanned_files > 0
     assert result.statistics.total_vulnerabilities > 0
+    assert "config_fingerprint" in result.config
+    assert len(result.config["config_fingerprint"]) == 64
 
 
 @pytest.mark.asyncio

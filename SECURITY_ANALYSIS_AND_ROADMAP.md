@@ -952,7 +952,7 @@ Based on 2025 research analysis:
 **P0 - Critical Fixes:**
 1. ✅ Complete Docker publishing (reminder created)
 2. ✅ Prototype pollution detection — shipped in **Python** (`PrototypePollutionDetector`, CWE-1321 patterns + merge/taint heuristics). *True inter-procedural taint is **parked** (see below).*
-3. ⚠️ Add config fingerprinting to baseline.rs
+3. ✅ Add scan config fingerprinting (Python equivalent) — `build_scan_config_metadata()` in `mcp-sentinel-python/src/mcp_sentinel/core/config.py`; emitted in `ScanResult.config["config_fingerprint"]` for scanner + multi-engine runs
 4. ✅ **10 additional integration tests** — `mcp-sentinel-python/tests/integration/test_static_detectors_integration.py` (Scanner + PP, prompt-injection, mixed tree)
 
 **Quick Wins:**

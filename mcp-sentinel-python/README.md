@@ -5,7 +5,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Test Coverage](https://img.shields.io/badge/coverage-%7E80%25%20overall-brightgreen.svg)](https://github.com/mcp-sentinel/mcp-sentinel-python)
-[![Tests](https://img.shields.io/badge/tests-409%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
+[![Tests](https://img.shields.io/badge/tests-411%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
 
 <div align="center">
 
@@ -102,7 +102,7 @@ If the scan finds **critical** severity issues, the CLI **still writes** your re
 ### Windows / install notes
 
 - **`pip install -e .`** (or Poetry) on **Python 3.12** is the path most often used on Windows; optional deps **`uvloop`** and **`semgrep`** are skipped on win32 via environment markers in `pyproject.toml`.
-- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (409 tests, all passing as of the last maintenance pass).
+- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (411 tests, all passing as of the last maintenance pass).
 
 ## Recent maintenance (2026)
 
@@ -241,7 +241,7 @@ MCP Sentinel now supports multiple output formats for seamless integration:
 - **Type-Safe**: Comprehensive type hints with Pydantic models
 - **Modular**: Clean detector architecture with BaseDetector pattern
 - **Extensible**: Easy to add new detectors and patterns
-- **Well-Tested**: 409 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
+- **Well-Tested**: 411 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
 - **Modern Python**: Python 3.11+ with latest best practices
 - **Multi-Format Reports**: Terminal, JSON, SARIF, and HTML outputs
 
@@ -378,7 +378,7 @@ reporting:
 Phase 3 focuses on comprehensive detector implementation and testing. You can test each detector individually:
 
 ```bash
-# Test all detectors (409 tests)
+# Test all detectors (411 tests)
 poetry run pytest
 
 # Test specific detector suites
@@ -580,7 +580,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
         ▼                         ▼
   ┌──────────┐            ┌──────────────┐
   │ Pydantic │            │  Test Suite  │
-  │  Models  │            │  (409 tests) │
+  │  Models  │            │  (411 tests) │
   └──────────┘            └──────────────┘
 ```
 
@@ -589,7 +589,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
 - **9 Specialized Detectors**: Complete vulnerability detection coverage (including prototype pollution)
 - **Pydantic Models**: Type-safe data validation with Vulnerability, Confidence, Severity
 - **Async Detection**: Concurrent file processing with asyncio
-- **Comprehensive Tests**: 409 tests; coverage see `pytest --cov=src`
+- **Comprehensive Tests**: 411 tests; coverage see `pytest --cov=src`
 - **Pattern Matching**: 100+ compiled regex patterns across static detectors
 
 ### Planned Components (Phase 4+)
@@ -711,11 +711,11 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] **SARIF Report Generator**: SARIF 2.1.0 format with GitHub Code Scanning support
 - [x] **HTML Report Generator**: Beautiful interactive reports with executive dashboard
 - [x] **CLI Integration**: Multi-format output support (terminal, JSON, SARIF, HTML)
-- [x] 409 comprehensive tests (100% pass rate on `pytest tests/`)
+- [x] 411 comprehensive tests (100% pass rate on `pytest tests/`)
 - [x] Enterprise documentation suite
 - [x] Contributing guidelines and development setup
 
-**Current Status**: **9** static detectors, **100+** patterns, **409** tests, 4 report formats, enterprise-ready ✅
+**Current Status**: **9** static detectors, **100+** patterns, **411** tests, 4 report formats, enterprise-ready ✅
 
 ---
 
@@ -991,7 +991,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 |--------|-------|
 | **Detectors** | **9** (static engine default set) |
 | **Patterns** | **100+** (compiled regex across static detectors) |
-| **Tests** | **409** (`pytest tests/`) |
+| **Tests** | **411** (`pytest tests/`) |
 | **Coverage** | ~80% overall (`pytest --cov=src`) |
 | **Report Formats** | 4 (Terminal, JSON, SARIF, HTML) |
 | **Code Quality** | Black + Ruff + mypy |

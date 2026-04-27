@@ -11,6 +11,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
+from mcp_sentinel.core.config import build_scan_config_metadata
 from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
 from mcp_sentinel.engines.sast import SASTEngine
@@ -111,6 +112,13 @@ class MultiEngineScanner:
         scan_result = ScanResult(
             target=str(target_path),
             status="running",
+        )
+        scan_result.config = build_scan_config_metadata(
+            scanner_kind="multi-engine",
+            target_path=target_path,
+            file_patterns=file_patterns,
+            detector_names=[],
+            engine_names=[engine.engine_type.value for engine in self.active_engines],
         )
 
         start_time = datetime.now(UTC)

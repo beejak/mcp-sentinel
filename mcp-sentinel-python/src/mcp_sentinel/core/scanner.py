@@ -5,6 +5,7 @@ Main scanner orchestrator for MCP Sentinel.
 from datetime import UTC, datetime
 from pathlib import Path
 
+from mcp_sentinel.core.config import build_scan_config_metadata
 from mcp_sentinel.core.exceptions import ScanError
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
@@ -77,6 +78,13 @@ class Scanner:
         scan_result = ScanResult(
             target=str(target_path),
             status="running",
+        )
+        scan_result.config = build_scan_config_metadata(
+            scanner_kind="single-engine",
+            target_path=target_path,
+            file_patterns=file_patterns,
+            detector_names=[detector.name for detector in self.detectors],
+            engine_names=["static"],
         )
 
         start_time = datetime.now(UTC)

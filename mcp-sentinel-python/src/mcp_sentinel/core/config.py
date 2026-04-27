@@ -2,6 +2,11 @@
 Configuration management for MCP Sentinel.
 """
 
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -111,3 +116,30 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+
+def build_scan_config_metadata(
+    *,
+    scanner_kind: str,
+    target_path: str | Path,
+    file_patterns: list[str] | None,
+    detector_names: list[str] | None = None,
+    engine_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Build deterministic scan-config metadata with a fingerprint.
+
+    This is a Python-side equivalent of the old roadmap's "baseline fingerprinting":
+    config identity can be tracked in reports and compared across scan runs.
+    """
+    normalized_patterns = sorted(set(file_patterns or []))
+    payload: dict[str, Any] = {
+        "scanner_kind": scanner_kind,
+        "target_path": str(Path(target_path)),
+        "file_patterns": normalized_patterns,
+        "detectors": sorted(set(detector_names or [])),
+        "engines": sorted(set(engine_names or [])),
+    }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    payload["config_fingerprint"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return payload
