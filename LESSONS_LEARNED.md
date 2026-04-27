@@ -12,7 +12,8 @@
 - **`mcp-sentinel scan`:** Reports are written before exit. **Critical** findings use **exit code 1** (Click) for CI; added **`--no-fail-on-critical`** and clearer console text (not "silent abort before write").
 - **`PathTraversalDetector`:** Skip ES/TS relative **module** paths (`from "../x"`, `import("../x")`, `require("../x")`) to cut noise on TypeScript MCP servers.
 - **`PromptInjectionDetector`:** Skip **`role_assignment`** when **`user`** / **`assistant`** sits in the same **`{ ... }`** object as a **`"content":`** / **`'content':`** key — **string-aware brace-depth** pairing (no fixed line window), so unrelated objects in arrays do not accidentally clear findings. Still flag **`system`**, and **`user`** / **`assistant`** objects with no **`content`** key inside that brace span.
-- **Tests:** `tests/unit/test_cli_scan_exit.py`, `test_ignore_typescript_relative_module_imports`; full `pytest` suite green (includes new prompt-injection regression cases).
+- **`PrototypePollutionDetector`:** New static detector for **CWE-1321** (`VulnerabilityType.PROTOTYPE_POLLUTION`) — **`__proto__`** literals, **`.__proto__`** assignment, **`Object`/`Reflect.setPrototypeOf`**; wired into **Scanner** + **StaticAnalysisEngine** (9 default detectors). Tests: **`tests/unit/test_prototype_pollution.py`**.
+- **Tests:** `tests/unit/test_cli_scan_exit.py`, `test_ignore_typescript_relative_module_imports`; full `pytest` suite green (includes prompt-injection + prototype-pollution regression cases).
 - **Tooling:** Fork smoke clone scripts, `generate_scan_summary_pdf.py` (local PDF under gitignored `reports/`).
 - **Docs:** Repo-root rolling log is canonical; `mcp-sentinel-python/docs/LESSONS_LEARNED.md` points here and keeps long-form history.
 

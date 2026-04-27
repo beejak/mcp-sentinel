@@ -28,7 +28,7 @@ def cli():
     """
     MCP Sentinel - Enterprise Security Scanner for MCP Servers.
 
-    Comprehensive security scanning with 8 specialized detectors covering:
+    Comprehensive security scanning with 9 specialized detectors covering:
     secrets, code injection, prompt injection, XSS, configuration issues,
     path traversal, tool poisoning, and supply chain risks.
 

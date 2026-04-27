@@ -1,7 +1,7 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-Pattern-based detection using 8 specialized detectors.
+Pattern-based detection using specialized static detectors.
 """
 
 from mcp_sentinel.engines.static.static_engine import StaticAnalysisEngine

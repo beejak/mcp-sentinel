@@ -61,7 +61,7 @@ class MultiEngineScanner:
         Get default engines.
 
         Available engines:
-        - StaticAnalysisEngine - Pattern-based detection (8 detectors)
+        - StaticAnalysisEngine - Pattern-based detection (9 detectors)
         - SASTEngine - Semgrep + Bandit integration (Phase 4.1)
 
         Coming in future phases:

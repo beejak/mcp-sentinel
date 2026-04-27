@@ -1,7 +1,7 @@
 """
 Static Analysis Engine for MCP Sentinel.
 
-This engine wraps the 8 pattern-based detectors from Phase 3:
+This engine wraps the pattern-based detectors from Phase 3:
 - SecretsDetector
 - CodeInjectionDetector
 - PromptInjectionDetector
@@ -10,6 +10,7 @@ This engine wraps the 8 pattern-based detectors from Phase 3:
 - XSSDetector
 - ConfigSecurityDetector
 - PathTraversalDetector
+- PrototypePollutionDetector
 """
 
 from pathlib import Path
@@ -19,6 +20,7 @@ from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
 from mcp_sentinel.detectors.path_traversal import PathTraversalDetector
 from mcp_sentinel.detectors.prompt_injection import PromptInjectionDetector
+from mcp_sentinel.detectors.prototype_pollution import PrototypePollutionDetector
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
@@ -44,7 +46,7 @@ class StaticAnalysisEngine(BaseEngine):
         Initialize the static analysis engine.
 
         Args:
-            detectors: List of detectors to use. If None, uses all 8 default detectors.
+            detectors: List of detectors to use. If None, uses all default detectors.
             enabled: Whether engine is enabled
         """
         super().__init__(
@@ -55,7 +57,7 @@ class StaticAnalysisEngine(BaseEngine):
         self.detectors = detectors or self._get_default_detectors()
 
     def _get_default_detectors(self) -> list[BaseDetector]:
-        """Get all 8 Phase 3 detectors."""
+        """Get default Phase 3 static detectors."""
         return [
             SecretsDetector(),
             CodeInjectionDetector(),
@@ -65,6 +67,7 @@ class StaticAnalysisEngine(BaseEngine):
             XSSDetector(),
             ConfigSecurityDetector(),
             PathTraversalDetector(),
+            PrototypePollutionDetector(),
         ]
 
     async def scan_file(
