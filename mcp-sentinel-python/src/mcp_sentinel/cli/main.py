@@ -77,6 +77,17 @@ def cli():
     help="Exit with code 0 even when critical findings exist (reports are still written). "
     "Default: exit 1 on critical for CI.",
 )
+@click.option(
+    "--tool-baseline-file",
+    type=click.Path(),
+    help="Optional path to MCP tool-definition baseline JSON. "
+    "Defaults to <target>/.mcp-sentinel-tool-baseline.json.",
+)
+@click.option(
+    "--update-tool-baseline",
+    is_flag=True,
+    help="Write/update the MCP tool-definition baseline after scan completes.",
+)
 def scan(
     target: str,
     output: str,
@@ -85,6 +96,8 @@ def scan(
     json_file: str,
     no_progress: bool,
     no_fail_on_critical: bool,
+    tool_baseline_file: str | None,
+    update_tool_baseline: bool,
 ):
     """
     Scan a directory or file for security vulnerabilities.
@@ -142,9 +155,25 @@ def scan(
     # Run the scan with progress tracking
     if no_progress:
         with console.status("[bold green]Scanning for vulnerabilities..."):
-            result = asyncio.run(_run_scan_multi_engine(target, enabled_engines, None))
+            result = asyncio.run(
+                _run_scan_multi_engine(
+                    target,
+                    enabled_engines,
+                    None,
+                    tool_baseline_file=tool_baseline_file,
+                    update_tool_baseline=update_tool_baseline,
+                )
+            )
     else:
-        result = asyncio.run(_run_scan_multi_engine(target, enabled_engines, console))
+        result = asyncio.run(
+            _run_scan_multi_engine(
+                target,
+                enabled_engines,
+                console,
+                tool_baseline_file=tool_baseline_file,
+                update_tool_baseline=update_tool_baseline,
+            )
+        )
 
     # Filter by severity if specified
     if severity:
@@ -227,6 +256,9 @@ async def _run_scan_multi_engine(
     target: str,
     enabled_engines: set[EngineType],
     console_for_progress: Console | None = None,
+    *,
+    tool_baseline_file: str | None = None,
+    update_tool_baseline: bool = False,
 ) -> ScanResult:
     """
     Run the scan with multiple engines asynchronously.
@@ -271,7 +303,13 @@ async def _run_scan_multi_engine(
             )
 
             # Start scan in background
-            scan_task = asyncio.create_task(scanner.scan_directory(target))
+            scan_task = asyncio.create_task(
+                scanner.scan_directory(
+                    target,
+                    tool_baseline_path=tool_baseline_file,
+                    update_tool_baseline=update_tool_baseline,
+                )
+            )
 
             # Update progress while scanning
             while not scan_task.done():
@@ -291,7 +329,11 @@ async def _run_scan_multi_engine(
             return result
     else:
         # No progress display
-        return await scanner.scan_directory(target)
+        return await scanner.scan_directory(
+            target,
+            tool_baseline_path=tool_baseline_file,
+            update_tool_baseline=update_tool_baseline,
+        )
 
 
 def _print_terminal_results(result: ScanResult):

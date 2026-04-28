@@ -7,7 +7,14 @@ from pathlib import Path
 
 from mcp_sentinel.core.config import build_scan_config_metadata
 from mcp_sentinel.core.exceptions import ScanError
-from mcp_sentinel.core.tool_versioning import build_tool_definition_metadata
+from mcp_sentinel.core.tool_versioning import (
+    build_tool_definition_change_findings,
+    build_tool_definition_metadata,
+    diff_tool_definition_metadata,
+    load_tool_definition_baseline,
+    resolve_tool_baseline_path,
+    save_tool_definition_baseline,
+)
 from mcp_sentinel.detectors.base import BaseDetector
 from mcp_sentinel.detectors.code_injection import CodeInjectionDetector
 from mcp_sentinel.detectors.config_security import ConfigSecurityDetector
@@ -57,6 +64,9 @@ class Scanner:
         self,
         target_path: str | Path,
         file_patterns: list[str] | None = None,
+        *,
+        tool_baseline_path: str | Path | None = None,
+        update_tool_baseline: bool = False,
     ) -> ScanResult:
         """
         Scan a directory for vulnerabilities.
@@ -88,7 +98,23 @@ class Scanner:
             detector_names=[detector.name for detector in self.detectors],
             engine_names=["static"],
         )
-        scan_result.config.update(build_tool_definition_metadata(target_path))
+        tool_metadata = build_tool_definition_metadata(target_path)
+        scan_result.config.update(tool_metadata)
+        resolved_baseline = resolve_tool_baseline_path(target_path, tool_baseline_path)
+        scan_result.config["tool_definition_baseline_path"] = str(resolved_baseline)
+
+        baseline = load_tool_definition_baseline(resolved_baseline)
+        scan_result.config["tool_definition_baseline_exists"] = baseline is not None
+        if baseline:
+            diff = diff_tool_definition_metadata(baseline, tool_metadata)
+            scan_result.config["tool_definition_changes"] = {
+                "added": len(diff["added"]),
+                "removed": len(diff["removed"]),
+                "changed": len(diff["changed"]),
+                "has_changes": diff["has_changes"],
+            }
+            for finding in build_tool_definition_change_findings(diff, engine_name="static"):
+                scan_result.add_vulnerability(finding)
 
         start_time = datetime.now(UTC)
 
@@ -119,6 +145,9 @@ class Scanner:
             ).total_seconds()
 
             await enrich_scan_result_vulnerable_mcp(scan_result)
+            if update_tool_baseline:
+                save_tool_definition_baseline(resolved_baseline, tool_metadata)
+                scan_result.config["tool_definition_baseline_updated"] = True
 
         except Exception as e:
             scan_result.status = "failed"

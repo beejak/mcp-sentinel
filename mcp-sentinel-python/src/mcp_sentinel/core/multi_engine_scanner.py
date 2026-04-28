@@ -13,7 +13,14 @@ from pathlib import Path
 
 from mcp_sentinel.core.config import build_scan_config_metadata
 from mcp_sentinel.core.exceptions import ScanError
-from mcp_sentinel.core.tool_versioning import build_tool_definition_metadata
+from mcp_sentinel.core.tool_versioning import (
+    build_tool_definition_change_findings,
+    build_tool_definition_metadata,
+    diff_tool_definition_metadata,
+    load_tool_definition_baseline,
+    resolve_tool_baseline_path,
+    save_tool_definition_baseline,
+)
 from mcp_sentinel.engines.base import BaseEngine, EngineType, ScanProgress
 from mcp_sentinel.engines.sast import SASTEngine
 from mcp_sentinel.engines.static import StaticAnalysisEngine
@@ -89,6 +96,9 @@ class MultiEngineScanner:
         self,
         target_path: str | Path,
         file_patterns: list[str] | None = None,
+        *,
+        tool_baseline_path: str | Path | None = None,
+        update_tool_baseline: bool = False,
     ) -> ScanResult:
         """
         Scan a directory using all enabled engines.
@@ -122,7 +132,24 @@ class MultiEngineScanner:
             detector_names=[],
             engine_names=[engine.engine_type.value for engine in self.active_engines],
         )
-        scan_result.config.update(build_tool_definition_metadata(target_path))
+        tool_metadata = build_tool_definition_metadata(target_path)
+        scan_result.config.update(tool_metadata)
+        resolved_baseline = resolve_tool_baseline_path(target_path, tool_baseline_path)
+        scan_result.config["tool_definition_baseline_path"] = str(resolved_baseline)
+        baseline = load_tool_definition_baseline(resolved_baseline)
+        scan_result.config["tool_definition_baseline_exists"] = baseline is not None
+        if baseline:
+            diff = diff_tool_definition_metadata(baseline, tool_metadata)
+            scan_result.config["tool_definition_changes"] = {
+                "added": len(diff["added"]),
+                "removed": len(diff["removed"]),
+                "changed": len(diff["changed"]),
+                "has_changes": diff["has_changes"],
+            }
+            for finding in build_tool_definition_change_findings(
+                diff, engine_name="multi-engine"
+            ):
+                scan_result.add_vulnerability(finding)
 
         start_time = datetime.now(UTC)
 
@@ -169,6 +196,9 @@ class MultiEngineScanner:
             ).total_seconds()
 
             await enrich_scan_result_vulnerable_mcp(scan_result)
+            if update_tool_baseline:
+                save_tool_definition_baseline(resolved_baseline, tool_metadata)
+                scan_result.config["tool_definition_baseline_updated"] = True
 
         except Exception as e:
             scan_result.status = "failed"
