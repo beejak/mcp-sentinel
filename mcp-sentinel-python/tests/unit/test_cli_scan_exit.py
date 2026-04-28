@@ -177,3 +177,31 @@ def test_scan_html_and_extra_pdf(runner: CliRunner, tmp_path: Path):
     assert result.exit_code == 0
     assert html_out.is_file()
     assert pdf_out.is_file()
+
+
+def test_scan_generates_incident_summary_by_default(
+    runner: CliRunner, tmp_with_critical_exec: Path
+):
+    out = tmp_with_critical_exec / "critical.json"
+    incidents = tmp_with_critical_exec / "critical-incidents.md"
+    result = runner.invoke(
+        cli,
+        [
+            "scan",
+            str(tmp_with_critical_exec),
+            "--engines",
+            "static",
+            "--output",
+            "json",
+            "--json-file",
+            str(out),
+            "--no-progress",
+            "--no-fail-on-critical",
+        ],
+    )
+    assert result.exit_code == 0
+    assert out.is_file()
+    assert incidents.is_file()
+    body = incidents.read_text(encoding="utf-8")
+    assert "MCP Sentinel Incident Summary" in body
+    assert "code injection class" in body

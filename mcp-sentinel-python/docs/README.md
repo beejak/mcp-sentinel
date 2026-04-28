@@ -24,6 +24,7 @@ This directory contains comprehensive documentation for the MCP Sentinel Python 
 
 | Document | Purpose | Key Sections |
 |----------|---------|--------------|
+| **[REPORTING_ARCHITECTURE_AND_WORKFLOWS.md](REPORTING_ARCHITECTURE_AND_WORKFLOWS.md)** | How **scan** becomes reports; system + transport diagrams; static vs optional dynamic lab | Mermaid: context, internal pipeline, stdio/HTTP reference, incident summary |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | System design and technical decisions | Async-first design, Pydantic config, detector system, report generators, Phase 3+ roadmap |
 | **[RELEASE_PROCESS.md](RELEASE_PROCESS.md)** | Standardized release workflow | Version bumping, changelog generation, performance documentation, hotfix process |
 | **[QA_CHECKLIST.md](QA_CHECKLIST.md)** | Quality assurance procedures | Test pyramid strategy, GitHub Actions workflow, security scanning, performance benchmarks |

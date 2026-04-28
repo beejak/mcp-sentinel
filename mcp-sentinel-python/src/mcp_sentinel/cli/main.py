@@ -17,7 +17,12 @@ from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.reporting.generators import HTMLGenerator, PDFGenerator, SARIFGenerator
+from mcp_sentinel.reporting.generators import (
+    HTMLGenerator,
+    IncidentSummaryGenerator,
+    PDFGenerator,
+    SARIFGenerator,
+)
 
 console = Console()
 
@@ -73,6 +78,18 @@ def cli():
     help="Also write a PDF executive summary to this path (in addition to the primary --output).",
 )
 @click.option(
+    "--incident-summary/--no-incident-summary",
+    default=True,
+    show_default=True,
+    help="Write markdown incident summary for critical/RCE/exploit-likely findings.",
+)
+@click.option(
+    "--incident-file",
+    type=click.Path(),
+    default=None,
+    help="Output path for incident summary markdown. Defaults near --json-file if set.",
+)
+@click.option(
     "--no-progress",
     is_flag=True,
     help="Disable progress output",
@@ -101,6 +118,8 @@ def scan(
     severity: tuple,
     json_file: str,
     pdf_file: str | None,
+    incident_summary: bool,
+    incident_file: str | None,
     no_progress: bool,
     no_fail_on_critical: bool,
     tool_baseline_file: str | None,
@@ -144,6 +163,10 @@ def scan(
         \b
         # HTML dashboard plus PDF executive summary in one run
         mcp-sentinel scan . --engines static,sast --output html --json-file report.html --pdf-file summary.pdf
+
+        \b
+        # Write incident/exploitability summary markdown (default on)
+        mcp-sentinel scan . --output json --json-file out.json --incident-file incidents.md
     """
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
@@ -223,6 +246,10 @@ def scan(
         )
         if not primary_pdf:
             _print_pdf_results(result, str(pdf_file))
+
+    if incident_summary:
+        incident_path = _resolve_incident_summary_path(json_file, incident_file)
+        _print_incident_summary_results(result, str(incident_path))
 
     # Exit code based on findings (reports already written above)
     if result.has_critical_findings():
@@ -520,6 +547,29 @@ def _print_pdf_results(result: ScanResult, output_file: str | None = None):
     generator = PDFGenerator()
     generator.save_to_file(result, Path(output_file))
     console.print(f"[green]PDF report saved to {output_file}[/green]")
+
+
+def _resolve_incident_summary_path(json_file: str | None, incident_file: str | None) -> Path:
+    """Resolve incident markdown output path."""
+    if incident_file:
+        return Path(incident_file)
+    if json_file:
+        base = Path(json_file)
+        return base.with_name(f"{base.stem}-incidents.md")
+    return Path("mcp-sentinel-incidents.md")
+
+
+def _print_incident_summary_results(result: ScanResult, output_file: str) -> None:
+    """Write exploitability-focused incident summary markdown."""
+    generator = IncidentSummaryGenerator()
+    has_candidates = generator.save_to_file(result, Path(output_file))
+    if has_candidates:
+        console.print(f"[green]Incident summary saved to {output_file}[/green]")
+    else:
+        console.print(
+            f"[dim]Incident summary saved to {output_file} "
+            "(no critical/RCE/exploit-likely candidates).[/dim]"
+        )
 
 
 def _warn_unwired_engines(enabled_engines: set[EngineType]) -> None:

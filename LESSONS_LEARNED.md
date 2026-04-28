@@ -6,6 +6,36 @@
 
 ## Rolling feature log
 
+### 2026-04-28 — Vulnerable-target batch runs: Windows encoding and probe hygiene
+
+- **Incident:** JSON export failed on a vulnerable target with `UnicodeEncodeError` (`cp1252` cannot encode unicode like `✓`) while HTML/PDF succeeded.
+- **Root cause:** CLI JSON writer uses platform default encoding when opening output files; on Windows consoles that default can be non-UTF-8.
+- **Operational fix used:** force UTF-8 mode for scan runs that emit JSON (`PYTHONUTF8=1`) to guarantee report write success.
+- **Probe hygiene lesson:** stdio MCP servers may print startup banners/log lines to stderr, which can appear as command errors even when protocol negotiation succeeds. Treat probe success by MCP handshake/tool calls, not by banner noise.
+- **Process update:** For `find → test → report → destroy` batches:
+  1. generate JSON first with UTF-8 mode,
+  2. run dynamic probe and persist `dynamic-probe.json`,
+  3. verify report file sizes > 0 before cleanup,
+  4. remove temp clone paths and confirm deletion.
+
+---
+
+### 2026-04-28 — Dynamic transport probe hardening (Playwright MCP)
+
+- **Incident:** Runtime probe for `microsoft/playwright-mcp` initially showed `403 Forbidden` on HTTP/SSE while stdio probing succeeded.
+- **Root cause:** Probe path mixed raw endpoint checks and incomplete MCP HTTP session assumptions; default server transport policy can reject requests without explicit host/origin allowlists.
+- **What fixed it:** Launch server with explicit permissive flags for controlled local testing:
+  - `--allowed-hosts '*'`
+  - `--allowed-origins '*'`
+  - plus standard bind args (`--host 127.0.0.1 --port <n>`).
+- **Verification:** Using proper MCP client handshakes (`mcp.client.sse.sse_client` and `mcp.client.streamable_http.streamablehttp_client`) both transports initialized and listed **22 tools**.
+- **Process update:** For dynamic runs, always:
+  1. run stdio probe first as control,
+  2. use MCP client handshake (not raw GET/POST) for HTTP/SSE validation,
+  3. persist a transport debug artifact (`dynamic-transport-rerun.json`) in `reports/`.
+
+---
+
 ### 2026-04-27 — Documentation sync, CLI exit semantics, TS import false-positive reduction
 
 - **Docs / HTML:** Python README now documents **quality gates** (422 `pytest` tests, `ruff`, offline-by-default threat intel, no live MCP in CI), **MCP tool-definition baseline** CLI flags, and **HTML** reports include an **“MCP tool definitions”** summary panel (`html_generator.py`).
