@@ -73,6 +73,12 @@ async def test_sarif_generator_end_to_end(temp_project):
 
     run = sarif_doc["runs"][0]
 
+    assert "properties" in run
+    assert "mcpToolDefinitions" in run["properties"]
+    td = run["properties"]["mcpToolDefinitions"]
+    assert isinstance(td.get("aggregateFingerprint"), str)
+    assert td.get("jsonConfigCandidatesScanned") is not None
+
     # Verify tool information
     assert "tool" in run
     assert run["tool"]["driver"]["name"] == "MCP Sentinel"

@@ -91,21 +91,52 @@ class SARIFGenerator:
             "invocations": [self._create_invocation(result)],
             "results": [self._create_result(vuln, result) for vuln in result.vulnerabilities],
             "columnKind": "utf16CodeUnits",
-            "properties": {
-                "scanStatistics": {
-                    "totalFiles": result.statistics.total_files,
-                    "scannedFiles": result.statistics.scanned_files,
-                    "totalVulnerabilities": result.statistics.total_vulnerabilities,
-                    "criticalCount": result.statistics.critical_count,
-                    "highCount": result.statistics.high_count,
-                    "mediumCount": result.statistics.medium_count,
-                    "lowCount": result.statistics.low_count,
-                    "infoCount": result.statistics.info_count,
-                    "scanDuration": result.statistics.scan_duration_seconds,
-                    "riskScore": result.risk_score(),
-                },
+            "properties": self._run_properties(result),
+        }
+
+    def _run_properties(self, result: ScanResult) -> dict[str, Any]:
+        """Run-level properties (portable summary for CI dashboards)."""
+        props: dict[str, Any] = {
+            "scanStatistics": {
+                "totalFiles": result.statistics.total_files,
+                "scannedFiles": result.statistics.scanned_files,
+                "totalVulnerabilities": result.statistics.total_vulnerabilities,
+                "criticalCount": result.statistics.critical_count,
+                "highCount": result.statistics.high_count,
+                "mediumCount": result.statistics.medium_count,
+                "lowCount": result.statistics.low_count,
+                "infoCount": result.statistics.info_count,
+                "scanDuration": result.statistics.scan_duration_seconds,
+                "riskScore": result.risk_score(),
             },
         }
+        tool = self._tool_definition_sarif_properties(result)
+        if tool:
+            props["mcpToolDefinitions"] = tool
+        return props
+
+    def _tool_definition_sarif_properties(self, result: ScanResult) -> dict[str, Any] | None:
+        """Summarize MCP server config fingerprints for SARIF consumers (GitHub, Azure, etc.)."""
+        cfg = result.config
+        if not isinstance(cfg, dict) or "tool_definition_fingerprint" not in cfg:
+            return None
+        out: dict[str, Any] = {
+            "aggregateFingerprint": cfg.get("tool_definition_fingerprint"),
+            "serverEntryCount": cfg.get("tool_definition_server_count"),
+            "jsonConfigCandidatesScanned": cfg.get("tool_definition_files_scanned"),
+            "baselinePath": cfg.get("tool_definition_baseline_path"),
+            "baselineExists": cfg.get("tool_definition_baseline_exists"),
+            "baselineUpdatedThisRun": cfg.get("tool_definition_baseline_updated"),
+        }
+        changes = cfg.get("tool_definition_changes")
+        if isinstance(changes, dict):
+            out["baselineDiff"] = {
+                "added": changes.get("added"),
+                "removed": changes.get("removed"),
+                "changed": changes.get("changed"),
+                "hasChanges": changes.get("has_changes"),
+            }
+        return {k: v for k, v in out.items() if v is not None}
 
     def _create_tool(self) -> dict[str, Any]:
         """Create SARIF tool object."""

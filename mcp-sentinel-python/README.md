@@ -132,7 +132,7 @@ MCP Sentinel fingerprints **MCP server entries** in JSON configs under the scan 
 | `--tool-baseline-file PATH` | Baseline JSON path (default: `<target>/.mcp-sentinel-tool-baseline.json`). |
 | `--update-tool-baseline` | After a **successful** scan, write or refresh the baseline from the current tree. |
 
-**Report / API fields:** `ScanResult.config` includes `tool_definition_fingerprint`, per-server records, `tool_definition_baseline_path`, `tool_definition_baseline_exists`, optional `tool_definition_changes`, and `tool_definition_baseline_updated`. **HTML** reports include an **“MCP tool definitions”** summary section. **JSON** output carries the full model (use `--output json --json-file …`).
+**Report / API fields:** `ScanResult.config` includes `tool_definition_fingerprint`, per-server records, `tool_definition_baseline_path`, `tool_definition_baseline_exists`, optional `tool_definition_changes`, and `tool_definition_baseline_updated`. **HTML** reports include an **“MCP tool definitions”** summary section. **SARIF** includes a compact summary under `runs[0].properties.mcpToolDefinitions` (aggregate fingerprint, counts, baseline path, diff counts). **JSON** output carries the full model (use `--output json --json-file …`).
 
 **Findings:** `detector` = `ToolDefinitionVersioning`, `type` = `config_security` — **HIGH** for removed/changed servers vs baseline, **MEDIUM** for new servers.
 

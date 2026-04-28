@@ -9,6 +9,7 @@
 ### 2026-04-27 — Documentation sync, CLI exit semantics, TS import false-positive reduction
 
 - **Docs / HTML:** Python README now documents **quality gates** (422 `pytest` tests, `ruff`, offline-by-default threat intel, no live MCP in CI), **MCP tool-definition baseline** CLI flags, and **HTML** reports include an **“MCP tool definitions”** summary panel (`html_generator.py`).
+- **SARIF:** `runs[0].properties.mcpToolDefinitions` carries a compact MCP server-definition fingerprint + baseline diff summary for CI dashboards (`sarif_generator.py`).
 - **Tool definition baseline / diff:** `--tool-baseline-file` (default `<target>/.mcp-sentinel-tool-baseline.json`) and `--update-tool-baseline`; scans emit **HIGH**/`ToolDefinitionVersioning` findings on changed or removed MCP servers and **MEDIUM** on additions vs baseline (`Scanner`, `MultiEngineScanner`, CLI).
 - **Roadmap execution (P0 slice):** Implemented first-pass **tool definition versioning** for Python scans via `core/tool_versioning.py`; scanner and multi-engine results now include deterministic `tool_definition_fingerprint` plus per-server fingerprints from MCP JSON configs (`mcpServers` / `servers` forms).
 - **Roadmap hygiene:** Marked “security researcher monitoring dashboard” as **parked** in `SECURITY_ANALYSIS_AND_ROADMAP.md` Quick Wins pending post-Phase-2.6 core detection work.
