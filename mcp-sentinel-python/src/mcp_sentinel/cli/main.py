@@ -17,7 +17,7 @@ from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.scan_result import ScanResult
-from mcp_sentinel.reporting.generators import HTMLGenerator, SARIFGenerator
+from mcp_sentinel.reporting.generators import HTMLGenerator, PDFGenerator, SARIFGenerator
 
 console = Console()
 
@@ -32,7 +32,7 @@ def cli():
     secrets, code injection, prompt injection, XSS, configuration issues,
     path traversal, tool poisoning, and supply chain risks.
 
-    Reporting: terminal, JSON, SARIF 2.1.0, and HTML.
+    Reporting: terminal, JSON, SARIF 2.1.0, HTML, and PDF summaries.
 
     Use ``mcp-sentinel --version`` for the build version.
     Documentation: https://github.com/beejak/mcp-sentinel
@@ -45,9 +45,9 @@ def cli():
 @click.option(
     "-o",
     "--output",
-    type=click.Choice(["terminal", "json", "sarif", "html"]),
+    type=click.Choice(["terminal", "json", "sarif", "html", "pdf"]),
     default="terminal",
-    help="Output format: terminal (colored, default), json (structured), sarif (GitHub Code Scanning), html (interactive dashboard)",
+    help="Output format: terminal (default), json, sarif, html (dashboard), pdf (executive summary)",
 )
 @click.option(
     "--engines",
@@ -64,7 +64,13 @@ def cli():
 @click.option(
     "--json-file",
     type=click.Path(),
-    help="Output file path for json/sarif/html formats (e.g., report.html, results.sarif, scan.json)",
+    help="Output file path for json/sarif/html/pdf (e.g., report.html, results.sarif, scan.json, report.pdf)",
+)
+@click.option(
+    "--pdf-file",
+    type=click.Path(),
+    default=None,
+    help="Also write a PDF executive summary to this path (in addition to the primary --output).",
 )
 @click.option(
     "--no-progress",
@@ -94,6 +100,7 @@ def scan(
     engines: str,
     severity: tuple,
     json_file: str,
+    pdf_file: str | None,
     no_progress: bool,
     no_fail_on_critical: bool,
     tool_baseline_file: str | None,
@@ -133,12 +140,24 @@ def scan(
         \b
         # Do not fail CI exit code when critical findings exist (reports still written)
         mcp-sentinel scan . --output json --json-file out.json --no-fail-on-critical
+
+        \b
+        # HTML dashboard plus PDF executive summary in one run
+        mcp-sentinel scan . --engines static,sast --output html --json-file report.html --pdf-file summary.pdf
     """
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
 
     if not enabled_engines:
         console.print("[red]Error: At least one engine must be specified[/red]")
+        raise click.Abort()
+
+    _warn_unwired_engines(enabled_engines)
+
+    if output in ("json", "sarif", "html", "pdf") and not json_file:
+        console.print(
+            f"[red]Error: --output {output} requires --json-file PATH[/red]"
+        )
         raise click.Abort()
 
     # Show selected engines
@@ -192,6 +211,18 @@ def scan(
         _print_sarif_results(result, json_file)
     elif output == "html":
         _print_html_results(result, json_file)
+    elif output == "pdf":
+        _print_pdf_results(result, json_file)
+
+    if pdf_file:
+        pdf_path = Path(pdf_file).resolve()
+        primary_pdf = (
+            output == "pdf"
+            and json_file
+            and Path(json_file).resolve() == pdf_path
+        )
+        if not primary_pdf:
+            _print_pdf_results(result, str(pdf_file))
 
     # Exit code based on findings (reports already written above)
     if result.has_critical_findings():
@@ -480,6 +511,28 @@ def _print_html_results(result: ScanResult, output_file: str | None = None):
         temp_file = Path("mcp-sentinel-report.html")
         generator.save_to_file(result, temp_file)
         console.print(f"[green]HTML report saved to {temp_file.absolute()}[/green]")
+
+
+def _print_pdf_results(result: ScanResult, output_file: str | None = None):
+    """Write PDF executive summary (ReportLab)."""
+    if not output_file:
+        return
+    generator = PDFGenerator()
+    generator.save_to_file(result, Path(output_file))
+    console.print(f"[green]PDF report saved to {output_file}[/green]")
+
+
+def _warn_unwired_engines(enabled_engines: set[EngineType]) -> None:
+    """Tell the user when semantic/ai were requested but are not implemented yet."""
+    not_wired = {EngineType.SEMANTIC, EngineType.AI}
+    requested = enabled_engines & not_wired
+    if not requested:
+        return
+    names = ", ".join(sorted(e.value for e in requested))
+    console.print(
+        f"[yellow]Warning: engine(s) [{names}] are not wired in this release — "
+        "only static and SAST run.[/yellow]"
+    )
 
 
 @cli.command()

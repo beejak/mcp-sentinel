@@ -256,11 +256,15 @@ mcp-sentinel scan . --engines static,sast
 mcp-sentinel scan . --engines all
 ```
 
-**Available Engines (Phase 4+):**
-- `static` - Pattern-based detection (available now)
-- `semantic` - AST and dataflow analysis (Phase 4)
-- `sast` - Semgrep + Bandit integration (Phase 4)
-- `ai` - AI-powered analysis (Phase 4)
+**Engines wired today:** `static` and `sast` (Semgrep when the CLI runs correctly, plus Bandit on Python). **`semantic` and `ai`** are accepted on the CLI for forward compatibility but **do not run analyzers yet**; you will see a warning.
+
+**Semgrep troubleshooting:** If scans log “Failed to parse Semgrep output” or Semgrep crashes on startup with `ImportError` mentioning `opentelemetry`, upgrade OpenTelemetry packages in the **same environment** as Semgrep (for example `pip install --upgrade opentelemetry-instrumentation-requests opentelemetry-api opentelemetry-sdk`). The SAST engine writes JSON via a temp file and sets `SEMGREP_SEND_METRICS=off` to avoid noisy stdout.
+
+**Output:** Use `--output html --json-file report.html` for the full dashboard, `--output pdf --json-file report.pdf` for a short executive PDF, or add `--pdf-file summary.pdf` alongside HTML/JSON to write both.
+
+**Planned engines (not yet attached to the scanner):**
+- `semantic` - AST and dataflow (future)
+- `ai` - LLM-assisted analysis (future)
 
 ### Programmatic Usage
 

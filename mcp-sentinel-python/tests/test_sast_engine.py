@@ -11,12 +11,22 @@ import pytest
 from mcp_sentinel.engines.base import EngineStatus, EngineType
 from mcp_sentinel.engines.sast.bandit_adapter import BanditAdapter
 from mcp_sentinel.engines.sast.sast_engine import SASTEngine
-from mcp_sentinel.engines.sast.semgrep_adapter import SemgrepAdapter
+from mcp_sentinel.engines.sast.semgrep_adapter import (
+    SemgrepAdapter,
+    _extract_first_json_object,
+)
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
 
 
 class TestSemgrepAdapter:
     """Tests for Semgrep adapter."""
+
+    def test_extract_first_json_object(self):
+        payload = '{"results":[{"path":"a.py"}],"errors":[],"time":{}}'
+        assert _extract_first_json_object(payload) == payload
+        prefixed = f"Notice: scanning\n\n{payload}\ntrailing"
+        extracted = _extract_first_json_object(prefixed)
+        assert extracted == payload
 
     def test_initialization_when_semgrep_available(self):
         """Test adapter initializes when Semgrep is available."""
@@ -47,11 +57,15 @@ class TestSemgrepAdapter:
         with patch("shutil.which", return_value="/usr/bin/semgrep"):
             adapter = SemgrepAdapter(enabled=True)
             target = Path("/test/path")
-            cmd = adapter._build_command(target)
+            json_out = Path("/tmp/semgrep-out.json")
+            cmd = adapter._build_command(target, json_out)
 
             assert cmd[0] == "semgrep"
             assert "scan" in cmd
             assert "--json" in cmd
+            assert "--quiet" in cmd
+            assert "-o" in cmd
+            assert str(json_out) in cmd
             assert "--config" in cmd
             assert str(target) in cmd
 

@@ -2,11 +2,48 @@
 
 import asyncio
 import json
+import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from mcp_sentinel.models.vulnerability import Confidence, Severity, Vulnerability, VulnerabilityType
+
+
+def _semgrep_failure_hint(stderr_text: str) -> str:
+    """Return user-facing hint when Semgrep fails (common OpenTelemetry skew on Windows)."""
+    if "redact_url" in stderr_text or "opentelemetry" in stderr_text.lower():
+        return (
+            "Semgrep failed to import (often OpenTelemetry packages out of sync). Try: "
+            "pip install --upgrade semgrep opentelemetry-util-http "
+            "opentelemetry-instrumentation-requests opentelemetry-api opentelemetry-sdk "
+            "(use one venv for MCP Sentinel + Semgrep, or upgrade exporters if pip reports conflicts)."
+        )
+    return "Check that `semgrep` runs in a terminal (`semgrep --version`) and matches your Python environment."
+
+
+def _extract_first_json_object(text: str) -> str | None:
+    """Parse the first JSON object from text that may contain logs or banners before JSON."""
+    raw = text.strip()
+    if not raw:
+        return None
+    if raw.startswith("\ufeff"):
+        raw = raw.lstrip("\ufeff")
+    decoder = json.JSONDecoder()
+    try:
+        _, end = decoder.raw_decode(raw)
+        return raw[:end]
+    except json.JSONDecodeError:
+        pass
+    start = raw.find("{")
+    if start < 0:
+        return None
+    try:
+        _, end = decoder.raw_decode(raw[start:])
+        return raw[start : start + end]
+    except json.JSONDecodeError:
+        return None
 
 
 class SemgrepAdapter:
@@ -37,6 +74,33 @@ class SemgrepAdapter:
         if not self.enabled:
             print("[INFO] Semgrep not available - adapter disabled")
 
+    def _build_command(self, target_path: Path, json_out: Path) -> list[str]:
+        """
+        Build Semgrep command.
+
+        Uses --json -o <file> so results are read from disk (avoids broken / mixed stdout on Windows).
+        --quiet reduces non-JSON noise when Semgrep still prints to stdout.
+        """
+        cmd = [
+            "semgrep",
+            "scan",
+            "--json",
+            "--quiet",
+            "-o",
+            str(json_out),
+        ]
+
+        for ruleset in self.rulesets:
+            cmd.extend(["--config", ruleset])
+
+        cmd.append(str(target_path))
+        return cmd
+
+    def _subprocess_env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        env.setdefault("SEMGREP_SEND_METRICS", "off")
+        return env
+
     async def scan_directory(
         self,
         target_path: Path,
@@ -53,15 +117,18 @@ class SemgrepAdapter:
         if not self.enabled:
             return []
 
-        try:
-            # Build Semgrep command
-            cmd = self._build_command(target_path)
+        fd, tmp_name = tempfile.mkstemp(suffix=".semgrep.json")
+        os.close(fd)
+        out_path = Path(tmp_name)
 
-            # Run Semgrep
+        try:
+            cmd = self._build_command(target_path, out_path)
+
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=self._subprocess_env(),
             )
 
             try:
@@ -74,17 +141,46 @@ class SemgrepAdapter:
                 print(f"[WARN] Semgrep timeout after {self.timeout}s")
                 return []
 
-            # Parse results
-            if process.returncode == 0 or process.returncode == 1:
-                # returncode 1 means findings found (not an error)
-                return self._parse_results(stdout.decode("utf-8"), target_path)
-            else:
-                print(f"[WARN] Semgrep failed: {stderr.decode('utf-8')}")
+            err_txt = (stderr or b"").decode("utf-8", errors="replace")
+            out_txt = (stdout or b"").decode("utf-8", errors="replace")
+
+            # Semgrep: 0 = clean, 1 = findings, 2 = error (invalid targets / internal error)
+            if process.returncode not in (0, 1):
+                print(f"[WARN] Semgrep exited with code {process.returncode}")
+                if err_txt.strip():
+                    print(f"[WARN] Semgrep stderr:\n{err_txt[:2000]}")
                 return []
+
+            raw_json = ""
+            if out_path.is_file() and out_path.stat().st_size > 0:
+                raw_json = out_path.read_text(encoding="utf-8", errors="replace")
+            elif out_txt.strip():
+                raw_json = out_txt
+            else:
+                # Fall back: some installs only emit JSON on stdout when -o fails
+                blob = _extract_first_json_object(out_txt)
+                if blob:
+                    raw_json = blob
+
+            if not raw_json.strip():
+                if err_txt.strip():
+                    print(f"[ERROR] Semgrep produced no JSON output. stderr:\n{err_txt[:2000]}")
+                    hint = _semgrep_failure_hint(err_txt)
+                    print(f"[ERROR] {hint}")
+                else:
+                    print("[ERROR] Semgrep produced empty output (no JSON). Is Semgrep installed correctly?")
+                return []
+
+            return self._parse_results(raw_json, target_path, stderr_context=err_txt)
 
         except Exception as e:
             print(f"[ERROR] Semgrep execution error: {e}")
             return []
+        finally:
+            try:
+                out_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     async def scan_file(
         self,
@@ -94,7 +190,7 @@ class SemgrepAdapter:
         Scan single file with Semgrep.
 
         Args:
-            file_path: File to scan
+            file_path: Path to file
 
         Returns:
             List of vulnerabilities found
@@ -102,41 +198,22 @@ class SemgrepAdapter:
         if not self.enabled:
             return []
 
-        # Semgrep works better on directories, so scan parent
         return await self.scan_directory(file_path.parent)
-
-    def _build_command(self, target_path: Path) -> list[str]:
-        """
-        Build Semgrep command.
-
-        Args:
-            target_path: Target to scan
-
-        Returns:
-            Command as list of arguments
-        """
-        cmd = ["semgrep", "scan", "--json"]
-
-        # Add rulesets
-        for ruleset in self.rulesets:
-            cmd.extend(["--config", ruleset])
-
-        # Add target
-        cmd.append(str(target_path))
-
-        return cmd
 
     def _parse_results(
         self,
         output: str,
         target_path: Path,
+        *,
+        stderr_context: str = "",
     ) -> list[Vulnerability]:
         """
         Parse Semgrep JSON output.
 
         Args:
-            output: Semgrep JSON output
+            output: Semgrep JSON output (possibly prefixed with noise)
             target_path: Scanned directory
+            stderr_context: Semgrep stderr for diagnostics
 
         Returns:
             List of vulnerabilities
@@ -144,7 +221,12 @@ class SemgrepAdapter:
         vulnerabilities: list[Vulnerability] = []
 
         try:
-            data = json.loads(output)
+            text = output.strip()
+            if not text.startswith("{"):
+                extracted = _extract_first_json_object(text)
+                if extracted:
+                    text = extracted
+            data = json.loads(text)
             results = data.get("results", [])
 
             for result in results:
@@ -154,6 +236,19 @@ class SemgrepAdapter:
 
         except json.JSONDecodeError as e:
             print(f"[ERROR] Failed to parse Semgrep output: {e}")
+            if stderr_context.strip():
+                print(f"[ERROR] Semgrep stderr (tail):\n{stderr_context[-1500:]}")
+            blob = _extract_first_json_object(output)
+            if blob:
+                try:
+                    data = json.loads(blob)
+                    for result in data.get("results", []):
+                        vuln = self._convert_to_vulnerability(result, target_path)
+                        if vuln:
+                            vulnerabilities.append(vuln)
+                except json.JSONDecodeError:
+                    hint = _semgrep_failure_hint(stderr_context)
+                    print(f"[ERROR] {hint}")
         except Exception as e:
             print(f"[ERROR] Error processing Semgrep results: {e}")
 

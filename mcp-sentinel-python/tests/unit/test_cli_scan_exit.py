@@ -128,3 +128,52 @@ def test_scan_tool_baseline_update_and_alerts(runner: CliRunner, tmp_path: Path)
     assert any(
         v["detector"] == "ToolDefinitionVersioning" for v in payload["vulnerabilities"]
     )
+
+
+def test_scan_writes_pdf(runner: CliRunner, tmp_path: Path):
+    (tmp_path / "safe.py").write_text("print('ok')\n", encoding="utf-8")
+    out_pdf = tmp_path / "report.pdf"
+    result = runner.invoke(
+        cli,
+        [
+            "scan",
+            str(tmp_path),
+            "--engines",
+            "static",
+            "--output",
+            "pdf",
+            "--json-file",
+            str(out_pdf),
+            "--no-progress",
+            "--no-fail-on-critical",
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_pdf.is_file()
+    assert out_pdf.stat().st_size > 500
+
+
+def test_scan_html_and_extra_pdf(runner: CliRunner, tmp_path: Path):
+    (tmp_path / "safe.py").write_text("print('ok')\n", encoding="utf-8")
+    html_out = tmp_path / "report.html"
+    pdf_out = tmp_path / "summary.pdf"
+    result = runner.invoke(
+        cli,
+        [
+            "scan",
+            str(tmp_path),
+            "--engines",
+            "static",
+            "--output",
+            "html",
+            "--json-file",
+            str(html_out),
+            "--pdf-file",
+            str(pdf_out),
+            "--no-progress",
+            "--no-fail-on-critical",
+        ],
+    )
+    assert result.exit_code == 0
+    assert html_out.is_file()
+    assert pdf_out.is_file()
