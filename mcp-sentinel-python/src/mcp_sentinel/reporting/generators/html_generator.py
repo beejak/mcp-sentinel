@@ -44,6 +44,7 @@ class HTMLGenerator:
 <body>
     {self._generate_header(result)}
     {self._generate_summary(result)}
+    {self._generate_tool_definitions_section(result)}
     {self._generate_severity_breakdown(result)}
     {self._generate_findings(result)}
     {self._generate_footer()}
@@ -115,6 +116,66 @@ class HTMLGenerator:
                     <div class="risk-badge badge-{risk_color}">{risk_level}</div>
                 </div>
             </div>
+        </div>
+    </section>
+"""
+
+    def _generate_tool_definitions_section(self, result: ScanResult) -> str:
+        """Surface MCP server config fingerprints and baseline diff summary when present."""
+        cfg = result.config
+        if not isinstance(cfg, dict) or "tool_definition_fingerprint" not in cfg:
+            return ""
+
+        fp = escape(str(cfg.get("tool_definition_fingerprint", "")))
+        scanned = cfg.get("tool_definition_files_scanned", 0)
+        server_count = cfg.get("tool_definition_server_count", 0)
+        baseline_path = escape(str(cfg.get("tool_definition_baseline_path", "")))
+        baseline_exists = cfg.get("tool_definition_baseline_exists")
+        baseline_updated = cfg.get("tool_definition_baseline_updated")
+        changes = cfg.get("tool_definition_changes") or {}
+
+        def _fmt_change(label: str, key: str) -> str:
+            if not isinstance(changes, dict):
+                return ""
+            val = changes.get(key)
+            if val is None:
+                return ""
+            return f"<li><strong>{escape(label)}:</strong> {escape(str(val))}</li>"
+
+        change_items = "".join(
+            [
+                _fmt_change("Added servers", "added"),
+                _fmt_change("Removed servers", "removed"),
+                _fmt_change("Changed servers", "changed"),
+            ]
+        )
+        if baseline_exists and not change_items:
+            change_items = "<li><strong>No changes</strong> vs baseline</li>"
+
+        baseline_status = (
+            "Baseline file present — diff counts below."
+            if baseline_exists
+            else "No baseline file yet — use <code>--update-tool-baseline</code> to create one."
+        )
+        if baseline_updated:
+            baseline_status += " <strong>Baseline was updated on this run.</strong>"
+
+        return f"""
+    <section class="summary tool-definitions">
+        <div class="container">
+            <h2>MCP tool definitions</h2>
+            <p class="tool-definitions-lead">
+                Fingerprints of MCP server entries discovered in JSON configs under the scan target
+                (for example <code>mcp.json</code>). Compare runs using a baseline file to catch silent changes.
+            </p>
+            <ul class="tool-definitions-list">
+                <li><strong>Configs scanned (candidates):</strong> {escape(str(scanned))}</li>
+                <li><strong>Server entries:</strong> {escape(str(server_count))}</li>
+                <li><strong>Aggregate fingerprint (sha256):</strong> <code>{fp}</code></li>
+                <li><strong>Baseline path:</strong> <code>{baseline_path}</code></li>
+                <li>{baseline_status}</li>
+                {change_items}
+            </ul>
         </div>
     </section>
 """
@@ -331,6 +392,26 @@ body {
     color: #333;
     margin-bottom: 20px;
     font-size: 1.8em;
+}
+
+.tool-definitions-lead {
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.tool-definitions-list {
+    list-style: disc;
+    padding-left: 22px;
+    color: #444;
+    line-height: 1.7;
+}
+
+.tool-definitions-list code {
+    background: #f0f2f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
 }
 
 .summary-grid {

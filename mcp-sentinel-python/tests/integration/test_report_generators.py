@@ -153,6 +153,7 @@ async def test_html_generator_end_to_end(temp_project):
     # Verify key sections are present
     assert "MCP Sentinel Security Report" in html_content
     assert "Executive Summary" in html_content
+    assert "MCP tool definitions" in html_content
     assert "Risk Score" in html_content
     assert "Severity Breakdown" in html_content
     assert "Detailed Findings" in html_content
@@ -345,6 +346,7 @@ async def test_html_report_executive_dashboard(temp_project):
 
     # Verify dashboard elements
     assert "Executive Summary" in html_content
+    assert "MCP tool definitions" in html_content
     assert "summary-card" in html_content  # Executive summary metric tiles
 
     # Verify key metrics

@@ -5,7 +5,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Test Coverage](https://img.shields.io/badge/coverage-%7E80%25%20overall-brightgreen.svg)](https://github.com/mcp-sentinel/mcp-sentinel-python)
-[![Tests](https://img.shields.io/badge/tests-411%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
+[![Tests](https://img.shields.io/badge/tests-422%20passing-success.svg)](https://github.com/beejak/mcp-sentinel/tree/main/mcp-sentinel-python)
 
 <div align="center">
 
@@ -45,6 +45,7 @@ We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **S
 | **Multi-Engine Scanner** | ✅ Complete | Concurrent execution of multiple analysis engines |
 | **SAST Engine** | ✅ Complete | Semgrep + Bandit integration with 50+ mappings |
 | **VulnerableMCP threat intel** | ✅ Complete | Post-scan enrichment vs. [vulnerablemcp.info](https://vulnerablemcp.info) JSON feed (CVE/title/slug matching); optional disable for CI |
+| **MCP tool-definition baseline** | ✅ Complete | Fingerprints + optional `--update-tool-baseline` / `--tool-baseline-file`; diff alerts vs baseline (`ToolDefinitionVersioning`); surfaced in **HTML** summary |
 | **9 static detectors** | ✅ Complete | Includes **PrototypePollutionDetector** (CWE-1321) plus Phase 1–3 suite |
 | **26 SAST Tests** | ✅ Passing | 100% pass rate, 70-80% coverage |
 | **100+ patterns** | ✅ Implemented | Compiled regex patterns across static detectors |
@@ -55,6 +56,7 @@ We've completed **Phase 4.1**, adding a powerful SAST engine that integrates **S
 - ✅ **SAST Engine** - Integrates Semgrep (multi-language) + Bandit (Python security)
 - ✅ **Multi-Engine Architecture** - Concurrent scanning with multiple engines
 - ✅ **VulnerableMCP enrichment** - Matches findings to the community MCP vulnerability database (see callout above)
+- ✅ **MCP tool-definition baseline** - Fingerprint MCP server JSON configs, optional baseline file, diff alerts (`ToolDefinitionVersioning`), HTML summary panel
 - ✅ **Vulnerability Type Mapping** - 50+ tool-specific to MCP Sentinel type mappings
 - ✅ **Graceful Degradation** - Works even when external tools are missing
 - ✅ **26 Comprehensive Tests** - All passing with mock-based and real tool testing
@@ -93,6 +95,10 @@ mcp-sentinel scan /path/to/mcp/server --engines static,sast --output html
 
 # Start API server
 mcp-sentinel server --port 8000
+
+# Baseline MCP server definitions, then diff on later runs (rug-pull / silent change)
+mcp-sentinel scan /path/to/mcp/server --engines static --update-tool-baseline
+mcp-sentinel scan /path/to/mcp/server --engines static --output json --json-file mcp-scan.json
 ```
 
 ## VulnerableMCP threat intelligence
@@ -117,6 +123,31 @@ This scanner **does not replace** your own code analysis — it **adds context**
 
 **Implementation:** `mcp_sentinel.threat_intel` (fetch + match + enrich after `Scanner` and `MultiEngineScanner` complete successfully).
 
+## MCP tool definition baseline (silent-change detection)
+
+MCP Sentinel fingerprints **MCP server entries** in JSON configs under the scan tree (for example `mcp.json` with `mcpServers`). That supports **rug-pull / silent redefinition** workflows: compare today’s tree to a saved baseline and raise findings when servers are **added**, **removed**, or **changed**.
+
+| CLI flag | Purpose |
+|----------|---------|
+| `--tool-baseline-file PATH` | Baseline JSON path (default: `<target>/.mcp-sentinel-tool-baseline.json`). |
+| `--update-tool-baseline` | After a **successful** scan, write or refresh the baseline from the current tree. |
+
+**Report / API fields:** `ScanResult.config` includes `tool_definition_fingerprint`, per-server records, `tool_definition_baseline_path`, `tool_definition_baseline_exists`, optional `tool_definition_changes`, and `tool_definition_baseline_updated`. **HTML** reports include an **“MCP tool definitions”** summary section. **JSON** output carries the full model (use `--output json --json-file …`).
+
+**Findings:** `detector` = `ToolDefinitionVersioning`, `type` = `config_security` — **HIGH** for removed/changed servers vs baseline, **MEDIUM** for new servers.
+
+## Quality gates & testing contract
+
+| Gate | What “green” means |
+|------|--------------------|
+| **`pytest tests/`** | **422** collected tests; default run is **offline** for threat-intel fetch (`VULNERABLE_MCP_DISABLED=1` in `tests/conftest.py`). |
+| **`ruff check src tests`** | No lint violations on `src/` + `tests/`. |
+| **No live MCP transport** | Tests and the default `scan` command analyze **files on disk** only — they do **not** start or attach to a running MCP server over stdio or HTTP+SSE. |
+| **Optional fork / clone smoke** | `tests/integration/test_external_fork_smoke.py` is **not** collected unless `MCP_SENTINEL_RUN_FORK_TESTS=1` (see `pytest_ignore_collect` in `tests/conftest.py`). |
+| **Strict outcomes** | Unit tests assert **specific** detector behavior (patterns, severities, metadata). Integration tests assert **scan completion**, **config fingerprints**, **report shape**, and **CLI exit codes** (for example critical → exit 1 unless `--no-fail-on-critical`). |
+
+Canonical local check before you push: **`ruff check src tests`** then **`pytest tests/`**.
+
 ## Live MCP scanning, reports, and exit codes
 
 The CLI command `mcp-sentinel scan <path>` analyzes **files on disk** under `<path>` (for example a **cloned MCP server repository** or this repo’s `tests/fixtures`). It performs static (and optional SAST) analysis over the tree; it does **not** attach to a running MCP process over stdio or HTTP+SSE today. For a “live” assessment, clone the server (or your vulnerable sample), then point `scan` at that directory.
@@ -139,7 +170,7 @@ If the scan finds **critical** severity issues, the CLI **still writes** your re
 ### Windows / install notes
 
 - **`pip install -e .`** (or Poetry) on **Python 3.12** is the path most often used on Windows; optional deps **`uvloop`** and **`semgrep`** are skipped on win32 via environment markers in `pyproject.toml`.
-- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (411 tests, all passing as of the last maintenance pass).
+- **`ruff check src tests`** and **`pytest tests/`** are the canonical sanity commands (422 tests, all passing as of the last maintenance pass).
 
 ## Recent maintenance (2026)
 
@@ -278,7 +309,7 @@ MCP Sentinel now supports multiple output formats for seamless integration:
 - **Type-Safe**: Comprehensive type hints with Pydantic models
 - **Modular**: Clean detector architecture with BaseDetector pattern
 - **Extensible**: Easy to add new detectors and patterns
-- **Well-Tested**: 411 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
+- **Well-Tested**: 422 `pytest` tests; overall line coverage ~80% with `pytest --cov=src` (higher on several detectors)
 - **Modern Python**: Python 3.11+ with latest best practices
 - **Multi-Format Reports**: Terminal, JSON, SARIF, and HTML outputs
 
@@ -415,7 +446,7 @@ reporting:
 Phase 3 focuses on comprehensive detector implementation and testing. You can test each detector individually:
 
 ```bash
-# Test all detectors (411 tests)
+# Test all detectors (422 tests)
 poetry run pytest
 
 # Test specific detector suites
@@ -617,7 +648,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
         ▼                         ▼
   ┌──────────┐            ┌──────────────┐
   │ Pydantic │            │  Test Suite  │
-  │  Models  │            │  (411 tests) │
+  │  Models  │            │  (422 tests) │
   └──────────┘            └──────────────┘
 ```
 
@@ -626,7 +657,7 @@ See [Roadmap](#-roadmap) for complete feature timeline.
 - **9 Specialized Detectors**: Complete vulnerability detection coverage (including prototype pollution)
 - **Pydantic Models**: Type-safe data validation with Vulnerability, Confidence, Severity
 - **Async Detection**: Concurrent file processing with asyncio
-- **Comprehensive Tests**: 411 tests; coverage see `pytest --cov=src`
+- **Comprehensive Tests**: 422 tests; coverage see `pytest --cov=src`
 - **Pattern Matching**: 100+ compiled regex patterns across static detectors
 
 ### Planned Components (Phase 4+)
@@ -748,11 +779,11 @@ Phase 3 maintains enterprise-grade code quality:
 - [x] **SARIF Report Generator**: SARIF 2.1.0 format with GitHub Code Scanning support
 - [x] **HTML Report Generator**: Beautiful interactive reports with executive dashboard
 - [x] **CLI Integration**: Multi-format output support (terminal, JSON, SARIF, HTML)
-- [x] 411 comprehensive tests (100% pass rate on `pytest tests/`)
+- [x] 422 comprehensive tests (100% pass rate on `pytest tests/`)
 - [x] Enterprise documentation suite
 - [x] Contributing guidelines and development setup
 
-**Current Status**: **9** static detectors, **100+** patterns, **411** tests, 4 report formats, enterprise-ready ✅
+**Current Status**: **9** static detectors, **100+** patterns, **422** tests, 4 report formats, enterprise-ready ✅
 
 ---
 
@@ -1029,7 +1060,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 |--------|-------|
 | **Detectors** | **9** (static engine default set) |
 | **Patterns** | **100+** (compiled regex across static detectors) |
-| **Tests** | **411** (`pytest tests/`) |
+| **Tests** | **422** (`pytest tests/`) |
 | **Coverage** | ~80% overall (`pytest --cov=src`) |
 | **Report Formats** | 4 (Terminal, JSON, SARIF, HTML) |
 | **Code Quality** | Black + Ruff + mypy |
