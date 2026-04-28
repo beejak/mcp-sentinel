@@ -14,8 +14,10 @@ from html import escape
 from pathlib import Path
 
 from mcp_sentinel import __version__
+from mcp_sentinel.models.executive_assessment import ExecutiveAssessment
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.models.vulnerability import Vulnerability
+from mcp_sentinel.reporting.executive_assessment import triage_for_vulnerability
 
 
 class HTMLGenerator:
@@ -43,6 +45,7 @@ class HTMLGenerator:
 </head>
 <body>
     {self._generate_header(result)}
+    {self._generate_decision_support(result)}
     {self._generate_summary(result)}
     {self._generate_tool_definitions_section(result)}
     {self._generate_severity_breakdown(result)}
@@ -82,6 +85,78 @@ class HTMLGenerator:
             </div>
         </div>
     </header>
+"""
+
+    def _generate_decision_support(self, result: ScanResult) -> str:
+        """Go/No-Go, reasons, disclaimer, and prioritized action queue."""
+        ea = result.executive_assessment
+        if not isinstance(ea, ExecutiveAssessment):
+            return ""
+
+        verdict = ea.verdict
+        vclass = "verdict-go" if verdict == "go" else "verdict-no-go"
+        vlabel = "GO (policy)" if verdict == "go" else "NO-GO (policy)"
+        reasons_html = ""
+        if ea.verdict_reasons:
+            items = "".join(f"<li>{escape(r)}</li>" for r in ea.verdict_reasons)
+            reasons_html = f'<div class="decision-reasons"><p><strong>Why:</strong></p><ul>{items}</ul></div>'
+        else:
+            reasons_html = '<p class="decision-reasons"><strong>No blocking rules fired</strong> under the configured policy.</p>'
+
+        legend_items = "".join(
+            f"<li><span class=\"triage-tag triage-{escape(k)}\">{escape(k)}</span> — {escape(v)}</li>"
+            for k, v in ea.triage_legend.items()
+        )
+
+        rows = ""
+        for row in ea.action_queue:
+            rows += f"""<tr>
+                <td><span class="triage-tag triage-{escape(row.triage)}">{escape(row.triage)}</span></td>
+                <td>{escape(row.severity)}</td>
+                <td>{escape(row.title)}</td>
+                <td><code>{escape(row.file_path)}:{row.line_number}</code></td>
+                <td>{escape(row.summary)}</td>
+                <td>{escape(row.suggested_next_step)}</td>
+            </tr>"""
+
+        table_block = ""
+        if ea.action_queue:
+            table_block = f"""
+            <h3 class="action-queue-title">Prioritized action queue</h3>
+            <div class="table-wrap">
+            <table class="action-queue-table">
+                <thead>
+                    <tr>
+                        <th>Triage</th>
+                        <th>Severity</th>
+                        <th>Title</th>
+                        <th>Location</th>
+                        <th>Summary</th>
+                        <th>Suggested next step</th>
+                    </tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+            </div>
+            """
+
+        return f"""
+    <section class="summary decision-section">
+        <div class="container">
+            <h2>Decision support (Go / No-Go)</h2>
+            <div class="verdict-banner {vclass}">
+                <span class="verdict-label">Verdict:</span>
+                <span class="verdict-value">{escape(vlabel)}</span>
+            </div>
+            {reasons_html}
+            <p class="decision-disclaimer">{escape(ea.disclaimer)}</p>
+            <div class="triage-legend-box">
+                <strong>Triage labels</strong>
+                <ul class="triage-legend-list">{legend_items}</ul>
+            </div>
+            {table_block}
+        </div>
+    </section>
 """
 
     def _generate_summary(self, result: ScanResult) -> str:
@@ -255,6 +330,7 @@ class HTMLGenerator:
     def _generate_finding_card(self, index: int, vuln: Vulnerability) -> str:
         """Generate individual finding card."""
         severity_color = vuln.severity.value.lower()
+        triage = triage_for_vulnerability(vuln)
 
         return f"""
         <div class="finding-card">
@@ -263,6 +339,7 @@ class HTMLGenerator:
                 <div class="finding-title">
                     <h3>{escape(vuln.title)}</h3>
                     <span class="badge badge-{severity_color}">{vuln.severity.value.upper()}</span>
+                    <span class="triage-tag triage-{triage}">Triage: {triage}</span>
                 </div>
             </div>
             <div class="finding-meta">
@@ -476,6 +553,30 @@ body {
 .badge-medium { background: #ffc107; color: #333; }
 .badge-low { background: #28a745; color: white; }
 .badge-info { background: #17a2b8; color: white; }
+
+.decision-section .verdict-banner {
+    padding: 18px 22px;
+    border-radius: 10px;
+    margin-bottom: 18px;
+    font-size: 1.2em;
+}
+.verdict-go { background: #d4edda; border: 2px solid #28a745; color: #155724; }
+.verdict-no-go { background: #f8d7da; border: 2px solid #dc3545; color: #721c24; }
+.verdict-label { font-weight: 600; margin-right: 10px; }
+.verdict-value { font-weight: 800; letter-spacing: 0.03em; }
+.decision-disclaimer { font-size: 0.88em; color: #555; margin: 14px 0; line-height: 1.55; }
+.decision-reasons ul { margin: 10px 0 10px 22px; color: #333; }
+.triage-legend-box { margin-top: 16px; padding: 12px 16px; background: #f8f9fb; border-radius: 8px; font-size: 0.92em; }
+.triage-legend-list { margin: 8px 0 0 18px; line-height: 1.65; }
+.triage-tag { display: inline-block; margin-left: 8px; padding: 3px 10px; border-radius: 12px; font-size: 0.72em; font-weight: 700; text-transform: capitalize; }
+.triage-prioritize { background: #f8d7da; color: #721c24; }
+.triage-review { background: #fff3cd; color: #856404; }
+.triage-informational { background: #d1ecf1; color: #0c5460; }
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+.action-queue-table { width: 100%; border-collapse: collapse; font-size: 0.86em; }
+.action-queue-table th, .action-queue-table td { border: 1px solid #dee2e6; padding: 8px 10px; vertical-align: top; text-align: left; }
+.action-queue-table th { background: #1e3a5f; color: #fff; }
+.action-queue-title { margin-top: 20px; margin-bottom: 8px; font-size: 1.12em; color: #333; }
 
 .severity-section, .findings-section {
     background: white;

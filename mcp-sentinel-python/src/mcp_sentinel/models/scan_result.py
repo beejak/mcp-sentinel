@@ -7,6 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from mcp_sentinel.models.executive_assessment import ExecutiveAssessment
 from mcp_sentinel.models.vulnerability import Severity, Vulnerability
 
 
@@ -68,6 +69,7 @@ class ScanResult(BaseModel):
     vulnerabilities: list[Vulnerability] = Field(default_factory=list)
     statistics: ScanStatistics = Field(default_factory=ScanStatistics)
     config: dict[str, Any] = Field(default_factory=dict)
+    executive_assessment: ExecutiveAssessment | None = None
 
     started_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
@@ -98,6 +100,26 @@ class ScanResult(BaseModel):
     def get_by_file(self, file_path: str) -> list[Vulnerability]:
         """Get all vulnerabilities in a specific file."""
         return [v for v in self.vulnerabilities if v.file_path == file_path]
+
+    def recalculate_statistics_from_findings(self) -> None:
+        """Recompute severity counts from ``vulnerabilities`` (e.g. after filtering)."""
+        self.statistics.total_vulnerabilities = len(self.vulnerabilities)
+        self.statistics.critical_count = 0
+        self.statistics.high_count = 0
+        self.statistics.medium_count = 0
+        self.statistics.low_count = 0
+        self.statistics.info_count = 0
+        for v in self.vulnerabilities:
+            if v.severity == Severity.CRITICAL:
+                self.statistics.critical_count += 1
+            elif v.severity == Severity.HIGH:
+                self.statistics.high_count += 1
+            elif v.severity == Severity.MEDIUM:
+                self.statistics.medium_count += 1
+            elif v.severity == Severity.LOW:
+                self.statistics.low_count += 1
+            else:
+                self.statistics.info_count += 1
 
     def has_critical_findings(self) -> bool:
         """Check if scan has critical vulnerabilities."""

@@ -16,6 +16,7 @@ from mcp_sentinel import __version__
 from mcp_sentinel.core.multi_engine_scanner import MultiEngineScanner
 from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
+from mcp_sentinel.models.executive_assessment import ExecutiveAssessment
 from mcp_sentinel.models.scan_result import ScanResult
 from mcp_sentinel.reporting.generators import (
     HTMLGenerator,
@@ -111,6 +112,23 @@ def cli():
     is_flag=True,
     help="Write/update the MCP tool-definition baseline after scan completes.",
 )
+@click.option(
+    "--executive-policy",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="YAML file for Go/No-Go policy (optional; defaults: no-go on critical).",
+)
+@click.option(
+    "--executive-top-n",
+    type=int,
+    default=None,
+    help="Override size of the prioritized action queue (default: 10 or from policy).",
+)
+@click.option(
+    "--no-executive-assessment",
+    is_flag=True,
+    help="Skip executive decision / action queue (not added to JSON, HTML, PDF).",
+)
 def scan(
     target: str,
     output: str,
@@ -124,6 +142,9 @@ def scan(
     no_fail_on_critical: bool,
     tool_baseline_file: str | None,
     update_tool_baseline: bool,
+    executive_policy: Path | None,
+    executive_top_n: int | None,
+    no_executive_assessment: bool,
 ):
     """
     Scan a directory or file for security vulnerabilities.
@@ -167,6 +188,10 @@ def scan(
         \b
         # Write incident/exploitability summary markdown (default on)
         mcp-sentinel scan . --output json --json-file out.json --incident-file incidents.md
+
+        \b
+        # Executive Go/No-Go + action queue in reports (default on; YAML policy optional)
+        mcp-sentinel scan . --output html --json-file report.html --executive-policy policy.yaml
     """
     # Parse engine selection
     enabled_engines = _parse_engines(engines)
@@ -223,7 +248,18 @@ def scan(
         result.vulnerabilities = [
             v for v in result.vulnerabilities if v.severity.value in severity_set
         ]
-        result.statistics.total_vulnerabilities = len(result.vulnerabilities)
+        result.recalculate_statistics_from_findings()
+
+    if not no_executive_assessment:
+        from mcp_sentinel.reporting.executive_assessment import (
+            build_executive_assessment,
+            load_executive_policy,
+        )
+
+        pol = load_executive_policy(executive_policy)
+        if executive_top_n is not None:
+            pol = pol.model_copy(update={"action_queue_top_n": executive_top_n})
+        result.executive_assessment = build_executive_assessment(result, pol)
 
     # Output results
     if output == "terminal":
@@ -460,6 +496,41 @@ def _print_terminal_results(result: ScanResult):
     console.print(severity_table)
     console.print("\n")
 
+    ea = result.executive_assessment
+    if isinstance(ea, ExecutiveAssessment):
+        vline = "NO-GO (policy)" if ea.verdict == "no_go" else "GO (policy)"
+        vcol = "red" if ea.verdict == "no_go" else "green"
+        sub = (
+            " · ".join(ea.verdict_reasons)
+            if ea.verdict_reasons
+            else "No blocking rules under current policy."
+        )
+        console.print(
+            Panel.fit(
+                f"[bold]Executive verdict:[/bold] [{vcol}]{vline}[/]\n{escape(sub)}",
+                title="Decision support",
+                box=box.ROUNDED,
+            )
+        )
+        if ea.action_queue:
+            t = Table(title="Prioritized action queue", box=box.ROUNDED)
+            t.add_column("Triage", style="magenta")
+            t.add_column("Sev", style="bold")
+            t.add_column("Location", style="cyan", overflow="fold")
+            t.add_column("Next step", style="white", overflow="fold")
+            for a in ea.action_queue:
+                t.add_row(
+                    a.triage,
+                    a.severity,
+                    f"{a.file_path}:{a.line_number}",
+                    a.suggested_next_step[:120]
+                    + ("…" if len(a.suggested_next_step) > 120 else ""),
+                )
+            console.print(t)
+        console.print(
+            f"[dim]{escape(ea.disclaimer)}[/dim]\n"
+        )
+
     # Detailed findings
     if result.vulnerabilities:
         console.print("[bold]Detailed Findings:[/bold]\n")
@@ -507,7 +578,7 @@ def _print_json_results(result: ScanResult, output_file: str | None = None):
     json_output = result.model_dump_json(indent=2)
 
     if output_file:
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(json_output)
         console.print(f"[green]Results saved to {output_file}[/green]")
     else:

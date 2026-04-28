@@ -9,6 +9,7 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from mcp_sentinel import __version__
+from mcp_sentinel.models.executive_assessment import ExecutiveAssessment
 from mcp_sentinel.models.scan_result import ScanResult
 
 
@@ -41,6 +42,65 @@ class PDFGenerator:
             )
         )
         story.append(Spacer(1, 0.15 * inch))
+
+        ea = result.executive_assessment
+        if isinstance(ea, ExecutiveAssessment):
+            vtext = "NO-GO (policy)" if ea.verdict == "no_go" else "GO (policy)"
+            vstyle = ParagraphStyle(
+                name="VerdictStyle",
+                parent=styles["Normal"],
+                fontSize=14,
+                textColor=colors.HexColor("#c0392b") if ea.verdict == "no_go" else colors.HexColor("#27ae60"),
+                spaceAfter=8,
+            )
+            story.append(Paragraph(f"<b>Executive verdict:</b> {vtext}", vstyle))
+            if ea.verdict_reasons:
+                story.append(
+                    Paragraph(
+                        "<b>Reasons:</b> " + "; ".join(ea.verdict_reasons),
+                        meta_style,
+                    )
+                )
+            story.append(
+                Paragraph(
+                    f"<i>{ea.disclaimer}</i>",
+                    meta_style,
+                )
+            )
+            story.append(Spacer(1, 0.12 * inch))
+            if ea.action_queue:
+                aq_rows = [["Triage", "Sev", "Title", "Location", "Next step"]]
+                for a in ea.action_queue[:25]:
+                    loc = f"{a.file_path}:{a.line_number}"
+                    aq_rows.append(
+                        [
+                            a.triage[:12],
+                            a.severity[:8],
+                            (a.title or "")[:48],
+                            (loc or "")[:56],
+                            (a.suggested_next_step or "")[:72],
+                        ]
+                    )
+                aq_tbl = Table(
+                    aq_rows,
+                    repeatRows=1,
+                    colWidths=[0.85 * inch, 0.55 * inch, 1.55 * inch, 1.35 * inch, 2.2 * inch],
+                )
+                aq_tbl.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+                            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                            ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                            ("FONTSIZE", (0, 0), (-1, -1), 7),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                        ]
+                    )
+                )
+                story.append(Paragraph("Action queue (top)", styles["Heading2"]))
+                story.append(aq_tbl)
+                story.append(Spacer(1, 0.15 * inch))
 
         stats = result.statistics
         summary_data = [
