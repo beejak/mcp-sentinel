@@ -35,7 +35,7 @@ class TestSemgrepAdapter:
             assert adapter.enabled is True
             assert adapter.rulesets == [
                 "p/security-audit",
-                "p/owasp-top-10",
+                "p/owasp-top-ten",
                 "p/command-injection",
             ]
 

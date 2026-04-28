@@ -60,13 +60,13 @@ class SemgrepAdapter:
 
         Args:
             enabled: Whether adapter is enabled
-            rulesets: Semgrep rulesets to use (e.g., ["p/security-audit", "p/owasp-top-10"])
+            rulesets: Semgrep rulesets to use (e.g., ["p/security-audit", "p/owasp-top-ten"])
             timeout: Command timeout in seconds
         """
         self.enabled = enabled and shutil.which("semgrep") is not None
         self.rulesets = rulesets or [
             "p/security-audit",
-            "p/owasp-top-10",
+            "p/owasp-top-ten",
             "p/command-injection",
         ]
         self.timeout = timeout
@@ -144,12 +144,11 @@ class SemgrepAdapter:
             err_txt = (stderr or b"").decode("utf-8", errors="replace")
             out_txt = (stdout or b"").decode("utf-8", errors="replace")
 
-            # Semgrep: 0 = clean, 1 = findings, 2 = error (invalid targets / internal error)
+            # Semgrep: 0 = clean, 1 = findings. Other codes may still write partial JSON.
             if process.returncode not in (0, 1):
                 print(f"[WARN] Semgrep exited with code {process.returncode}")
                 if err_txt.strip():
                     print(f"[WARN] Semgrep stderr:\n{err_txt[:2000]}")
-                return []
 
             raw_json = ""
             if out_path.is_file() and out_path.stat().st_size > 0:
