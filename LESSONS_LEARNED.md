@@ -6,6 +6,13 @@
 
 ## Rolling feature log
 
+### 2026-04-29 — First-class dynamic MCP probes in CLI
+
+- **Shipped:** `mcp-sentinel scan` defaults to `--probes auto` (discovers `mcpServers` from repo JSON, runs official MCP Python client over stdio or streamable HTTP, merges `engine: dynamic` findings). `mcp-sentinel probe` writes probe-only JSON.
+- **Dependency pin:** `mcp` is capped `<1.23` so `uvicorn` can stay on `^0.26` (mcp 1.23+ requires uvicorn ≥0.31). `python-multipart` raised to `^0.0.9` for the MCP SDK. Unused `strawberry-graphql` was removed from `pyproject.toml` (not referenced in `src/`).
+- **Stderr:** stdio probes pass `errlog=open(os.devnull)` so Click `CliRunner` and headless CI do not hit `fileno` errors on fake stderr.
+- **Lockfile:** Full `poetry lock` can take a long time on this dependency graph; refresh `poetry.lock` in CI or locally after pulling these pyproject changes.
+
 ### 2026-04-28 — Vulnerable-target batch runs: Windows encoding and probe hygiene
 
 - **Incident:** JSON export failed on a vulnerable target with `UnicodeEncodeError` (`cp1252` cannot encode unicode like `✓`) while HTML/PDF succeeded.

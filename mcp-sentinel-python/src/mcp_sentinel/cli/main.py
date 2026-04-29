@@ -18,6 +18,7 @@ from mcp_sentinel.core.scanner import Scanner
 from mcp_sentinel.engines.base import EngineType, ScanProgress
 from mcp_sentinel.models.executive_assessment import ExecutiveAssessment
 from mcp_sentinel.models.scan_result import ScanResult
+from mcp_sentinel.probing import discover_probe_targets, merge_probe_results, run_dynamic_probes
 from mcp_sentinel.reporting.generators import (
     HTMLGenerator,
     IncidentSummaryGenerator,
@@ -38,7 +39,7 @@ def cli():
     secrets, code injection, prompt injection, XSS, configuration issues,
     path traversal, tool poisoning, and supply chain risks.
 
-    Reporting: terminal, JSON, SARIF 2.1.0, HTML, and PDF summaries.
+    Reporting: terminal, JSON, SARIF 2.1.0, HTML, PDF, live MCP probes (stdio/http).
 
     Use ``mcp-sentinel --version`` for the build version.
     Documentation: https://github.com/beejak/mcp-sentinel
@@ -129,6 +130,21 @@ def cli():
     is_flag=True,
     help="Skip executive decision / action queue (not added to JSON, HTML, PDF).",
 )
+@click.option(
+    "--probes",
+    type=click.Choice(["auto", "off"]),
+    default="auto",
+    show_default=True,
+    help="Run live MCP probes (stdio/http) for servers declared in repo JSON configs. "
+    "'auto' discovers targets and probes; 'off' skips.",
+)
+@click.option(
+    "--probe-timeout",
+    type=float,
+    default=90.0,
+    show_default=True,
+    help="Per-server dynamic probe timeout in seconds.",
+)
 def scan(
     target: str,
     output: str,
@@ -145,6 +161,8 @@ def scan(
     executive_policy: Path | None,
     executive_top_n: int | None,
     no_executive_assessment: bool,
+    probes: str,
+    probe_timeout: float,
 ):
     """
     Scan a directory or file for security vulnerabilities.
@@ -242,6 +260,36 @@ def scan(
             )
         )
 
+    # Live MCP probes (stdio / HTTP) — same repo configs as tool fingerprinting
+    if probes != "off":
+        tpath = Path(target)
+        if not tpath.is_dir():
+            cfg = dict(result.config) if isinstance(result.config, dict) else {}
+            cfg["dynamic_probe"] = {"enabled": False, "reason": "target_not_a_directory"}
+            result.config = cfg
+        else:
+            discovered = discover_probe_targets(tpath)
+            if discovered:
+                console.print(
+                    f"[cyan]Dynamic probes:[/cyan] {len(discovered)} MCP server entr(y/ies) — "
+                    f"stdio/http handshake + capability checks"
+                )
+                dyn_vulns, meta = asyncio.run(
+                    run_dynamic_probes(tpath, discovered, timeout_seconds=probe_timeout)
+                )
+                merge_probe_results(result, dyn_vulns, meta)
+            else:
+                cfg = dict(result.config) if isinstance(result.config, dict) else {}
+                cfg["dynamic_probe"] = {
+                    "enabled": False,
+                    "reason": "no_mcp_server_entries_in_json",
+                }
+                result.config = cfg
+    else:
+        cfg = dict(result.config) if isinstance(result.config, dict) else {}
+        cfg["dynamic_probe"] = {"enabled": False, "reason": "skipped_by_flag"}
+        result.config = cfg
+
     # Filter by severity if specified
     if severity:
         severity_set = set(severity)
@@ -303,6 +351,55 @@ def scan(
                 "Use --no-fail-on-critical for exit 0 in local runs.[/dim]"
             )
             raise click.Abort()
+
+
+@cli.command("probe")
+@click.argument("target", type=click.Path(exists=True))
+@click.option(
+    "--json-file",
+    type=click.Path(),
+    required=True,
+    help="Write probe results (JSON) to this path.",
+)
+@click.option(
+    "--probe-timeout",
+    type=float,
+    default=90.0,
+    show_default=True,
+    help="Per-server probe timeout in seconds.",
+)
+def probe_command(target: str, json_file: str, probe_timeout: float):
+    """
+    Run live MCP dynamic probes only (no static/SAST).
+
+    Discovers MCP server entries from JSON configs under TARGET (same rules as scan),
+    connects via stdio or streamable HTTP, runs initialize + list_tools/resources/prompts,
+    and emits heuristics-based findings (engine: dynamic).
+    """
+    root = Path(target).resolve()
+    if not root.is_dir():
+        console.print("[red]TARGET must be a directory.[/red]")
+        raise click.Abort()
+
+    targets = discover_probe_targets(root)
+    if not targets:
+        console.print(
+            "[yellow]No MCP server entries found (look for mcp.json / mcpServers in JSON).[/yellow]"
+        )
+    else:
+        console.print(f"[cyan]Probing {len(targets)} server(s) (timeout {probe_timeout}s each)...[/cyan]")
+
+    vulns, meta = asyncio.run(run_dynamic_probes(root, targets, timeout_seconds=probe_timeout))
+
+    result = ScanResult(target=str(root), status="completed")
+    for v in vulns:
+        result.add_vulnerability(v)
+    cfg = dict(result.config) if isinstance(result.config, dict) else {}
+    cfg["dynamic_probe"] = meta
+    result.config = cfg
+
+    _print_json_results(result, json_file)
+    console.print(f"[green]Probe results written to {json_file}[/green]")
 
 
 async def _run_scan(target: str) -> ScanResult:

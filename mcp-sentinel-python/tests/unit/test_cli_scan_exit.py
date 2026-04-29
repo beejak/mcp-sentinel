@@ -91,6 +91,8 @@ def test_scan_tool_baseline_update_and_alerts(runner: CliRunner, tmp_path: Path)
             str(out1),
             "--no-progress",
             "--update-tool-baseline",
+            "--probes",
+            "off",
         ],
     )
     assert result1.exit_code == 0
@@ -120,6 +122,8 @@ def test_scan_tool_baseline_update_and_alerts(runner: CliRunner, tmp_path: Path)
             "--json-file",
             str(out2),
             "--no-progress",
+            "--probes",
+            "off",
         ],
     )
     assert result2.exit_code == 0

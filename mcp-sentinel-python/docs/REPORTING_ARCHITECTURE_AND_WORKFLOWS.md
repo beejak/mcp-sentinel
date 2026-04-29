@@ -26,9 +26,9 @@ flowchart LR
     MCPConf["MCP JSON configs\n(mcp.json / Claude config snippets)"]
   end
 
-  subgraph OptionalLab["Optional: runtime lab probes"]
-    LabStdio["stdio MCP client probe"]
-    LabHTTP["HTTP/SSE MCP client probe"]
+  subgraph Probes["Dynamic probes (stdio / HTTP)"]
+    LabStdio["stdio: MCP SDK client"]
+    LabHTTP["HTTP: streamable MCP client"]
   end
 
   Dev --> CLI
@@ -40,11 +40,11 @@ flowchart LR
   SAST --> Reports
   Src --> MES
   MCPConf --> MES
-  CLI -. "separate process, not part of core CLI today" .-> LabStdio
-  CLI -. "separate process, not part of core CLI today" .-> LabHTTP
+  CLI --> Probes
+  Probes --> Reports
 ```
 
-**Important:** The shipped **`mcp-sentinel scan`** command analyzes files on disk (static + SAST). **Runtime/dynamic** exercises (starting the real server and calling tools over MCP) are **optional lab workflows** that live outside the core scanner unless you explicitly wire them.
+**Default:** **`mcp-sentinel scan`** runs **static + SAST**, then (unless ``--probes off``) **discovers MCP server entries from JSON configs** under the target and runs **live probes** (initialize + list_tools/resources/prompts) for each stdio or HTTP server. Findings use ``engine: dynamic``. Use ``mcp-sentinel probe`` for **probe-only** JSON output.
 
 ---
 
@@ -114,7 +114,7 @@ After findings exist, the CLI can write **`\<primary-report-stem\>-incidents.md`
 | Static analysis | Pattern detectors on source | Yes (`static` engine) |
 | SAST | Semgrep / Bandit | Yes (`sast` engine) |
 | Threat intel | Feed enrichment after scan | Yes (optional network) |
-| Dynamic MCP probe | Launch server, `initialize`, `list_tools`, optional `call_tool` | **No** (lab scripts / inspector); not merged into `scan` yet |
+| Dynamic MCP probe | `initialize` + `list_tools` / `list_resources` / `list_prompts` over stdio or HTTP | **Yes** (default ``--probes auto`` on ``scan``; ``mcp-sentinel probe`` for probe-only) |
 
 ---
 
@@ -122,5 +122,7 @@ After findings exist, the CLI can write **`\<primary-report-stem\>-incidents.md`
 
 - **`--incident-summary` / `--no-incident-summary`** — turn the incident markdown on or off (default: **on**).
 - **`--incident-file PATH`** — explicit output path for the incident summary.
+- **`--probes auto|off`** — run or skip live MCP probes after static/SAST (default: **auto**).
+- **`--probe-timeout SECONDS`** — per-server probe timeout (default **90**).
 
 These are **overrides**: they change default behavior without editing code.
