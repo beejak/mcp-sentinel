@@ -99,7 +99,69 @@ mcp-sentinel server --port 8000
 # Baseline MCP server definitions, then diff on later runs (rug-pull / silent change)
 mcp-sentinel scan /path/to/mcp/server --engines static --update-tool-baseline
 mcp-sentinel scan /path/to/mcp/server --engines static --output json --json-file mcp-scan.json
+
+# Dynamic MCP probes (default: auto). Probe-only JSON without static/SAST:
+mcp-sentinel probe /path/to/mcp/server --json-file dynamic.json
+mcp-sentinel scan /path/to/mcp/server --probes off --output json --json-file no-probes.json
 ```
+
+## Scanner capabilities, known gaps, and how targeting works
+
+### What the tool actually does (capabilities)
+
+| Layer | What runs | Input to the engine |
+|-------|-----------|---------------------|
+| **Static** | Nine pattern detectors over source/config text | Files under `TARGET` (recursive walk; ignores `node_modules`, `.git`, venvs, etc. per engine rules). |
+| **SAST** | Semgrep + Bandit when installed | Same directory tree; Semgrep/Bandit consume file paths and contents. |
+| **Dynamic probes** | Official MCP client: `initialize` + `list_tools` / `list_resources` / `list_prompts` | **Not** “the whole repo”: only **entries discovered in MCP client JSON** (`mcp.json`-style `mcpServers` with `command` or `url`). Probes run with **cwd = TARGET**. |
+| **Threat intel** | VulnerableMCP JSON feed correlation (post-scan) | Your **existing findings** + downloaded feed; does not discover new code paths. |
+| **Reporting** | Terminal, JSON, SARIF, HTML, PDF; incident markdown; executive Go/No-Go | Output of the merged `ScanResult`. |
+
+There is **no** separate module that **subscribes to NVD/MITRE/GitHub Issues** and **automatically opens engineering tasks** in this repo. New CVEs/CWEs/rules enter the product through **normal development** (issues, PRs, detector/Semgrep rule updates). The closest “live channel” integration today is **VulnerableMCP enrichment** (optional URL + env toggles in the callout below): it **tags** findings with community records; it does **not** replace a product backlog or Semgrep rule CI.
+
+**Practical intake for a new public MCP/CVE story (today):**
+
+1. **Confirm overlap** — Does it affect patterns we already flag (SSRF, injection, tool metadata)? Check a scan JSON on a reproducer repo.
+2. **Enrichment check** — If the story is in VulnerableMCP JSON, matching may already surface under `threat_intel.vulnerable_mcp` once the feed is fetched.
+3. **Engineering** — If we need a **new signal**, open an issue/PR: extend a **Python detector**, add **Semgrep rules** under the SAST integration path, extend **dynamic heuristics** (`probing/heuristics.py`), or document a **manual probe** until code lands.
+4. **No closed loop** — Nothing in-repo polls advisory APIs on a schedule and files GitHub Issues for you; that would be a separate automation product.
+
+### If we do not close the listed gaps
+
+| Gap | Effect if left open | Relation to “static + dynamic” principle |
+|-----|---------------------|----------------------------------------|
+| **No `call_tool` / protocol fuzzing** | You only see **advertised** surface (names/descriptions/schemas) and handshake health. **Runtime-only** bugs (bad argument handling, auth bypass on invoke, side effects) can still ship. | **Dynamic** coverage is **observational**, not **exploitative**—principle is partially met: “we exercised the live MCP session,” not “we proved exploitability of every tool.” |
+| **`poetry.lock` not yet listing `mcp` + CI `pip install` shim** | Installs can **drift** from the lockfile; reproducible builds suffer until lock is regenerated and the shim is removed. | **Does not** change static/dynamic semantics; it is **supply-chain / build hygiene** for the scanner itself. |
+
+### Standalone MCP server (not CI): what do you point at?
+
+1. **You pass a filesystem directory** (`mcp-sentinel scan <DIR>`). The multi-engine scanner **requires `DIR` to be a directory** (not a single `.exe` or opaque bundle).
+2. **Static/SAST** ingest whatever **text sources** live under that tree (`*.py`, `*.ts`, `package.json`, etc.). There is **no** “MCP wire protocol upload” of a server binary into the engines—only **files on disk**.
+3. **If your server is “only a binary”** (compiled MCP server): clone or extract assets next to it, or use a **container/image scanner** (see *Complementary scanners*) for CVEs in layers; this Python package does not disassemble arbitrary binaries as an MCP transport payload.
+4. **Dynamic probes** read **`mcpServers` (or equivalent) inside JSON under `<DIR>`** and either **spawn** `command` + `args` with `cwd=<DIR>` or **connect** to `url`. Misconfigured commands, missing binaries, or network deny lists produce **probe failure findings**, not magic fallback to static analysis of the binary.
+
+### Failure scenarios (operational)
+
+| Scenario | Typical outcome |
+|----------|-----------------|
+| **Target is a file, not a directory** | Scan aborts: multi-engine path expects a directory. |
+| **No MCP JSON server entries** | Dynamic probe metadata records `no_mcp_server_entries_in_json`; static/SAST still run (unless you only ran `probe`). |
+| **stdio server fails to start / times out** | `engine: dynamic` finding (probe failure) + `config.dynamic_probe.runs[].error`; per-server timeout is `--probe-timeout` (default 90s). |
+| **HTTP/SSE 403 or TLS/host policy** | Probe failure or empty tools until server flags/headers match policy (see repo `LESSONS_LEARNED.md`). |
+| **Semgrep/Bandit missing** | SAST engine skips or degrades; static + probes still run. |
+| **Threat intel URL unreachable** | Enrichment skipped for that process window; scan completes. |
+| **`mcp` SDK not installed in env** | Until `poetry.lock` includes it, use documented install path (CI installs via `pip` into the Poetry venv). Runtime import errors would break probes—keep env aligned with `pyproject.toml`. |
+
+### Test-style use cases (manual checks)
+
+| Use case | Command sketch | What “good” looks like |
+|----------|------------------|------------------------|
+| **Quick triage** | `mcp-sentinel scan ./server` | Terminal summary + optional dynamic banner when servers exist in JSON. |
+| **CI JSON gate** | `mcp-sentinel scan ./server --output json --json-file out.json` | `out.json` includes `vulnerabilities`, `executive_assessment`, `config.dynamic_probe`. |
+| **No subprocess side effects in automation** | `... --probes off` | Same static/SAST; `dynamic_probe.reason` = skipped. |
+| **Probe-only (no static)** | `mcp-sentinel probe ./server --json-file dyn.json` | JSON with only dynamic-derived findings + probe run log. |
+| **Baseline rug-pull detection** | `scan ... --update-tool-baseline` then change `mcp.json` and rescan | Tool-definition diff findings in JSON/HTML. |
+| **Air-gapped / no threat feed** | `VULNERABLE_MCP_DISABLED=true` or `ENABLE_THREAT_INTEL=false` | Scan completes without network feed. |
 
 ## VulnerableMCP threat intelligence
 

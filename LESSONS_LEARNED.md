@@ -13,6 +13,14 @@
 - **Stderr:** stdio probes pass `errlog=open(os.devnull)` so Click `CliRunner` and headless CI do not hit `fileno` errors on fake stderr.
 - **Lockfile:** Full `poetry lock` can take a long time on this dependency graph; refresh `poetry.lock` in CI or locally after pulling these pyproject changes.
 
+### 2026-04-29 — README: capabilities vs gaps, threat-intel vs backlog, standalone targeting
+
+- **Gaps left open:** Skipping `call_tool`/fuzzing means dynamic coverage stays **metadata + handshake**, not exploit proof. Leaving the lockfile/shim split means **reproducible installs** stay weaker until `poetry.lock` is regenerated and CI stops using `pip install mcp` into the Poetry env.
+- **Principles:** Static/SAST still mean “all text under `TARGET`.” Dynamic still means “live MCP listing for declared servers,” not “upload a server binary as the scan input.”
+- **Threat intel:** `threat_intel/enricher.py` + VulnerableMCP feed **correlate** findings; there is **no** in-repo daemon that ingests NVD/CVE feeds and **auto-files** GitHub issues. New detection work is still **human triage → issue/PR → detector or Semgrep or probe heuristic**.
+- **Standalone server confusion:** Users must pass a **directory** (server project root). Engines never receive an MCP “payload over the wire”; they read **files**. Probes spawn/connect using **JSON config** under that tree.
+- **Doc surface:** The above is captured in `mcp-sentinel-python/README.md` (capabilities table, failure scenarios, test-style use cases, intake bullets).
+
 ### 2026-04-28 — Vulnerable-target batch runs: Windows encoding and probe hygiene
 
 - **Incident:** JSON export failed on a vulnerable target with `UnicodeEncodeError` (`cp1252` cannot encode unicode like `✓`) while HTML/PDF succeeded.
