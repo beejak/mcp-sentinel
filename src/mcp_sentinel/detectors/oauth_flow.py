@@ -24,6 +24,7 @@ _OAUTH_KEYWORDS = (
     "client_secret",
     "redirect_uri",
     "authorization_code",
+    "authorization_endpoint",
     "bearer",
     "id_token",
     "response_type",
@@ -31,6 +32,7 @@ _OAUTH_KEYWORDS = (
     "jwt",
     "verify_exp",
     "verify_signature",
+    "_injected_endpoint",
 )
 
 
@@ -93,6 +95,13 @@ class OAuthFlowDetector(BaseDetector):
                 re.compile(r'"verify_exp"\s*:\s*[Ff]alse'),
                 re.compile(r'algorithms\s*=\s*\[\s*["\']none["\']', re.IGNORECASE),
                 re.compile(r'decode\([^)]*verify\s*=\s*False', re.IGNORECASE),
+            ],
+            "oauth_endpoint_injection": [
+                # CVE-2025-6514: shell metacharacters in OAuth endpoint URL strings
+                re.compile(r'authorization_endpoint[^=\n]*[=:][^=\n]*["\'][^"\']*\$\(', re.IGNORECASE),
+                re.compile(r'authorization_endpoint[^=\n]*[=:][^=\n]*["\'][^"\']*`[^`]+`', re.IGNORECASE),
+                re.compile(r'["\']https?://[^"\']*\$\([^)]+\)[^"\']*["\'].*(?:authorization|oauth|endpoint)', re.IGNORECASE),
+                re.compile(r'_INJECTED_ENDPOINT\s*=', re.IGNORECASE),
             ],
         }
 
@@ -265,6 +274,33 @@ class OAuthFlowDetector(BaseDetector):
                 "refs": [
                     "https://datatracker.ietf.org/doc/html/rfc7636",
                     "https://oauth.net/2/pkce/",
+                ],
+            },
+            "oauth_endpoint_injection": {
+                "title": "OAuth: Shell Injection via Poisoned authorization_endpoint (CVE-2025-6514)",
+                "description": (
+                    "An OAuth authorization_endpoint URL contains shell metacharacters such as $() "
+                    "or backtick subshells. mcp-remote ≤0.1.15 passes this URL directly into a shell "
+                    "command (exec(`open '${authorizationEndpoint}'`)) without sanitisation. A malicious "
+                    "MCP server returning a poisoned OAuth discovery document achieves OS command "
+                    "execution on the MCP client machine — zero clicks required (CVE-2025-6514, CVSS 9.6)."
+                ),
+                "severity": Severity.CRITICAL,
+                "confidence": Confidence.HIGH,
+                "cwe_id": "CWE-78",
+                "cvss_score": 9.6,
+                "remediation": (
+                    "1. Upgrade mcp-remote to 0.1.16 or later.\n"
+                    "2. Validate all fields from OAuth discovery documents before use.\n"
+                    "3. Never interpolate externally-supplied URLs into shell commands.\n"
+                    "4. Use execv-style APIs that pass arguments as arrays, not shell strings.\n"
+                    "5. Treat /.well-known/oauth-authorization-server responses as untrusted input."
+                ),
+                "mitre": ["T1059", "T1190"],
+                "refs": [
+                    "https://nvd.nist.gov/vuln/detail/CVE-2025-6514",
+                    "https://github.com/modelcontextprotocol/mcp-remote/security/advisories",
+                    "https://oauth.net/specs/rfc8414/",
                 ],
             },
             "missing_token_validation": {

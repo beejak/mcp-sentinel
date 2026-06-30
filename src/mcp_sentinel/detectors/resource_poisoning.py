@@ -17,7 +17,7 @@ _OWASP_NAME = "Prompt Injection"
 
 _APPLICABLE_EXTENSIONS = {".json", ".yaml", ".yml", ".py", ".js", ".ts"}
 
-_RESOURCE_KEYWORDS = ('"uri"', "'uri'", "uri=", "resource", "uriTemplate", "mcp")
+_RESOURCE_KEYWORDS = ('"uri"', "'uri'", "uri=", "resource", "uriTemplate", "mcp", ".resource(", "hidden instruction", "[inst]")
 
 _SENSITIVE_PATHS = (
     r"\.ssh",
@@ -134,6 +134,22 @@ class MCPResourcePoisoningDetector(BaseDetector):
                 re.compile(r'"uri"\s*:\s*"[^"]*\$\{[^}]+\}[^"]*"', re.IGNORECASE),
                 re.compile(r'"uri"\s*:\s*"[^"]*%[A-Z_]{2,}%[^"]*"', re.IGNORECASE),
                 re.compile(r"os\.environ\[.*\].*(?:uri|resource)", re.IGNORECASE),
+            ],
+            "python_decorator_sensitive_uri": [
+                re.compile(
+                    rf'@\w+\.resource\s*\(\s*["\'](?:file://|secret://)[^"\']*(?:{sensitive})[^"\']*["\']',
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r'@\w+\.resource\s*\(\s*["\'](?:file:///etc/|secret://|file://.*\.ssh)',
+                    re.IGNORECASE,
+                ),
+            ],
+            "hidden_prompt_injection": [
+                re.compile(r"<!--\s*(?:HIDDEN\s+)?INSTRUCTION", re.IGNORECASE),
+                re.compile(r"\[INST\].*\[/INST\]", re.IGNORECASE | re.DOTALL),
+                re.compile(r"<\|system\|>|<\|user\|>|<\|assistant\|>"),
+                re.compile(r"<!--.*(?:ignore|disregard|override|forget).*(?:instruction|guideline|safety|previous).*-->", re.IGNORECASE),
             ],
             "mime_confusion": [
                 re.compile(
@@ -293,6 +309,44 @@ class MCPResourcePoisoningDetector(BaseDetector):
                     "3. Ensure no secret variables are reachable via resource metadata."
                 ),
                 "mitre": ["T1552.007"],
+            },
+            "python_decorator_sensitive_uri": {
+                "title": "MCP Resource: Python @resource Decorator Exposes Sensitive Path",
+                "description": (
+                    "A Python @app.resource() decorator registers an MCP resource URI pointing to "
+                    "a sensitive host path (e.g., file:///etc/passwd, secret://, .ssh keys). "
+                    "Any agent that reads this resource will have the credential or system file "
+                    "content injected into its context window."
+                ),
+                "severity": Severity.CRITICAL,
+                "confidence": Confidence.HIGH,
+                "cwe_id": "CWE-552",
+                "cvss_score": 9.1,
+                "remediation": (
+                    "1. Remove resource decorators that reference credential or system files.\n"
+                    "2. Restrict resource URIs to explicitly allowlisted safe paths.\n"
+                    "3. Never expose /etc/passwd, .ssh/, .aws/, or secret:// URIs via MCP resources."
+                ),
+                "mitre": ["T1552", "T1005"],
+            },
+            "hidden_prompt_injection": {
+                "title": "MCP Resource: Hidden Prompt Injection in Resource Body",
+                "description": (
+                    "HTML comment injection (<!-- HIDDEN INSTRUCTION -->) or instruction tags "
+                    "([INST]...[/INST]) are embedded in an MCP resource body. These are invisible "
+                    "to human reviewers but are parsed and executed as instructions by LLM agents "
+                    "that read the resource, enabling silent behaviour manipulation."
+                ),
+                "severity": Severity.CRITICAL,
+                "confidence": Confidence.HIGH,
+                "cwe_id": "CWE-74",
+                "cvss_score": 9.0,
+                "remediation": (
+                    "1. Strip HTML comments and instruction tags from all resource bodies before serving.\n"
+                    "2. Treat resource content as untrusted; apply prompt injection detection.\n"
+                    "3. Audit existing resource bodies with a Unicode and markup scanner."
+                ),
+                "mitre": ["T1055", "T1059"],
             },
             "mime_confusion": {
                 "title": "MCP Resource: MIME Type Mismatch on Executable File",
