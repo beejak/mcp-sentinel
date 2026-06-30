@@ -79,10 +79,20 @@ def _tools_from_json_data(data: Any, file_path: str) -> list[dict[str, Any]]:
 
 
 def extract_tools_from_json(content: str, file_path: str) -> list[dict[str, Any]]:
-    """Extract tool definitions from a JSON (or JSON-like) MCP config file."""
+    """Extract tool definitions from a JSON MCP config file."""
     try:
         data = json.loads(content)
     except (json.JSONDecodeError, ValueError):
+        return []
+    return _tools_from_json_data(data, file_path)
+
+
+def extract_tools_from_yaml(content: str, file_path: str) -> list[dict[str, Any]]:
+    """Extract tool definitions from a YAML MCP config file."""
+    try:
+        import yaml  # noqa: PLC0415
+        data = yaml.safe_load(content)
+    except Exception:
         return []
     return _tools_from_json_data(data, file_path)
 
@@ -127,8 +137,10 @@ def extract_tools(target: Path) -> list[dict[str, Any]]:
         suffix = file_path.suffix.lower()
         if suffix == ".py":
             all_tools.extend(extract_tools_from_python(content, str(file_path)))
-        elif suffix in (".json", ".yaml", ".yml"):
+        elif suffix == ".json":
             all_tools.extend(extract_tools_from_json(content, str(file_path)))
+        elif suffix in (".yaml", ".yml"):
+            all_tools.extend(extract_tools_from_yaml(content, str(file_path)))
 
     # Deduplicate by (name, source_file) keeping first occurrence
     seen: set[tuple[str, str]] = set()

@@ -18,6 +18,7 @@ from mcp_sentinel.baseline import (
     extract_tools,
     extract_tools_from_json,
     extract_tools_from_python,
+    extract_tools_from_yaml,
     load_baseline,
     save_baseline,
 )
@@ -57,6 +58,48 @@ async def search_files(query: str, root: str) -> list:
     results = []
     return results
 '''
+
+
+# ---------------------------------------------------------------------------
+# Extraction: YAML
+# ---------------------------------------------------------------------------
+
+SIMPLE_TOOL_YAML = """\
+tools:
+  - name: read_file
+    description: Read the contents of a file at the given path.
+    inputSchema:
+      type: object
+      properties:
+        path:
+          type: string
+  - name: write_file
+    description: Write content to a file.
+"""
+
+
+def test_extract_from_yaml_basic():
+    tools = extract_tools_from_yaml(SIMPLE_TOOL_YAML, "server.yaml")
+    assert len(tools) == 2
+    names = {t["name"] for t in tools}
+    assert names == {"read_file", "write_file"}
+
+
+def test_extract_from_yaml_fingerprint_matches_json_equivalent():
+    yaml_tools = extract_tools_from_yaml(SIMPLE_TOOL_YAML, "server.yaml")
+    json_tools = extract_tools_from_json(SIMPLE_TOOL_JSON, "server.json")
+    # Same name+description+schema → same fingerprint
+    yaml_fp = {t["name"]: t["fingerprint"] for t in yaml_tools}
+    json_fp = {t["name"]: t["fingerprint"] for t in json_tools}
+    assert yaml_fp["read_file"] == json_fp["read_file"]
+
+
+def test_extract_from_yaml_invalid_returns_empty():
+    assert extract_tools_from_yaml("{invalid: yaml: content", "bad.yaml") == []
+
+
+def test_extract_from_yaml_no_tools_key_returns_empty():
+    assert extract_tools_from_yaml("name: MyServer\nversion: 1.0\n", "config.yaml") == []
 
 
 # ---------------------------------------------------------------------------
