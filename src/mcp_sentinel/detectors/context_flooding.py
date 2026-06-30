@@ -40,7 +40,7 @@ class ContextFloodingDetector(BaseDetector):
             "unbounded_file_read": [
                 re.compile(r"\bopen\s*\([^)]+\)\s*\.read\s*\(\s*\)"),
                 re.compile(r"\bPath\s*\([^)]+\)\s*\.read_text\s*\(\s*\)"),
-                re.compile(r"\baiofiles\.open\b"),
+                re.compile(r"\bawait\s+\w+\.read\s*\(\s*\)"),
                 re.compile(r"\bfs\.readFileSync\s*\(", re.IGNORECASE),
                 re.compile(r"\bfs\.readFile\s*\((?![^)]*maxSize)", re.IGNORECASE),
             ],
@@ -58,7 +58,7 @@ class ContextFloodingDetector(BaseDetector):
                     re.IGNORECASE,
                 ),
                 re.compile(r"\.fetchall\(\)", re.IGNORECASE),
-                re.compile(r"\.all\(\)"),
+                re.compile(r"\bsession\b.*\.all\(\)|\bquery\b.*\.all\(\)"),
                 re.compile(r"\.find\s*\(\s*\{\s*\}\s*\)(?!\s*\.limit\b)"),
                 re.compile(r"\.find\s*\(\s*\)\s*(?!\.limit\b)"),
             ],

@@ -592,7 +592,7 @@ def baseline(target: Optional[str], baseline_file: str, update: bool) -> None:
             f"\n[dim]Run with --update to accept these changes and refresh the baseline.[/dim]"
         )
 
-    if modified or removed:
+    if (modified or removed) and not update:
         sys.exit(1)
 
 

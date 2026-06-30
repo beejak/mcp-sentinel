@@ -74,7 +74,7 @@ class StaticAnalysisEngine(BaseEngine):
         Initialize the static analysis engine.
 
         Args:
-            detectors: List of detectors to use. If None, uses all 9 default detectors.
+            detectors: List of detectors to use. If None, uses all default detectors.
             enabled: Whether engine is enabled
         """
         super().__init__(
