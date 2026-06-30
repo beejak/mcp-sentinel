@@ -26,6 +26,11 @@ _OAUTH_KEYWORDS = (
     "authorization_code",
     "bearer",
     "id_token",
+    "response_type",
+    "grant_type",
+    "jwt",
+    "verify_exp",
+    "verify_signature",
 )
 
 
@@ -76,6 +81,7 @@ class OAuthFlowDetector(BaseDetector):
             "implicit_grant": [
                 re.compile(r'response_type\s*=\s*["\']token["\']', re.IGNORECASE),
                 re.compile(r'"response_type"\s*:\s*"token"', re.IGNORECASE),
+                re.compile(r'response_type=token\b', re.IGNORECASE),  # URL query-param form
                 re.compile(r'grant_type\s*=\s*["\']implicit["\']', re.IGNORECASE),
             ],
             "missing_pkce": [

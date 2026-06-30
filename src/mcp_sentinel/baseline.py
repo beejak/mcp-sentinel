@@ -24,7 +24,8 @@ _JSON_TOOL_DESC = re.compile(r'"description"\s*:\s*"([^"]*)"')
 
 # Python @tool / @mcp.tool decorated functions with docstrings
 _PY_DECORATED = re.compile(
-    r"@(?:mcp\.)?tool\s*(?:\([^)]*\))?\s*\n\s*(?:async\s+)?def\s+(\w+)\s*\([^)]*\)\s*:\s*\n"
+    r"@(?:mcp\.)?tool\s*(?:\([^)]*\))?\s*\n\s*(?:async\s+)?def\s+(\w+)\s*\([^)]*\)"
+    r"(?:\s*->[^:]+)?\s*:\s*\n"
     r'\s*"""(.*?)"""',
     re.DOTALL,
 )

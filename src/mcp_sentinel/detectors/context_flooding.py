@@ -58,12 +58,14 @@ class ContextFloodingDetector(BaseDetector):
                     re.IGNORECASE,
                 ),
                 re.compile(r"\.fetchall\(\)", re.IGNORECASE),
+                re.compile(r"\.all\(\)"),
                 re.compile(r"\.find\s*\(\s*\{\s*\}\s*\)(?!\s*\.limit\b)"),
                 re.compile(r"\.find\s*\(\s*\)\s*(?!\.limit\b)"),
             ],
             "missing_pagination": [
                 re.compile(
-                    r"^\s*(?:async\s+)?def\s+(?:list|get_all|fetch_all|read_all)\w*\s*\([^)]*\)\s*:",
+                    r"^\s*(?:async\s+)?def\s+(?:list|get_all|fetch_all|read_all)\w*\s*\([^)]*\)"
+                    r"(?:\s*->[^:]+)?\s*:",
                     re.IGNORECASE,
                 ),
             ],
@@ -91,12 +93,15 @@ class ContextFloodingDetector(BaseDetector):
             for category, patterns in self.line_patterns.items():
                 for pattern in patterns:
                     if pattern.search(line):
-                        # For missing_pagination, only flag if no pagination params found
                         if category == "missing_pagination":
                             if any(
                                 kw in line.lower()
                                 for kw in ("limit", "page", "offset", "cursor", "max_items", "max_results")
                             ):
+                                break
+                        if category == "query_without_limit":
+                            # Skip if LIMIT already on the same line (e.g. inline SQL + fetchall)
+                            if "limit" in line.lower():
                                 break
                         vuln = self._make_vuln(category, file_path, line_num, stripped)
                         if vuln:
