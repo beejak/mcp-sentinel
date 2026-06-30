@@ -259,7 +259,7 @@ async def test_finding_metadata_complete(detector):
     vulns = await detector.detect(Path("server.json"), content, "json")
     assert len(vulns) >= 1
     v = vulns[0]
-    assert v.type == VulnerabilityType.TOOL_POISONING
+    assert v.type == VulnerabilityType.MCP_RESOURCE_POISONING
     assert v.title
     assert v.description
     assert v.cwe_id

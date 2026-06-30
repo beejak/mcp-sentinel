@@ -26,7 +26,7 @@ _JSON_TOOL_DESC = re.compile(r'"description"\s*:\s*"([^"]*)"')
 _PY_DECORATED = re.compile(
     r"@(?:mcp\.)?tool\s*(?:\([^)]*\))?\s*\n\s*(?:async\s+)?def\s+(\w+)\s*\([^)]*\)"
     r"(?:\s*->[^:]+)?\s*:\s*\n"
-    r'\s*"""(.*?)"""',
+    r'\s*(?:"""(.*?)"""|\'\'\'(.*?)\'\'\')',
     re.DOTALL,
 )
 
@@ -92,7 +92,7 @@ def extract_tools_from_python(content: str, file_path: str) -> list[dict[str, An
     tools = []
     for match in _PY_DECORATED.finditer(content):
         name = match.group(1)
-        description = match.group(2).strip()
+        description = (match.group(2) or match.group(3) or "").strip()
         tools.append(
             {
                 "name": name,

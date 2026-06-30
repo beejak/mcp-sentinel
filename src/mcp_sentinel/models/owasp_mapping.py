@@ -103,6 +103,7 @@ _TYPE_TO_ASI: dict[VulnerabilityType, str] = {
     VulnerabilityType.XSS:                       "ASI05",
     VulnerabilityType.OAUTH_FLOW:               "ASI04",
     VulnerabilityType.CONTEXT_FLOODING:         "ASI06",
+    VulnerabilityType.MCP_RESOURCE_POISONING:   "ASI01",
 }
 
 

@@ -319,7 +319,7 @@ class MCPResourcePoisoningDetector(BaseDetector):
             return None
 
         return Vulnerability(
-            type=VulnerabilityType.TOOL_POISONING,
+            type=VulnerabilityType.MCP_RESOURCE_POISONING,
             title=spec["title"],
             description=spec["description"],
             severity=spec["severity"],

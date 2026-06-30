@@ -85,12 +85,11 @@ class OAuthFlowDetector(BaseDetector):
                 re.compile(r'grant_type\s*=\s*["\']implicit["\']', re.IGNORECASE),
             ],
             "missing_pkce": [
-                re.compile(r'response_type\s*=\s*["\']code["\']', re.IGNORECASE),
-                re.compile(r'grant_type\s*=\s*["\']authorization_code["\']', re.IGNORECASE),
-                re.compile(r'"grant_type"\s*:\s*"authorization_code"', re.IGNORECASE),
+                re.compile(r'response_type\s*=\s*["\']code["\'](?!.*code_challenge)', re.IGNORECASE),
+                re.compile(r'grant_type\s*=\s*["\']authorization_code["\'](?!.*code_verifier)', re.IGNORECASE),
+                re.compile(r'"grant_type"\s*:\s*"authorization_code"(?!.*"code_verifier")', re.IGNORECASE),
             ],
             "missing_token_validation": [
-                re.compile(r'verify\s*=\s*False', re.IGNORECASE),
                 re.compile(r'"verify_exp"\s*:\s*[Ff]alse'),
                 re.compile(r'algorithms\s*=\s*\[\s*["\']none["\']', re.IGNORECASE),
                 re.compile(r'decode\([^)]*verify\s*=\s*False', re.IGNORECASE),
