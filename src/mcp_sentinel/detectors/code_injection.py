@@ -71,6 +71,13 @@ class CodeInjectionDetector(BaseDetector):
             "eval_usage": re.compile(r"\beval\s*\("),
             # Function() constructor - Dynamic code execution
             "function_constructor": re.compile(r"\bnew\s+Function\s*\("),
+            # promisify(exec) - Async command injection
+            "promisify_exec": re.compile(r"promisify\s*\(\s*exec\s*\)"),
+            # SQL injection via template literal
+            "sql_template_literal": re.compile(
+                r"`[^`]*(?:SELECT|INSERT|UPDATE|DELETE|WHERE)[^`]*\$\{[^}]+\}[^`]*`",
+                re.IGNORECASE,
+            ),
         }
 
     def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
@@ -506,6 +513,30 @@ class CodeInjectionDetector(BaseDetector):
                 "3. Use named functions or arrow functions instead\n"
                 "4. If dynamic functions are needed, use strict input validation\n"
                 "5. Consider using safer alternatives like computed property names",
+            },
+            "promisify_exec": {
+                "title": "Command Injection via promisify(exec)",
+                "description": "Usage of util.promisify(exec) detected. Wrapping exec() "
+                "with promisify still executes commands via the shell, making it vulnerable "
+                "to command injection when user input is included in the command string.",
+                "cwe_id": "CWE-78",
+                "confidence": Confidence.HIGH,
+                "remediation": "1. Use execFile() or spawn() with array arguments instead\n"
+                "2. Example: util.promisify(execFile)('cmd', ['arg1'])\n"
+                "3. Never concatenate user input into command strings\n"
+                "4. Validate and sanitize all inputs before including in commands",
+            },
+            "sql_template_literal": {
+                "title": "SQL Injection via Template Literal",
+                "description": "SQL query constructed using a template literal with variable "
+                "interpolation detected. This allows SQL injection if user input is included "
+                "in the interpolated values without proper parameterization.",
+                "cwe_id": "CWE-89",
+                "confidence": Confidence.HIGH,
+                "remediation": "1. Use parameterized queries or prepared statements\n"
+                "2. Never build SQL queries with string interpolation\n"
+                "3. Use an ORM to abstract database interactions\n"
+                "4. Validate and sanitize all inputs",
             },
         }
 

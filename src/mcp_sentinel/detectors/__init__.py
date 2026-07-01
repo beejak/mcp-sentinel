@@ -17,7 +17,10 @@ from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.ssrf import SSRFDetector
 from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
+from mcp_sentinel.detectors.prototype_pollution import PrototypePollutionDetector
+from mcp_sentinel.detectors.redos import ReDoSDetector
 from mcp_sentinel.detectors.weak_crypto import WeakCryptoDetector
+from mcp_sentinel.detectors.xxe import XXEDetector
 
 __all__ = [
     "BaseDetector",
@@ -38,4 +41,7 @@ __all__ = [
     "OAuthFlowDetector",
     "MCPResourcePoisoningDetector",
     "ContextFloodingDetector",
+    "PrototypePollutionDetector",
+    "XXEDetector",
+    "ReDoSDetector",
 ]

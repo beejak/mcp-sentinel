@@ -72,3 +72,4 @@ build/
 
 # Session documentation archive
 docs-archive/
+.claude/worktrees/

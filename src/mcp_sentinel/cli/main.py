@@ -138,10 +138,12 @@ def scan(
     TARGET is the path to scan — a directory or a single file. If omitted,
     mcp-sentinel will prompt you interactively.
 
-    Runs 13 pattern-based detectors covering: hardcoded secrets, code
+    Runs 17 pattern-based detectors covering: hardcoded secrets, code
     injection, prompt injection, tool poisoning, path traversal, config
     security, SSRF, network binding, missing auth, supply chain attacks,
-    weak cryptography, insecure deserialization, and MCP sampling misuse.
+    weak cryptography, insecure deserialization, MCP sampling misuse,
+    rug pull / timed evasion, OAuth flow vulnerabilities, context
+    flooding, and MCP resource poisoning.
     Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10)
     category. Severity is calibrated based on server context (filesystem
     access, network access, STDIO transport).

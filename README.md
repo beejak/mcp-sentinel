@@ -13,7 +13,7 @@
 
 Finds hardcoded secrets, injection flaws, tool poisoning, rug pulls, and 10 more vulnerability classes — before they reach production.
 
-**[Quick Start](#quick-start)** · **[Detectors](#detection-coverage)** · **[Scan Report](#scan-report-beejak--vulnerable-mcp-server)** · **[CLI Reference](#cli-reference)** · **[OWASP Coverage](#owasp-agentic-ai-top-10-coverage)**
+**[Quick Start](#quick-start)** · **[Detectors](#detection-coverage)** · **[Scan Report](#scan-report-beejak--vulnerable-mcp-server)** · **[CLI Reference](#cli-reference)** · **[OWASP Coverage](#owasp-agentic-ai-top-10-coverage)** · **[Vulnerability Examples](./examples/)**
 
 </div>
 
@@ -103,7 +103,7 @@ mcp-sentinel scan . --compliance-file compliance.json
 
 ## Detection Coverage
 
-14 detectors. Every finding maps to an OWASP Agentic AI Top 10 category and a CWE.
+20 detectors. Every finding maps to an OWASP Agentic AI Top 10 category and a CWE.
 
 | Detector | What It Catches | OWASP | Severity |
 |---|---|---|---|
@@ -116,11 +116,17 @@ mcp-sentinel scan . --compliance-file compliance.json
 | **MissingAuthDetector** | Routes without auth decorators, sensitive paths, unauthenticated system tools | ASI04 | HIGH |
 | **NetworkBindingDetector** | `0.0.0.0` binding across Python, JS, Go, Java, and config files | ASI06 | MEDIUM |
 | **ConfigSecurityDetector** | Debug mode, open CORS, TLS disabled, weak secrets, exposed admin endpoints | ASI02 | HIGH |
-| **WeakCryptoDetector** | MD5/SHA-1, ECB mode, insecure random, static IV, deprecated ciphers | ASI04 | HIGH |
+| **WeakCryptoDetector** | MD5/SHA-1, ECB mode, insecure random, static IV, deprecated ciphers | ASI07 | HIGH |
 | **InsecureDeserializationDetector** | `pickle.loads()`, `yaml.load()`, `marshal`, `eval()` as parser, PHP `unserialize()` | ASI08 | CRITICAL |
 | **SupplyChainDetector** | Encoded payloads, install-time exfiltration, silent BCC, typosquatted packages | ASI03 | CRITICAL |
-| **MCPSamplingDetector** | Sampling misuse, sensitive data in LLM calls, prompt injection via sampling | ASI01 | HIGH |
+| **MCPSamplingDetector** | Sampling misuse, sensitive data in LLM calls, prompt injection via sampling | ASI10 | HIGH |
 | **RugPullDetector** | Global state mutation, first-call sentinel, time-based behavior evasion | ASI01 | CRITICAL |
+| **OAuthFlowDetector** | CVE-2025-6514 endpoint injection, open redirects via `redirect_uri`, token exposure, missing PKCE, implicit grant | ASI04 | CRITICAL |
+| **ContextFloodingDetector** | Unbounded file reads, uncapped directory walks, SQL queries without `LIMIT`, list tools missing pagination | ASI06 | HIGH |
+| **MCPResourcePoisoningDetector** | Path traversal URIs, sensitive host path targeting, wildcard subscriptions, prompt injection in resource metadata, invisible Unicode, env var exposure, MIME confusion | ASI01 | CRITICAL |
+| **PrototypePollutionDetector** | `__proto__` key injection, `Object.assign(t, JSON.parse(input))`, recursive merge without key guard | ASI08 | HIGH |
+| **XXEDetector** | `<!ENTITY SYSTEM>` declarations, unsafe Python stdlib XML parsing, lxml without `resolve_entities=False`, `DOMParser` in JS/TS | ASI05 | HIGH |
+| **ReDoSDetector** | Nested quantifier patterns `(a+)+`, `(\w+)*`, `(a|b)+` in JS/TS regex literals and Python `re.compile()` calls | ASI06 | HIGH |
 
 ---
 
@@ -214,6 +220,40 @@ mcp-sentinel scan . --compliance-file compliance.json
 
 > Full JSON report, SARIF file, and OWASP compliance report are available in [`reports/`](reports/).
 > The Vulnerable-MCP-Server README includes a full breakdown with remediation guidance: [beejak/Vulnerable-MCP-Server](https://github.com/beejak/Vulnerable-MCP-Server)
+
+---
+
+## Detection Accuracy — Tested Against Real Vulnerable MCP Servers
+
+Tested against three deliberately vulnerable MCP servers (48 total test cases):
+
+| Target | Test Cases | Detected | Partial | Missed | FP | Detection Rate |
+|---|---|---|---|---|---|---|
+| beejak/Vulnerable-MCP-Server | 18 | 16 | 1 | 1 | 0 | **92%** |
+| MCPGoat (26 challenges) | 22 | 8 | 4 | 10 | 0 | **45%** |
+| mcpscanner/playground | 8 | 3 | 1 | 3 | 1 | **44%** |
+| **Combined** | **48** | **27** | **6** | **14** | **1** | **62%** |
+
+### What it catches reliably
+
+Prompt injection in tool descriptions, resource body injection, OAuth endpoint shell injection (CVE-2025-6514), command injection via `exec()`, SSRF, hardcoded secrets, weak crypto, MCP sampling abuse, missing auth on admin tools, Python `@resource` sensitive path exposure.
+
+### Known gaps (static analysis limits)
+
+| Gap | Status |
+|---|---|
+| Prototype pollution (`__proto__` merge) | ✅ Fixed — `PrototypePollutionDetector` |
+| XXE (`<!ENTITY SYSTEM "file://..."`) | ✅ Fixed — `XXEDetector` |
+| ReDoS (`/(a+)+$/`) | ✅ Fixed — `ReDoSDetector` |
+| Command injection via `promisify(exec)` alias | ✅ Fixed — extended `CodeInjectionDetector` |
+| Path traversal `readFileSync(userInput)` | ✅ Fixed — extended `PathTraversalDetector` |
+| Tool shadowing (lookalike names) | ⏳ Pending — `ToolShadowingDetector` (P2) |
+| Path traversal through sanitized variable (`.replace('../','')`) | ⏳ Pending — needs taint tracking (P2) |
+| Indirect prompt injection in return values | ⏳ Pending — extend `MCPResourcePoisoningDetector` (P2) |
+| IDOR (business-logic ownership check) | ⏳ Pending — limited static pattern (P3) |
+| OAuth audience confusion (`aud.includes()`) | ⏳ Pending — extend `OAuthFlowDetector` (P3) |
+
+Full gap analysis with remediation recommendations: [`docs/DETECTION_GAPS.md`](docs/DETECTION_GAPS.md)
 
 ---
 
@@ -342,11 +382,12 @@ Usage: mcp-sentinel scan [TARGET] [OPTIONS]
   TARGET is the path to scan — a directory or a single file.
   If omitted, mcp-sentinel will prompt you interactively.
 
-  Runs 14 pattern-based detectors covering: hardcoded secrets, code
+  Runs 20 pattern-based detectors covering: hardcoded secrets, code
   injection, prompt injection, tool poisoning, path traversal, config
   security, SSRF, network binding, missing auth, supply chain attacks,
   weak cryptography, insecure deserialization, MCP sampling misuse,
-  and rug pull / timed evasion attacks.
+  rug pull / timed evasion attacks, OAuth flow vulnerabilities,
+  context flooding, and MCP resource poisoning.
 
 Arguments:
   TARGET    Path to scan (file or directory). Prompts if omitted.
@@ -494,7 +535,7 @@ git clone https://github.com/beejak/mcp-sentinel.git
 cd mcp-sentinel
 pip install -e ".[dev]"
 
-# Run the full test suite (619 tests, ~8s)
+# Run the full test suite (761 tests, ~8s)
 python -m pytest tests/ -v
 
 # Run a specific detector's tests
@@ -512,7 +553,7 @@ git clone https://github.com/beejak/Vulnerable-MCP-Server ../Vulnerable-MCP-Serv
 mcp-sentinel scan ../Vulnerable-MCP-Server
 ```
 
-**Test suite:** 619 passing, 4 xfail (multi-line taint flows that require semantic analysis — tracked in `tests/unit/test_path_traversal.py`)
+**Test suite:** 761 passing, 1 xfail (sanitized path traversal bypass — double-encode `....//` — tracked in `tests/integration/test_benchmark.py`)
 
 ### Adding a detector
 

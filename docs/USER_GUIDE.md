@@ -93,7 +93,7 @@ mcp-sentinel scan . --no-progress
 When you run a scan, MCP Sentinel:
 
 1. **Discovers files** — Python, JavaScript, TypeScript, Go, Java, YAML, JSON, config files
-2. **Runs 9 detectors** — each applicable to the file type being scanned
+2. **Runs 20 detectors** — each applicable to the file type being scanned
 3. **Generates a report** — severity breakdown, per-finding details, code snippets, remediation guidance
 
 **Terminal output includes:**
@@ -106,7 +106,7 @@ When you run a scan, MCP Sentinel:
 
 ## Detectors Reference
 
-Nine detectors run against each file. Each detector is scoped to applicable file types (e.g., `NetworkBindingDetector` also runs against `.env` and YAML config files).
+Twenty detectors run against each file. Each detector is scoped to applicable file types (e.g., `NetworkBindingDetector` also runs against `.env` and YAML config files).
 
 ### SecretsDetector
 Hardcoded credentials — AWS keys, AI provider keys (`sk-...`), GitHub tokens (`ghp_`), JWT tokens, private key PEM blocks, database connection strings with embedded passwords.
@@ -164,6 +164,31 @@ Routes and endpoints without authentication. Uses a ±5/3-line lookback/lookahea
 | MCP tool exposing `exec`/`shell`/`system` operation | HIGH |
 
 > **Note:** Global auth middleware applied to all routes at the app level will not be detected statically. These findings are expected to be reviewed and suppressed where appropriate.
+
+### PrototypePollutionDetector _(v0.7)_
+JavaScript/TypeScript prototype pollution patterns:
+- `__proto__` key assignment in recursive merge functions
+- `Object.keys(src).forEach` / `for..of Object.keys` without `__proto__` exclusion guard
+- `JSON.parse()` result passed to an unrestricted merge that assigns `target[key] = src[key]`
+
+Severity: HIGH (ASI08)
+
+### XXEDetector _(v0.7)_
+XML External Entity injection:
+- `<!ENTITY` + `SYSTEM` or `PUBLIC` declarations in XML strings
+- Custom entity resolvers combining regex entity extraction with `readFile` / `readFileSync`
+- `DOMParser`, `libxml`, `xml2js` usage without `noent: false` / `resolveExternals: false`
+- Python stdlib XML parsing (`xml.etree`, `minidom`, `expat`) without explicit external entity disabling
+
+Severity: HIGH (ASI05)
+
+### ReDoSDetector _(v0.7)_
+Catastrophic regex backtracking patterns that can lock the Node.js event loop:
+- Nested quantifiers: `(a+)+`, `(\w+)+`, `([a-z]+)*`
+- Alternation with overlap: `(a|a)+`, `(a|b)+$`
+- Patterns applied to user-controlled input via `.test(input)`, `.match(input)`, `re.match(input)`
+
+Severity: HIGH (ASI06)
 
 ---
 
@@ -344,6 +369,51 @@ repos:
 
 ---
 
+## Rug-Pull Detection (Baseline)
+
+A **rug pull** is when an MCP tool silently changes its name, description, or input schema after an agent or user has already audited and trusted it. MCP Sentinel's `baseline` command fingerprints tool definitions so you can detect these changes.
+
+### Create a baseline
+
+```bash
+mcp-sentinel baseline /path/to/mcp-server
+```
+
+On the first run this creates `.sentinel/baseline.json` containing a SHA-256 fingerprint for every `@tool`-decorated function and JSON/YAML tool definition found in the directory.
+
+### Check for drift
+
+```bash
+# Run again to compare current definitions against the saved baseline
+mcp-sentinel baseline /path/to/mcp-server
+```
+
+The command reports:
+- **ADDED** — new tools not in the baseline
+- **REMOVED** — tools that disappeared (exit 1)
+- **MODIFIED** — tools whose description or schema changed (exit 1)
+
+### Accept intentional changes
+
+```bash
+mcp-sentinel baseline /path/to/mcp-server --update
+```
+
+Updates `.sentinel/baseline.json` to reflect the current state, suppressing the drift alert.
+
+### CI integration
+
+Commit your `.sentinel/baseline.json` and add a drift-check step:
+
+```yaml
+- name: Detect rug-pull
+  run: mcp-sentinel baseline . --baseline-file .sentinel/baseline.json
+```
+
+CI exits 1 if any tool is removed or modified without an explicit `--update` commit, giving you a hard gate against unauthorized tool-schema changes.
+
+---
+
 ## Programmatic Usage
 
 ```python
@@ -426,7 +496,7 @@ mcp-sentinel scan src/
 
 ### What vulnerabilities does MCP Sentinel detect?
 
-Nine detector categories:
+Twelve detector categories:
 
 1. **Secrets** — hardcoded API keys, tokens, database credentials
 2. **Code Injection** — shell execution, eval, SQL injection
