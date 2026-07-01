@@ -8,6 +8,8 @@ JSON, SARIF).
 Reference: https://owasp.org/www-project-top-10-for-large-language-model-applications/
 """
 
+from __future__ import annotations
+
 from mcp_sentinel.models.vulnerability import VulnerabilityType
 
 # Full ASI catalogue — name and description for each category
