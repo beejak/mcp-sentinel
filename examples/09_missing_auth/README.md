@@ -1,38 +1,39 @@
-# Missing Authentication
+# 09 — Missing Authentication
 
-## What Is This? (Plain English)
+## The Analogy
 
-Imagine a bank where anyone can walk up to the vault door, knock, and the teller opens it — no ID, no PIN, no questions. Missing authentication means your admin endpoints, user data, and destructive operations are fully accessible to anyone who knows (or guesses) the URL. This is one of the most common real-world breaches: attackers scan for `/admin`, `/debug`, `/api/users` and simply call them.
+A bank vault with no lock — anyone who walks up can open it. "Admin" tools that perform privileged actions without checking who's calling are that vault. In an MCP server deployed to production, every connected AI agent (or attacker) can invoke every tool unless access is explicitly controlled.
 
-## What Does the Attack Look Like?
+## What an Attacker Does
 
-```bash
-# No credentials needed — any attacker can do this
-curl http://your-mcp-server/admin/export_database
-curl -X DELETE "http://your-mcp-server/admin/delete_user?id=alice"
-curl http://your-mcp-server/internal/debug  # returns AWS keys from env vars
-```
+1. Attacker connects an MCP client to the server.
+2. Calls `admin_delete_user` with any `userId` — no password, no token needed.
+3. Or calls `admin_read_secrets` with `path=/etc/shadow` to dump all system password hashes.
+4. Zero friction, zero barriers.
 
-## The Technical Detail
+## Technical Detail
 
-Routes decorated with `@app.route()` without an authentication decorator (`@login_required`, `Depends(get_current_user)`, middleware) are publicly accessible. Admin and debug paths are high-value targets — attackers run automated scanners that probe thousands of common admin paths per second. Even behind a firewall, lateral movement from a compromised internal host can reach unauthenticated endpoints.
+- **CWE-306**: Missing Authentication for Critical Function — critical operations callable without proving identity.
+- MCP servers often run as trusted local processes or internal services, creating a false sense of security ("it's on the internal network").
+- Tools named `admin_*`, `delete_*`, `shutdown_*`, or `reset_*` with no auth guard are the clearest signal.
 
-## Vulnerable Code
+## The Fix
 
-See [`vulnerable.py`](vulnerable.py)
+- Require a secret token, API key, or session credential for all privileged tools.
+- Store the expected credential in an environment variable, never hardcoded.
+- Return a structured `Unauthorized` error before executing any destructive logic.
+- Consider capability-based models: the AI agent should only receive a token scoped to what it legitimately needs.
 
-## Safe Code
+## Detector
 
-See [`safe.py`](safe.py)
+MCP Sentinel's **MissingAuthDetector** flags tools with privileged names (admin, delete, shutdown, reset, grant) that lack any token/credential check in the tool body.
 
-## How MCP Sentinel Detects This
+## Authoritative References
 
-`MissingAuthDetector` flags routes with `/admin`, `/debug`, `/internal` paths that lack authentication decorators within a ±5-line context window, emitting `MISSING_AUTH` at HIGH severity.
-
-## Official References
-
-- **OWASP**: [OWASP A01:2021 — Broken Access Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control/)
-- **OWASP**: [Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
-- **CISA**: [CISA — Securing Web Applications](https://www.cisa.gov/sites/default/files/publications/CISA_MS-ISAC_Ransomware%20Guide_S508C_.pdf)
-- **CWE**: [CWE-306: Missing Authentication for Critical Function](https://cwe.mitre.org/data/definitions/306.html)
-- **NIST**: [NIST SP 800-63B — Authentication Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html)
+| Authority | Resource |
+|-----------|----------|
+| OWASP | [A07:2021 – Identification and Authentication Failures](https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/) |
+| OWASP | [Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) |
+| CISA | [Secure by Design Principles](https://www.cisa.gov/secure-by-design) |
+| MITRE | [CWE-306: Missing Authentication for Critical Function](https://cwe.mitre.org/data/definitions/306.html) |
+| NIST | [SP 800-63B: Digital Identity Guidelines](https://pages.nist.gov/800-63-3/sp800-63b.html) |

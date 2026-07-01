@@ -1,40 +1,40 @@
-# ReDoS — Regular Expression Denial of Service
+# 12 — ReDoS (Regular Expression Denial of Service)
 
-## What Is This? (Plain English)
+## The Analogy
 
-Some regular expressions contain a hidden trap: given just the right input, they force the computer to try an astronomically large number of combinations before giving up. It's like asking someone to find a word in a dictionary by checking every possible ordering of the letters — the work grows exponentially. An attacker who knows the pattern can send a short string (40-50 characters) that locks your server's CPU for minutes, making it completely unresponsive to all other users.
+Some regex patterns work like a confused postal worker who, unable to find an address, tries *every possible route* through the city before admitting defeat. An attacker gives the server a deliberately crafted string that triggers this exhaustive search, freezing your server while the regex engine backtracks exponentially. One request — one line of input — can consume 100% CPU for minutes or hours.
 
-## What Does the Attack Look Like?
+## What an Attacker Does
 
-```python
-import re, time
-pattern = re.compile(r"(a+)+$")
-start = time.time()
-pattern.match("a" * 35 + "b")  # Should match instantly — but doesn't
-print(f"Took {time.time()-start:.1f}s")  # Prints: "Took 47.3s" (or worse)
-```
+1. The tool uses `/(a+)+$/` to validate a slug.
+2. Attacker sends the string `"aaaaaaaaaaaaaaaaaaaaX"` (20 a's followed by X).
+3. The regex engine tries to match the `$` anchor, fails, then backtracks through 2²⁰ = 1,048,576 combinations.
+4. The Node.js event loop is blocked — the server stops responding to all other requests.
 
-An attacker sends this 36-character string to your API. Your server hangs, timing out all legitimate requests, until the pattern finally gives up. One request = one CPU core pegged at 100%.
+## Technical Detail
 
-## The Technical Detail
+- **CWE-1333**: Inefficient Regular Expression Complexity.
+- Root cause: *nested quantifiers* like `(a+)+`, `(\w+)*`, `(a|b)+` where multiple quantifiers can match the same positions in the string, creating ambiguity the backtracking engine must exhaustively explore.
+- The evil input structure: the "correct" prefix followed by a character that causes the match to fail at the end, triggering catastrophic backtracking.
+- Node.js has no regex timeout by default — a single vulnerable regex can freeze a production server.
 
-Nested quantifiers like `(a+)+`, `(\w+\s*)+`, or `(x|y)+$` cause exponential backtracking in NFA-based regex engines (Python `re`, JavaScript V8, Java `java.util.regex`). For an input of length `n`, the engine may explore O(2ⁿ) paths before failing. Python 3.11+ added backtracking limits, but Node.js has no built-in protection — a single crafted request can lock the event loop, blocking all MCP tool calls.
+## The Fix
 
-## Vulnerable Code
+- Rewrite regexes to eliminate nested quantifiers: `(a+)+` → `a+`
+- Add input length limits *before* running regex: `z.string().max(254)`
+- Use a ReDoS analyzer (e.g., `safe-regex`, `vuln-regex-detector`) in CI.
+- In Node 22+ or Deno, consider regex timeout via `--experimental-vm-modules` or third-party sandboxing.
 
-See [`vulnerable.py`](vulnerable.py) and [`vulnerable.ts`](vulnerable.ts)
+## Detector
 
-## Safe Code
+MCP Sentinel's **ReDoSDetector** extracts regex literals from JS/TS files and Python `re.compile()` calls, then checks for nested quantifier patterns: `(x+)+`, `(x*)+`, `(x+)*`, `(x|y)+`.
 
-See [`safe.py`](safe.py)
+## Authoritative References
 
-## How MCP Sentinel Detects This
-
-`ReDoSDetector` extracts regex literals from JS/TS and `re.compile()` calls from Python, then checks for nested quantifier patterns `(x+)+`, `(x*)+`, `(x|y)+`, emitting `REDOS` at HIGH severity (CWE-1333 / ASI06).
-
-## Official References
-
-- **OWASP**: [OWASP Regular Expression Denial of Service](https://owasp.org/www-community/attacks/ReDoS)
-- **CWE**: [CWE-1333: Inefficient Regular Expression Complexity](https://cwe.mitre.org/data/definitions/1333.html)
-- **NIST NVD**: [CVE-2022-25912 — simple-git ReDoS](https://nvd.nist.gov/vuln/detail/CVE-2022-25912)
-- **NIST NVD**: [CVE-2021-27292 — ua-parser-js ReDoS](https://nvd.nist.gov/vuln/detail/CVE-2021-27292)
+| Authority | Resource |
+|-----------|----------|
+| OWASP | [ReDoS](https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS) |
+| OWASP Agentic AI | [ASI06 – Excessive Agency / Resource Abuse](https://genai.owasp.org) |
+| MITRE | [CWE-1333: Inefficient Regular Expression Complexity](https://cwe.mitre.org/data/definitions/1333.html) |
+| NIST | [NVD CWE-1333](https://nvd.nist.gov/vuln/search/results?cwe_id=CWE-1333) |
+| npm | [safe-regex package](https://www.npmjs.com/package/safe-regex) |

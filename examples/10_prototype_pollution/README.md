@@ -1,45 +1,40 @@
-# Prototype Pollution
+# 10 — Prototype Pollution
 
-## What Is This? (Plain English)
+## The Analogy
 
-JavaScript objects share a hidden ancestor called `Object.prototype` — it's like a master template that every object inherits from. Prototype pollution lets an attacker edit that master template so that *every* object in the entire application suddenly has new properties the attacker chose — for example, `isAdmin: true`. Because every `{}` in Node.js inherits from the same prototype, one malicious JSON payload can compromise every authorization check in the process.
+JavaScript objects inherit properties from a shared ancestor called the *prototype*. Prototype pollution is like changing the blueprint that every house in a city is built from — once you alter the blueprint, every building gets your modification without anyone realizing it. Attackers poison the prototype so that *all* objects suddenly have properties like `isAdmin: true`.
 
-## What Does the Attack Look Like?
+## What an Attacker Does
 
-```bash
-# Attacker sends this JSON to the load_state tool:
-{"__proto__": {"isAdmin": true, "role": "superuser"}}
-```
+1. The tool accepts JSON and passes it to a recursive merge function.
+2. Attacker sends: `{"__proto__": {"isAdmin": true}}`
+3. The merge function loops over keys, hits `__proto__`, and does `target["__proto__"] = {isAdmin: true}`.
+4. This mutates `Object.prototype` — the ancestor of *every* object in the Node.js process.
+5. Any subsequent check like `if (user.isAdmin)` returns `true` — even for anonymous users.
 
-After the vulnerable merge function processes this:
-```javascript
-const user = {};
-console.log(user.isAdmin); // true — even though we never set it!
-console.log(user.role);    // "superuser"
-```
+## Technical Detail
 
-Every subsequent `if (user.isAdmin)` check in the entire application now returns `true`.
+- **CWE-1321**: Improper Control of Property Modification of Object Prototype Attributes.
+- Affects any JavaScript/TypeScript code with recursive merge, `Object.assign(target, untrusted)`, or bracket-notation assignment without key filtering.
+- Can lead to privilege escalation, RCE (if merged into a config that controls `shell` or `exec`), or DoS.
 
-## The Technical Detail
+## The Fix
 
-JavaScript prototype chain lookup means `obj.key` checks `obj` first, then `obj.__proto__`, then `Object.prototype`. A recursive `merge(target, source)` that does `target[key] = source[key]` without filtering `__proto__`, `constructor`, or `prototype` keys allows an attacker to set `Object.prototype.isAdmin = true`, poisoning every `{}` created after that point. This affects authorization checks, feature flags, and any object property that falls back to a default.
+- Guard recursive merges: `if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;`
+- Use `Object.create(null)` for dictionaries — these objects have no prototype to pollute.
+- Validate all incoming JSON against a strict schema before processing.
+- Use `structuredClone()` (Node 17+) which is prototype-pollution-safe.
 
-## Vulnerable Code
+## Detector
 
-See [`vulnerable.ts`](vulnerable.ts)
+MCP Sentinel's **PrototypePollutionDetector** flags unguarded recursive merges and `Object.assign(target, JSON.parse(...))` patterns in TypeScript and JavaScript files.
 
-## Safe Code
+## Authoritative References
 
-See [`safe.ts`](safe.ts)
-
-## How MCP Sentinel Detects This
-
-`PrototypePollutionDetector` flags `Object.keys().forEach` recursive assign without a `__proto__` guard, direct `["__proto__"]` assignment, and `Object.assign(t, JSON.parse(input))`, emitting `PROTOTYPE_POLLUTION` at HIGH severity (CWE-1321 / ASI08).
-
-## Official References
-
-- **OWASP**: [OWASP Prototype Pollution Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html)
-- **CWE**: [CWE-1321: Improperly Controlled Modification of Object Prototype Attributes](https://cwe.mitre.org/data/definitions/1321.html)
-- **NVD**: [CVE-2019-10744 — lodash prototype pollution](https://nvd.nist.gov/vuln/detail/CVE-2019-10744)
-- **NVD**: [CVE-2020-28477 — immer prototype pollution](https://nvd.nist.gov/vuln/detail/CVE-2020-28477)
-- **GitHub Security Lab**: [Research on prototype pollution](https://securitylab.github.com/research/prototype-pollution-in-kibana/)
+| Authority | Resource |
+|-----------|----------|
+| OWASP | [Prototype Pollution](https://owasp.org/www-community/attacks/Prototype_Pollution) |
+| OWASP Agentic AI | [ASI08 – Data Integrity Violations](https://genai.owasp.org) |
+| MITRE | [CWE-1321: Prototype Pollution](https://cwe.mitre.org/data/definitions/1321.html) |
+| GitHub Advisory | [Multiple npm packages – prototype pollution](https://github.com/advisories?query=prototype+pollution) |
+| Snyk | [What is Prototype Pollution?](https://learn.snyk.io/lesson/prototype-pollution/) |

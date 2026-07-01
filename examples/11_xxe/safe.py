@@ -1,27 +1,28 @@
 """
-Safe: XXE prevented by defusedxml and lxml hardened parser.
+SAFE: XML parsing with defusedxml — external entities disabled.
 """
-import defusedxml.ElementTree as ET
-import defusedxml.minidom as minidom
+import defusedxml.ElementTree as ET  # Replaces stdlib ET; blocks XXE, Billion Laughs, etc.
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("Safe Server")
+mcp = FastMCP("safe-xml-demo")
 
 @mcp.tool()
-def parse_invoice(xml_data: str) -> dict:
-    """Parse XML invoice — defusedxml blocks XXE, DTD, entity expansion."""
-    # SAFE: defusedxml raises DefusedXmlException on any external entity
-    root = ET.fromstring(xml_data)
-    return {
-        "amount": root.findtext("amount"),
-        "vendor": root.findtext("vendor"),
-    }
+def parse_document(xml_content: str) -> str:
+    """Parse an XML document safely."""
+    try:
+        root = ET.fromstring(xml_content)  # defusedxml raises on any external entity
+    except ET.ParseError as e:
+        return f"Invalid XML: {e}"
+    except Exception as e:
+        return f"XML rejected (possible XXE attempt): {e}"
+    return f"Root element: {root.tag}"
 
 @mcp.tool()
-def parse_with_lxml(xml_data: str) -> str:
-    """Parse with lxml — hardened parser, no external entities."""
-    from lxml import etree
-    # SAFE: resolve_entities=False, no_network=True
-    parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
-    root = etree.fromstring(xml_data.encode(), parser=parser)
-    return etree.tostring(root).decode()
+def validate_config(config_xml: str) -> str:
+    """Validate an XML config file safely."""
+    import defusedxml.minidom as minidom
+    try:
+        doc = minidom.parseString(config_xml.encode())
+    except Exception as e:
+        return f"Config invalid: {e}"
+    return f"Config valid, root: {doc.documentElement.tagName}"

@@ -1,41 +1,24 @@
 """
-Vulnerable: XML External Entity injection — XXE
-
-Run: mcp-sentinel scan examples/11_xxe/vulnerable.py
-Expected: HIGH XXE findings
+VULNERABLE: XML External Entity (XXE) injection.
+Parsing XML from user input without disabling external entity resolution.
 """
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
+import xml.etree.ElementTree as ET  # stdlib: external entities enabled by default (pre-3.8 expat)
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("Vulnerable Server")
+mcp = FastMCP("xxe-demo")
 
 @mcp.tool()
-def parse_invoice(xml_data: str) -> dict:
-    """Parse an XML invoice — VULNERABLE to XXE file read."""
-    # Attack payload:
-    # <?xml version="1.0"?>
-    # <!DOCTYPE invoice [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
-    # <invoice><amount>&xxe;</amount></invoice>
-    #
-    # Python's stdlib ET does NOT expand external entities by default,
-    # but third-party parsers (lxml without guards) will.
-    root = ET.fromstring(xml_data)  # stdlib ET — lower risk but still flagged
-    return {
-        "amount": root.findtext("amount"),
-        "vendor": root.findtext("vendor"),
-    }
+def parse_document(xml_content: str) -> str:
+    """Parse an XML document and return its root element's tag."""
+    # VULNERABLE: ET.fromstring processes <!ENTITY SYSTEM "file:///etc/passwd">
+    # In environments with vulnerable expat, this exfiltrates local files.
+    root = ET.fromstring(xml_content)           # CWE-611
+    return f"Root element: {root.tag}, text: {root.text}"
 
 @mcp.tool()
-def parse_config_xml(xml_string: str) -> str:
-    """Parse XML config — VULNERABLE with minidom."""
-    doc = minidom.parseString(xml_string)
-    return doc.toxml()
-
-@mcp.tool()
-def parse_with_lxml(xml_data: str) -> str:
-    """Parse with lxml — VULNERABLE without resolve_entities=False."""
-    from lxml import etree
-    # VULNERABLE: default lxml parser resolves external entities
-    root = etree.fromstring(xml_data.encode())
-    return etree.tostring(root).decode()
+def validate_config(config_xml: str) -> str:
+    """Validate an XML config file."""
+    import xml.dom.minidom as minidom
+    # VULNERABLE: minidom also resolves external entities
+    doc = minidom.parseString(config_xml.encode())
+    return f"Config valid, root: {doc.documentElement.tagName}"

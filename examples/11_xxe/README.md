@@ -1,45 +1,45 @@
-# XXE — XML External Entity Injection
+# 11 — XML External Entity (XXE) Injection
 
-## What Is This? (Plain English)
+## The Analogy
 
-XML files can contain "entities" — think of them as macros or variables. The problem is that standard XML parsers allow those macros to load the contents of any file on the server, or make network requests. An attacker sends you a carefully crafted XML invoice with a hidden instruction: "replace this placeholder with the contents of `/etc/passwd`." If your XML parser obediently does so, the attacker now has your server's user database — or your cloud credentials.
+XML supports a feature called "entities" — think of them as variables inside an XML document. A safe entity might be `&amp;` expanding to `&`. But an *external* entity points to a file or URL: `<!ENTITY secret SYSTEM "file:///etc/passwd">`. When the XML parser dutifully reads that file and inserts its contents into the document, you've just handed an attacker your server's password list. An attacker is like someone who sneaked an "include my spy camera" clause into a contract you're signing.
 
-## What Does the Attack Look Like?
+## What an Attacker Does
 
-An attacker submits this XML to `parse_invoice`:
-```xml
-<?xml version="1.0"?>
-<!DOCTYPE invoice [
-  <!ENTITY xxe SYSTEM "file:///etc/shadow">
-]>
-<invoice>
-  <amount>&xxe;</amount>
-  <vendor>Evil Corp</vendor>
-</invoice>
-```
+1. The tool accepts an XML string and parses it with Python's stdlib `xml.etree.ElementTree`.
+2. Attacker sends:
+   ```xml
+   <?xml version="1.0"?>
+   <!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+   <root>&xxe;</root>
+   ```
+3. The parser resolves `&xxe;` by reading `/etc/passwd` and inserts it into the document.
+4. The tool returns the content — handing over the full password file.
 
-The parser expands `&xxe;` by reading `/etc/shadow` and inserting its contents into the `amount` field. The tool returns the hashed passwords of every user on the server.
+With SSRF-capable parsers, `SYSTEM "http://internal-service/admin"` pivots into internal network access.
 
-## The Technical Detail
+## Technical Detail
 
-XML's DTD (Document Type Definition) allows defining `ENTITY` declarations with `SYSTEM` or `PUBLIC` keywords that instruct the parser to fetch the entity value from a URI — `file://`, `http://`, `ftp://`. When the parser expands `&entity;`, it reads the file or makes the network request. Python's stdlib `xml.etree.ElementTree` mitigates this since Python 3.8, but `lxml` and older parsers are fully vulnerable without explicit hardening. The `SSRF` variant uses `http://` URIs to reach internal services.
+- **CWE-611**: Improper Restriction of XML External Entity Reference.
+- Python's `xml.etree.ElementTree`, `xml.dom.minidom`, and `lxml` (without `resolve_entities=False`) all resolve external entities by default in some configurations.
+- The `defusedxml` library patches all Python XML parsers to disable entity expansion, DTD processing, and billion-laughs attacks.
 
-## Vulnerable Code
+## The Fix
 
-See [`vulnerable.py`](vulnerable.py)
+- Replace `import xml.etree.ElementTree` with `import defusedxml.ElementTree`.
+- For lxml: `etree.XMLParser(resolve_entities=False, no_network=True)`.
+- In JavaScript/TypeScript: DOMParser in Node.js does not resolve external entities by default, but third-party XML parsers may — check their documentation.
 
-## Safe Code
+## Detector
 
-See [`safe.py`](safe.py)
+MCP Sentinel's **XXEDetector** flags stdlib ET/minidom imports without a corresponding `defusedxml` import, lxml parsers without `resolve_entities=False`, and `<!ENTITY SYSTEM` patterns in XML fixtures.
 
-## How MCP Sentinel Detects This
+## Authoritative References
 
-`XXEDetector` flags `xml.etree.ElementTree.fromstring/parse`, `minidom.parseString`, and `lxml.etree` calls without `resolve_entities=False`, emitting `XXE` at HIGH severity (CWE-611 / ASI05). Files importing `defusedxml` are suppressed.
-
-## Official References
-
-- **OWASP**: [OWASP A05:2021 — Security Misconfiguration / XXE](https://owasp.org/Top10/A05_2021-Security_Misconfiguration/)
-- **OWASP**: [XML External Entity Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html)
-- **CISA**: [CISA Known Exploited Vulnerabilities — XXE](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
-- **CWE**: [CWE-611: Improper Restriction of XML External Entity Reference](https://cwe.mitre.org/data/definitions/611.html)
-- **NVD**: [CVE-2019-0197 — Apache XXE](https://nvd.nist.gov/vuln/detail/CVE-2019-0197)
+| Authority | Resource |
+|-----------|----------|
+| OWASP | [A05:2021 – Security Misconfiguration](https://owasp.org/Top10/A05_2021-Security_Misconfiguration/) |
+| OWASP | [XXE Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html) |
+| CISA | [Known Exploited Vulnerabilities (search XXE)](https://www.cisa.gov/known-exploited-vulnerabilities-catalog) |
+| MITRE | [CWE-611: XXE](https://cwe.mitre.org/data/definitions/611.html) |
+| PyPI | [defusedxml](https://pypi.org/project/defusedxml/) |
