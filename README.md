@@ -535,7 +535,7 @@ git clone https://github.com/beejak/mcp-sentinel.git
 cd mcp-sentinel
 pip install -e ".[dev]"
 
-# Run the full test suite (619 tests, ~8s)
+# Run the full test suite (761 tests, ~8s)
 python -m pytest tests/ -v
 
 # Run a specific detector's tests
@@ -553,7 +553,7 @@ git clone https://github.com/beejak/Vulnerable-MCP-Server ../Vulnerable-MCP-Serv
 mcp-sentinel scan ../Vulnerable-MCP-Server
 ```
 
-**Test suite:** 619 passing, 4 xfail (multi-line taint flows that require semantic analysis — tracked in `tests/unit/test_path_traversal.py`)
+**Test suite:** 761 passing, 1 xfail (sanitized path traversal bypass — double-encode `....//` — tracked in `tests/integration/test_benchmark.py`)
 
 ### Adding a detector
 

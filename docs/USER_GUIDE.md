@@ -106,7 +106,7 @@ When you run a scan, MCP Sentinel:
 
 ## Detectors Reference
 
-Seventeen detectors run against each file. Each detector is scoped to applicable file types (e.g., `NetworkBindingDetector` also runs against `.env` and YAML config files).
+Twenty detectors run against each file. Each detector is scoped to applicable file types (e.g., `NetworkBindingDetector` also runs against `.env` and YAML config files).
 
 ### SecretsDetector
 Hardcoded credentials — AWS keys, AI provider keys (`sk-...`), GitHub tokens (`ghp_`), JWT tokens, private key PEM blocks, database connection strings with embedded passwords.
@@ -164,6 +164,31 @@ Routes and endpoints without authentication. Uses a ±5/3-line lookback/lookahea
 | MCP tool exposing `exec`/`shell`/`system` operation | HIGH |
 
 > **Note:** Global auth middleware applied to all routes at the app level will not be detected statically. These findings are expected to be reviewed and suppressed where appropriate.
+
+### PrototypePollutionDetector _(v0.7)_
+JavaScript/TypeScript prototype pollution patterns:
+- `__proto__` key assignment in recursive merge functions
+- `Object.keys(src).forEach` / `for..of Object.keys` without `__proto__` exclusion guard
+- `JSON.parse()` result passed to an unrestricted merge that assigns `target[key] = src[key]`
+
+Severity: HIGH (ASI08)
+
+### XXEDetector _(v0.7)_
+XML External Entity injection:
+- `<!ENTITY` + `SYSTEM` or `PUBLIC` declarations in XML strings
+- Custom entity resolvers combining regex entity extraction with `readFile` / `readFileSync`
+- `DOMParser`, `libxml`, `xml2js` usage without `noent: false` / `resolveExternals: false`
+- Python stdlib XML parsing (`xml.etree`, `minidom`, `expat`) without explicit external entity disabling
+
+Severity: HIGH (ASI05)
+
+### ReDoSDetector _(v0.7)_
+Catastrophic regex backtracking patterns that can lock the Node.js event loop:
+- Nested quantifiers: `(a+)+`, `(\w+)+`, `([a-z]+)*`
+- Alternation with overlap: `(a|a)+`, `(a|b)+$`
+- Patterns applied to user-controlled input via `.test(input)`, `.match(input)`, `re.match(input)`
+
+Severity: HIGH (ASI06)
 
 ---
 

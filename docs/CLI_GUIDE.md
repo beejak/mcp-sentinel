@@ -332,10 +332,10 @@ All 20 detectors run on every scan. They cannot be individually disabled (by des
 | Detector | Severity range | ASI | What it catches |
 |---|---|---|---|
 | `SecretsDetector` | CRITICAL | ASI02 | AWS keys, API tokens, private keys, DB URLs, 15+ patterns |
-| `CodeInjectionDetector` | CRITICAL/HIGH | ASI04 | `os.system`, `subprocess(shell=True)`, `eval`, `exec`, SQL f-strings |
+| `CodeInjectionDetector` | CRITICAL/HIGH | ASI04 | `os.system`, `subprocess(shell=True)`, `eval`, `exec`, SQL f-strings, `promisify(exec)` patterns |
 | `PromptInjectionDetector` | HIGH/MEDIUM | ASI01 | Role manipulation, jailbreaks, system prompt exposure |
 | `ToolPoisoningDetector` | CRITICAL/MEDIUM | ASI01 | Invisible Unicode, sensitive path targeting, override directives, cross-tool manipulation |
-| `PathTraversalDetector` | HIGH | ASI09 | `../` sequences, zip slip, taint-tracked `open()` and `os.path.join()` |
+| `PathTraversalDetector` | HIGH | ASI09 | `../` sequences, zip slip, taint-tracked `open()` and `os.path.join()`, `readFileSync(userInput)` |
 | `ConfigSecurityDetector` | HIGH/MEDIUM | ASI02 | `DEBUG=True`, open CORS, `SSL_VERIFY=False`, weak secrets |
 | `SSRFDetector` | CRITICAL/HIGH | ASI05 | Unvalidated URLs in HTTP clients, cloud metadata endpoints (`169.254.169.254`) |
 | `NetworkBindingDetector` | MEDIUM | ASI06 | `0.0.0.0` binding in Python, JS, Go, Java, config files |
@@ -348,6 +348,9 @@ All 20 detectors run on every scan. They cannot be individually disabled (by des
 | `OAuthFlowDetector` | CRITICAL/HIGH/MEDIUM | ASI04 | CVE-2025-6514 endpoint injection, open redirect via `redirect_uri`, token credential exposure, missing PKCE, implicit grant flow, disabled JWT verification |
 | `ContextFloodingDetector` | HIGH/MEDIUM/LOW | ASI06 | Unbounded `read()`, uncapped `os.walk()`, SQL without `LIMIT`, list tools missing pagination parameters |
 | `MCPResourcePoisoningDetector` | CRITICAL/HIGH/MEDIUM | ASI01 | Path traversal URIs, sensitive host paths (`.ssh`, `.aws`, `/etc/passwd`), wildcard subscriptions, prompt injection in resource metadata, invisible Unicode, env var exposure, MIME type confusion |
+| `PrototypePollutionDetector` | HIGH | ASI08 | `__proto__` key injection, recursive merge without key guard, `JSON.parse` to unrestricted assign |
+| `XXEDetector` | HIGH | ASI05 | `<!ENTITY SYSTEM` declarations, unsafe XML parsers, `DOMParser`/`xml2js` without `noent: false` |
+| `ReDoSDetector` | HIGH | ASI06 | Nested quantifier patterns `(a+)+`, `(\w+)*`, `(a|b)+$` on user-controlled input |
 
 ### Severity calibration
 
