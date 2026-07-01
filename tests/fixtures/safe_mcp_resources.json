@@ -1,0 +1,36 @@
+{
+  "_comment": "Clean MCP resource definitions — should NOT trigger MCPResourcePoisoningDetector",
+  "tools": [],
+  "resources": [
+    {
+      "uri": "file:///var/www/html/public/index.html",
+      "name": "homepage",
+      "description": "Application homepage",
+      "mimeType": "text/html"
+    },
+    {
+      "uri": "file:///app/data/reports/summary.md",
+      "name": "summary-report",
+      "description": "Weekly summary report for the operations team",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "file:///app/config/settings.json",
+      "name": "app-settings",
+      "description": "Non-sensitive application settings",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "https://api.example.com/v1/status",
+      "name": "api-status",
+      "description": "Live API health status endpoint",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "file:///app/docs/schema.yaml",
+      "name": "api-schema",
+      "description": "OpenAPI schema for the MCP server",
+      "mimeType": "application/yaml"
+    }
+  ]
+}

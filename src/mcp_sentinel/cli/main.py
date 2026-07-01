@@ -464,5 +464,137 @@ def _print_sarif_results(result: ScanResult, output_file: Optional[str] = None) 
         click.echo(sarif_str)
 
 
+@cli.command()
+@click.argument("target", type=click.Path(exists=True), required=False)
+@click.option(
+    "--baseline-file",
+    type=click.Path(),
+    default=".mcp-sentinel-baseline.json",
+    show_default=True,
+    help=(
+        "Path to the baseline file to create or compare against. "
+        "Defaults to .mcp-sentinel-baseline.json in the current directory."
+    ),
+)
+@click.option(
+    "--update",
+    is_flag=True,
+    help=(
+        "After showing drift, update the baseline to the current definitions. "
+        "Without this flag an existing baseline is shown as a diff report only."
+    ),
+)
+def baseline(target: Optional[str], baseline_file: str, update: bool) -> None:
+    """
+    Fingerprint MCP tool definitions and detect definition drift (rug pull detection).
+
+    On first run: scans TARGET for MCP tool definitions, hashes each tool's
+    name + description + inputSchema, and saves the baseline to --baseline-file.
+
+    On subsequent runs: compares current definitions against the saved baseline
+    and reports ADDED, REMOVED, and MODIFIED tools. Modified tools are a primary
+    indicator of a rug pull attack — the tool definition changed after approval.
+    Use --update to accept the new definitions and refresh the baseline.
+
+    Exits with code 1 if any tools were REMOVED or MODIFIED (suitable for CI).
+
+    \b
+    Common workflows:
+
+    \b
+      Create initial baseline after reviewing your MCP server:
+        mcp-sentinel baseline /path/to/mcp-server
+
+    \b
+      Check for tool definition drift in CI:
+        mcp-sentinel baseline /path/to/mcp-server
+
+    \b
+      Review drift then accept new definitions:
+        mcp-sentinel baseline /path/to/mcp-server --update
+    """
+    from mcp_sentinel.baseline import diff_baseline, extract_tools, load_baseline, save_baseline
+
+    if not target:
+        target = questionary.path("Target directory to baseline:").ask()
+        if not target:
+            console.print("[red]Operation cancelled.[/red]")
+            sys.exit(0)
+
+    baseline_path = Path(baseline_file)
+    target_path = Path(target)
+
+    console.print(
+        Panel.fit(
+            f"[bold cyan]MCP Sentinel v{__version__}[/bold cyan]\n"
+            f"Baseline: [yellow]{target}[/yellow]\n"
+            f"Baseline file: [green]{baseline_file}[/green]",
+            box=box.ROUNDED,
+        )
+    )
+
+    with console.status("[bold green]Extracting tool definitions..."):
+        current_tools = extract_tools(target_path)
+
+    existing = load_baseline(baseline_path)
+
+    if existing is None:
+        save_baseline(current_tools, str(target), baseline_path)
+        console.print(
+            f"\n[bold green]Baseline created:[/bold green] "
+            f"{len(current_tools)} tool(s) fingerprinted → {baseline_file}"
+        )
+        for tool in current_tools:
+            console.print(
+                f"  [cyan]{tool['name']}[/cyan] ({tool['source_file']}) "
+                f"→ {tool['fingerprint'][:16]}..."
+            )
+        return
+
+    diff = diff_baseline(current_tools, existing.get("tools", []))
+    added = diff["added"]
+    removed = diff["removed"]
+    modified = diff["modified"]
+
+    if not added and not removed and not modified:
+        console.print(
+            "\n[bold green]No tool definition changes detected.[/bold green] Baseline is current."
+        )
+        return
+
+    if added:
+        console.print(f"\n[bold green]ADDED ({len(added)} tool(s)):[/bold green]")
+        for t in added:
+            console.print(f"  [green]+[/green] {t['name']} ({t['source_file']})")
+
+    if removed:
+        console.print(f"\n[bold red]REMOVED ({len(removed)} tool(s)):[/bold red]")
+        for t in removed:
+            console.print(f"  [red]-[/red] {t['name']} ({t['source_file']})")
+
+    if modified:
+        console.print(
+            f"\n[bold yellow]MODIFIED ({len(modified)} tool(s)) "
+            f"— POTENTIAL RUG PULL:[/bold yellow]"
+        )
+        for entry in modified:
+            curr = entry["current"]
+            base = entry["baseline"]
+            console.print(f"  [yellow]~[/yellow] {curr['name']} ({curr['source_file']})")
+            console.print(f"    baseline:  {base['fingerprint'][:24]}...")
+            console.print(f"    current:   {curr['fingerprint'][:24]}...")
+
+    if update:
+        save_baseline(current_tools, str(target), baseline_path)
+        console.print(f"\n[bold green]Baseline updated → {baseline_file}[/bold green]")
+    else:
+        console.print(
+            f"\n[dim]Run with --update to accept these changes and refresh the baseline.[/dim]"
+        )
+
+    if (modified or removed) and not update:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()

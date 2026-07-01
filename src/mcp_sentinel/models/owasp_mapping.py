@@ -8,6 +8,8 @@ JSON, SARIF).
 Reference: https://owasp.org/www-project-top-10-for-large-language-model-applications/
 """
 
+from __future__ import annotations
+
 from mcp_sentinel.models.vulnerability import VulnerabilityType
 
 # Full ASI catalogue — name and description for each category
@@ -101,6 +103,9 @@ _TYPE_TO_ASI: dict[VulnerabilityType, str] = {
     VulnerabilityType.PATH_TRAVERSAL:            "ASI09",
     VulnerabilityType.MCP_SAMPLING:              "ASI10",
     VulnerabilityType.XSS:                       "ASI05",
+    VulnerabilityType.OAUTH_FLOW:               "ASI04",
+    VulnerabilityType.CONTEXT_FLOODING:         "ASI06",
+    VulnerabilityType.MCP_RESOURCE_POISONING:   "ASI01",
 }
 
 

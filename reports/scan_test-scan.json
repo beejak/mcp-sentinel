@@ -1,0 +1,93 @@
+{
+  "scan_id": "scan-1782838786.626222",
+  "target": "tests/scan_test",
+  "vulnerabilities": [
+    {
+      "id": "vuln-1782838786.665444",
+      "type": "tool_poisoning",
+      "title": "Tool Poisoning: Suspicious Tool Name Pattern",
+      "description": "Detected suspicious tool name: ''__main__''. Full-schema poisoning embeds malicious directives in tool names, not just descriptions. Tool names like 'always_run_first', 'override_*', or '__instruction__' signal an attempt to manipulate agent tool selection or execution order. This is the 'Full-Schema Poisoning' (FSP) technique documented in 2025 MCP security research.",
+      "severity": "high",
+      "confidence": "medium",
+      "file_path": "tests/scan_test/vulnerable.py",
+      "line_number": 14,
+      "line_end": null,
+      "code_snippet": "if __name__ == '__main__':",
+      "cwe_id": "CWE-74",
+      "cvss_score": 7.8,
+      "remediation": "1. Review and validate all tool descriptions and metadata\n2. Implement strict input validation for tool configurations\n3. Use allowlists for acceptable instruction patterns\n4. Add human review process for tool registration\n5. Implement runtime monitoring for unexpected AI behaviors\n6. Use structured formats (JSON schema) to prevent free-form manipulation",
+      "fixed_code": null,
+      "diff": null,
+      "remediation_steps": [],
+      "references": [
+        "https://cwe.mitre.org/data/definitions/74.html",
+        "https://owasp.org/www-project-top-10-for-large-language-model-applications/",
+        "https://simonwillison.net/2023/Apr/14/worst-that-can-happen/",
+        "https://atlas.mitre.org/techniques/AML.T0051"
+      ],
+      "metadata": {},
+      "detector": "ToolPoisoningDetector",
+      "engine": "static",
+      "timestamp": "2026-06-30T16:59:46.665500",
+      "mitre_attack_ids": [
+        "T1027",
+        "T1059"
+      ],
+      "threat_intel": null,
+      "owasp_asi_id": "ASI01",
+      "owasp_asi_name": "Prompt Injection"
+    },
+    {
+      "id": "vuln-1782838786.673496",
+      "type": "config_security",
+      "title": "Config: Debug Mode Enabled",
+      "description": "Detected debug mode enabled: 'debug=True'. Running applications in debug mode in production exposes sensitive information including stack traces, environment variables, and internal application structure. Attackers can use this information to identify vulnerabilities and plan attacks. This is critical for MCP servers which may handle sensitive user data.",
+      "severity": "high",
+      "confidence": "high",
+      "file_path": "tests/scan_test/vulnerable.py",
+      "line_number": 16,
+      "line_end": null,
+      "code_snippet": "app.run(debug=True)",
+      "cwe_id": "CWE-489",
+      "cvss_score": 7.5,
+      "remediation": "1. Disable debug mode in production environments\n2. Use environment variables to control debug settings\n3. Set DEBUG=False or debug: false in production configs\n4. Use separate configuration files for dev and production\n5. Implement proper logging without exposing internals\n6. Configure error pages that don't leak information\n7. Review deployment checklist before production releases",
+      "fixed_code": "app.run(debug=os.getenv('DEBUG', 'False').lower() == 'true')",
+      "diff": null,
+      "remediation_steps": [],
+      "references": [
+        "https://owasp.org/www-project-secure-configuration-guide/",
+        "https://cheatsheetseries.owasp.org/cheatsheets/Secure_Product_Design_Cheat_Sheet.html",
+        "https://cwe.mitre.org/data/definitions/16.html",
+        "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-123.pdf"
+      ],
+      "metadata": {},
+      "detector": "ConfigSecurityDetector",
+      "engine": "static",
+      "timestamp": "2026-06-30T16:59:46.673549",
+      "mitre_attack_ids": [
+        "T1082",
+        "T1592"
+      ],
+      "threat_intel": null,
+      "owasp_asi_id": "ASI02",
+      "owasp_asi_name": "Sensitive Data Exposure"
+    }
+  ],
+  "statistics": {
+    "total_files": 1,
+    "scanned_files": 1,
+    "total_vulnerabilities": 2,
+    "critical_count": 0,
+    "high_count": 2,
+    "medium_count": 0,
+    "low_count": 0,
+    "info_count": 0,
+    "scan_duration_seconds": 0.122513,
+    "engines_used": []
+  },
+  "config": {},
+  "started_at": "2026-06-30T16:59:46.626252",
+  "completed_at": "2026-06-30T16:59:46.748769",
+  "status": "completed",
+  "error": null
+}

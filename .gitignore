@@ -24,6 +24,7 @@ config.local.yaml
 
 # MCP Sentinel runtime files
 .mcp-sentinel/
+.sentinel/
 *.db
 *.sled/
 data/
