@@ -147,7 +147,8 @@ class MCPResourcePoisoningDetector(BaseDetector):
             ],
             "hidden_prompt_injection": [
                 re.compile(r"<!--\s*(?:HIDDEN\s+)?INSTRUCTION", re.IGNORECASE),
-                re.compile(r"\[INST\].*\[/INST\]", re.IGNORECASE | re.DOTALL),
+                # Match opening [INST] tag per-line; closing tag may be on a different line
+                re.compile(r"\[INST\]", re.IGNORECASE),
                 re.compile(r"<\|system\|>|<\|user\|>|<\|assistant\|>"),
                 re.compile(r"<!--.*(?:ignore|disregard|override|forget).*(?:instruction|guideline|safety|previous).*-->", re.IGNORECASE),
             ],
