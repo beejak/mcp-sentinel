@@ -28,8 +28,12 @@ class ReDoSDetector(BaseDetector):
 
     def __init__(self) -> None:
         super().__init__(name="ReDoSDetector", enabled=True)
-        # Patterns to extract regex content from source
-        self.js_regex_literal = re.compile(r"(?<![/\*\w])/([^/\n]{3,})/[gimsuy]*")
+        # Patterns to extract regex content from source.
+        # Require regex-literal context: preceded by = ( , [ or a keyword (new|return|case)
+        # to avoid matching division operators like `value / 10 / 2`.
+        self.js_regex_literal = re.compile(
+            r"(?:(?:=|\(|,|\[|return|new|case)\s*)/([^/\n]{3,})/[gimsuy]*"
+        )
         self.py_regex_call = re.compile(
             r"re\.(?:compile|match|search|fullmatch|sub|findall|finditer)\s*\(\s*r?[\"']([^\"']{3,})[\"']"
         )

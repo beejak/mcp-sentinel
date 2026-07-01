@@ -25,6 +25,7 @@ from mcp_sentinel.detectors.resource_poisoning import MCPResourcePoisoningDetect
 from mcp_sentinel.detectors.secrets import SecretsDetector
 from mcp_sentinel.detectors.ssrf import SSRFDetector
 from mcp_sentinel.detectors.supply_chain import SupplyChainDetector
+from mcp_sentinel.detectors.rug_pull import RugPullDetector
 from mcp_sentinel.detectors.tool_poisoning import ToolPoisoningDetector
 from mcp_sentinel.detectors.weak_crypto import WeakCryptoDetector
 from mcp_sentinel.detectors.xxe import XXEDetector
@@ -51,7 +52,7 @@ class Scanner:
         self.detectors = detectors or self._get_default_detectors()
 
     def _get_default_detectors(self) -> list[BaseDetector]:
-        """Get the default set of detectors (all 20 active detectors)."""
+        """Get the default set of detectors (all 21 active detectors)."""
         return [
             SecretsDetector(),
             CodeInjectionDetector(),
@@ -69,6 +70,7 @@ class Scanner:
             OAuthFlowDetector(),
             MCPResourcePoisoningDetector(),
             ContextFloodingDetector(),
+            RugPullDetector(),
             PrototypePollutionDetector(),
             XXEDetector(),
             ReDoSDetector(),

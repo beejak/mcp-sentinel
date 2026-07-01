@@ -113,6 +113,13 @@ class PrototypePollutionDetector(BaseDetector):
                     )
 
         # Find merge-like functions and check for target[key] = without guard
+        _str_re = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"|\'[^\'\\]*(?:\\.[^\'\\]*)*\'|`[^`\\]*(?:\\.[^`\\]*)*`')
+
+        def _count_braces(raw: str) -> tuple[int, int]:
+            """Count { and } in a line, ignoring characters inside string literals."""
+            stripped = _str_re.sub("", raw)
+            return stripped.count("{"), stripped.count("}")
+
         for i, line in enumerate(lines):
             if self.merge_func_pattern.search(line):
                 func_start = i
@@ -120,11 +127,12 @@ class PrototypePollutionDetector(BaseDetector):
                 func_body_start = False
                 func_end = min(i + 50, len(lines))
                 for j in range(i, min(i + 100, len(lines))):
-                    if "{" in lines[j]:
-                        brace_depth += lines[j].count("{")
+                    opens, closes = _count_braces(lines[j])
+                    if opens:
+                        brace_depth += opens
                         func_body_start = True
-                    if "}" in lines[j]:
-                        brace_depth -= lines[j].count("}")
+                    if closes:
+                        brace_depth -= closes
                     if func_body_start and brace_depth <= 0:
                         func_end = j
                         break

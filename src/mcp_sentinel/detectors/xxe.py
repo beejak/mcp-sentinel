@@ -176,9 +176,9 @@ class XXEDetector(BaseDetector):
                     )
                 )
 
-            # minidom and expat parsers
+            # minidom and expat parsers — skip if defusedxml is imported
             for pname in ("minidom_parse", "expat_parser"):
-                if self.patterns[pname].search(line):
+                if self.patterns[pname].search(line) and not has_defusedxml:
                     findings.append(
                         Vulnerability(
                             type=VulnerabilityType.XXE,
