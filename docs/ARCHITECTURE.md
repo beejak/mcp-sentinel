@@ -312,32 +312,71 @@ This makes rescans of unchanged codebases near-instant.
 
 ## Testing Architecture
 
+### Three-ring testing model
+
+```
+Ring 1 — Unit tests (per detector)
+  Each detector: positive fixture → must fire
+                 negative fixture → must not fire
+                 evasion cases → known bypass patterns must still fire
+
+Ring 2 — Integration benchmark (eval set)
+  Fixed test cases derived from real vulnerable MCP servers.
+  This is the project's loss function — a score you can track per commit.
+  Success threshold: ≥75% detection rate across all statically-detectable cases.
+
+Ring 3 — Adversarial / evasion tests (in progress)
+  Known bypass patterns: promisify(exec) alias, sanitized variable taint,
+  aud.includes() logic flaw, double-encode ../  path traversal.
+```
+
+### Test layout
+
 ```
 tests/
 ├── unit/
-│   ├── core/
-│   │   └── test_config.py           # Settings/configuration
-│   ├── test_code_injection.py       # 34 tests
-│   ├── test_config_security.py      # 51 tests
-│   ├── test_prompt_injection.py     # 41 tests
-│   ├── test_tool_poisoning.py       # 38 tests
-│   ├── test_tool_poisoning_enhanced.py  # 20 tests (v0.2.0)
-│   ├── test_path_traversal.py       # 42 tests
-│   ├── test_ssrf_detector.py        # 25 tests (v0.2.0)
-│   ├── test_network_binding.py      # 22 tests (v0.2.0)
-│   ├── test_missing_auth.py         # 19 tests (v0.2.0)
-│   ├── test_secrets_detector.py     # 8 tests
-│   ├── test_multi_engine_scanner.py # 11 tests
-│   ├── test_static_engine.py        # 6 tests
-│   ├── test_cli_enhanced.py         # 4 tests
-│   ├── test_framework_detection.py  # 3 tests
-│   └── test_logger.py               # 3 tests
+│   ├── test_code_injection.py        # 34 tests
+│   ├── test_config_security.py       # 51 tests
+│   ├── test_prompt_injection.py      # 41 tests
+│   ├── test_tool_poisoning.py        # 38 tests
+│   ├── test_path_traversal.py        # 42 tests
+│   ├── test_ssrf_detector.py         # 25 tests
+│   ├── test_network_binding.py       # 22 tests
+│   ├── test_missing_auth.py          # 19 tests
+│   ├── test_oauth_flow.py            # 15 tests
+│   ├── test_context_flooding.py      # 12 tests
+│   ├── test_resource_poisoning.py    # 25 tests
+│   ├── test_baseline.py              # 13 tests
+│   ├── test_prototype_pollution.py   # ~8 tests (v0.7.0)
+│   ├── test_xxe.py                   # ~8 tests (v0.7.0)
+│   └── test_redos.py                 # ~8 tests (v0.7.0)
 ├── integration/
-│   └── test_scanner.py              # 7 end-to-end tests
-└── test_caching.py                  # 1 cache test
+│   ├── fixtures/
+│   │   ├── mcpgoat/                  # MCPGoat challenge fixtures (26 vulns)
+│   │   │   ├── challenges.ts         # Reconstructed TypeScript — all 22 challenge types
+│   │   │   └── db.ts                 # SQL injection database module
+│   │   └── playground/              # mcpscanner/playground fixtures (8 vuln types)
+│   │       └── index.ts              # Vulnerable + hardened endpoints
+│   ├── test_scanner.py               # 7 end-to-end scanner tests
+│   └── test_benchmark.py             # Detection benchmark — the loss function
+│                                     # xfail markers track known gaps;
+│                                     # removing xfail = gap is closed
+└── test_caching.py
 ```
 
-**Total: 525 tests** — see [`docs/TEST_COVERAGE.md`](TEST_COVERAGE.md) for per-test documentation.
+### Benchmark as loss function
+
+`tests/integration/test_benchmark.py` runs the scanner against the MCPGoat and playground fixture files and asserts specific findings. Tests for currently-undetected gaps are marked `@pytest.mark.xfail` — they document the gap and serve as a checklist. Removing an `xfail` mark is the acceptance criterion for a gap fix.
+
+**Current benchmark scores** (updated each release):
+| Target | Detected / Detectable | Rate |
+|---|---|---|
+| MCPGoat | 7 / 7 core types | 100% core |
+| MCPGoat (all gaps) | 7 / 12 total | 58% |
+| mcpscanner/playground | 3 / 3 core types | 100% core |
+| playground (all gaps) | 3 / 6 total | 50% |
+
+The `test_benchmark_score_*` tests enforce a minimum rate floor — a PR that regresses detection will fail CI.
 
 All detector tests follow the same structure:
 - Detection tests (positive cases)
