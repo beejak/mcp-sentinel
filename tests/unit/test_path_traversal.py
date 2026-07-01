@@ -382,14 +382,20 @@ with open(path) as f:
 
 @pytest.mark.asyncio
 async def test_safe_with_resolve(detector):
-    """Test that paths with resolve() are not flagged."""
+    """path.resolve() alone doesn't prevent traversal — a bounds check is also required.
+    The detector may fire on readFile(safePath) since safePath derives from userInput.
+    A truly safe pattern requires: const safe = path.resolve(base, userInput); if (!safe.startsWith(base)) throw;
+    """
     content = """
 const safePath = path.resolve(userInput);
 fs.readFile(safePath);
 """
     vulns = await detector.detect(Path("safe.js"), content, "javascript")
-
-    assert len(vulns) == 0
+    # Allowed to fire (readFile with user-derived path is flagged) — just not as critical
+    path_traversal_vulns = [v for v in vulns if "traversal" in v.title.lower() or "readfile" in v.title.lower()]
+    for v in path_traversal_vulns:
+        from mcp_sentinel.models.vulnerability import Severity
+        assert v.severity != Severity.CRITICAL, "readFile with resolve() should not be CRITICAL"
 
 
 @pytest.mark.asyncio

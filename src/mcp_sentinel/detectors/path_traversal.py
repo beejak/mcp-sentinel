@@ -89,6 +89,16 @@ class PathTraversalDetector(BaseDetector):
                 ),  # Java
                 re.compile(r"Paths\.get\s*\([^)]*(?:request|params|query)", re.IGNORECASE),  # Java
             ],
+            # Pattern 6: JS readFile with user-controlled variable names
+            "js_readfile_user_input": [
+                re.compile(
+                    r"(?:readFileSync|readFile)\s*\(\s*(?!['\"__dirname])\w+(?:Path|File|Input|Arg|Param|name|rel|filePath)\b",
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r"(?:readFileSync|readFile)\s*\(\s*(?:req\.|request\.|params\.|query\.|args?\.|input\.)\w+"
+                ),
+            ],
         }
 
     def is_applicable(self, file_path: Path, file_type: Optional[str] = None) -> bool:
@@ -623,6 +633,26 @@ class PathTraversalDetector(BaseDetector):
                     "8. Apply strict file permissions after extraction"
                 ),
                 "mitre_attack_ids": ["T1005", "T1083", "T1204"],
+            },
+            "js_readfile_user_input": {
+                "title": "Path Traversal: readFile with User-Controlled Path",
+                "cwe_id": "CWE-22",
+                "severity": Severity.HIGH,
+                "confidence": Confidence.MEDIUM,
+                "cvss_score": 7.5,
+                "description": (
+                    f"Detected readFile/readFileSync with a user-controlled path variable: '{matched_text}'. "
+                    "Reading files using paths derived from user input without sanitization allows attackers "
+                    "to traverse directories and read arbitrary files on the system."
+                ),
+                "remediation": (
+                    "1. Never use user input directly as a file path\n"
+                    "2. Validate the resolved path stays within the intended directory\n"
+                    "3. Use path.resolve() and check against an allowed base directory\n"
+                    "4. Use allowlist of permitted filenames\n"
+                    "5. Apply os.path.basename() to restrict to filename only"
+                ),
+                "mitre_attack_ids": ["T1083", "T1005"],
             },
             "unsafe_path_join": {
                 "title": "Path Traversal: Unsafe Path Joining",
