@@ -128,19 +128,28 @@ def extract_tools(target: Path) -> list[dict[str, Any]]:
             if p.is_file() and p.suffix.lower() in {".json", ".py", ".yaml", ".yml"}
         ]
 
+    # root is used to make source_file paths relative so baselines are portable
+    # across machines (dev → CI) where the checkout directory differs.
+    root = target if target.is_dir() else target.parent
+
     for file_path in files:
         try:
             content = file_path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
 
+        try:
+            rel_path = str(file_path.relative_to(root))
+        except ValueError:
+            rel_path = str(file_path)
+
         suffix = file_path.suffix.lower()
         if suffix == ".py":
-            all_tools.extend(extract_tools_from_python(content, str(file_path)))
+            all_tools.extend(extract_tools_from_python(content, rel_path))
         elif suffix == ".json":
-            all_tools.extend(extract_tools_from_json(content, str(file_path)))
+            all_tools.extend(extract_tools_from_json(content, rel_path))
         elif suffix in (".yaml", ".yml"):
-            all_tools.extend(extract_tools_from_yaml(content, str(file_path)))
+            all_tools.extend(extract_tools_from_yaml(content, rel_path))
 
     # Deduplicate by (name, source_file) keeping first occurrence
     seen: set[tuple[str, str]] = set()
