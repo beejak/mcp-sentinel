@@ -13,7 +13,7 @@
 
 Finds hardcoded secrets, injection flaws, tool poisoning, rug pulls, and 10 more vulnerability classes — before they reach production.
 
-**[Quick Start](#quick-start)** · **[Detectors](#detection-coverage)** · **[Scan Report](#scan-report-beejak--vulnerable-mcp-server)** · **[CLI Reference](#cli-reference)** · **[OWASP Coverage](#owasp-agentic-ai-top-10-coverage)**
+**[Quick Start](#quick-start)** · **[Detectors](#detection-coverage)** · **[Scan Report](#scan-report-beejak--vulnerable-mcp-server)** · **[CLI Reference](#cli-reference)** · **[OWASP Coverage](#owasp-agentic-ai-top-10-coverage)** · **[Vulnerability Examples](./examples/)**
 
 </div>
 
