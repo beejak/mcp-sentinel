@@ -220,6 +220,39 @@ mcp-sentinel scan . --compliance-file compliance.json
 
 ---
 
+## Detection Accuracy — Tested Against Real Vulnerable MCP Servers
+
+Tested against three deliberately vulnerable MCP servers (48 total test cases):
+
+| Target | Test Cases | Detected | Partial | Missed | FP | Detection Rate |
+|---|---|---|---|---|---|---|
+| beejak/Vulnerable-MCP-Server | 18 | 16 | 1 | 1 | 0 | **92%** |
+| MCPGoat (26 challenges) | 22 | 8 | 4 | 10 | 0 | **45%** |
+| mcpscanner/playground | 8 | 3 | 1 | 3 | 1 | **44%** |
+| **Combined** | **48** | **27** | **6** | **14** | **1** | **62%** |
+
+### What it catches reliably
+
+Prompt injection in tool descriptions, resource body injection, OAuth endpoint shell injection (CVE-2025-6514), command injection via `exec()`, SSRF, hardcoded secrets, weak crypto, MCP sampling abuse, missing auth on admin tools, Python `@resource` sensitive path exposure.
+
+### Known gaps (static analysis limits)
+
+| Gap | Why missed | Planned fix |
+|---|---|---|
+| Prototype pollution (`__proto__` merge) | JS/TS pattern not modelled | `PrototypePollutionDetector` (P1) |
+| XXE (`<!ENTITY SYSTEM "file://..."`) | No XXE detector | `XXEDetector` (P1) |
+| ReDoS (`/(a+)+$/`) | No catastrophic-backtracking detector | `ReDoSDetector` (P1) |
+| Tool shadowing (lookalike names) | No cross-tool name comparison | `ToolShadowingDetector` (P2) |
+| Command injection via `promisify(exec)` alias | Pattern match on alias name only | Extend `CodeInjectionDetector` (P2) |
+| Path traversal through sanitized variable | No taint tracking | Extend `PathTraversalDetector` (P2) |
+| Indirect prompt injection in return values | Only scans metadata, not payload strings | Extend `MCPResourcePoisoningDetector` (P2) |
+| IDOR (business-logic ownership check) | Requires semantic context | Limited static pattern (P3) |
+| OAuth audience confusion (`aud.includes()`) | Logic flaw, not structural | Extend `OAuthFlowDetector` (P3) |
+
+Full gap analysis with remediation recommendations: [`docs/DETECTION_GAPS.md`](docs/DETECTION_GAPS.md)
+
+---
+
 ## Output Formats
 
 ### Terminal (default)

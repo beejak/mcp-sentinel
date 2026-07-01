@@ -366,6 +366,10 @@ Context is detected by `MCPContextDetector` which inspects `mcp.json`, `.mcp/con
 
 | Version | Planned |
 |---|---|
+| v0.7.0 | `PrototypePollutionDetector`, `XXEDetector`, `ReDoSDetector` (P1 gaps from MCPGoat testing) |
+| v0.8.0 | `ToolShadowingDetector`; taint-tracking for path traversal through sanitized variables; `promisify(exec)` alias detection |
 | v1.0.0 | Stable API; plugin system for community detectors |
 | v1.1.0 | SARIF baseline diffing; suppress known findings |
 | v1.2.0 | Per-detector enable/disable via config; custom pattern rules |
+
+See [`docs/DETECTION_GAPS.md`](DETECTION_GAPS.md) for the full gap analysis derived from testing against MCPGoat, mcpscanner/playground, and beejak/Vulnerable-MCP-Server.
