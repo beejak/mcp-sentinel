@@ -10,7 +10,7 @@ This guide explains every command and option in MCP Sentinel with practical cont
 mcp-sentinel [GLOBAL OPTIONS] COMMAND
 ```
 
-There is one command: **`scan`**. Global options apply to all commands and must come *before* the command name.
+There are two commands: **`scan`** and **`baseline`**. Global options apply to all commands and must come *before* the command name.
 
 ---
 
@@ -70,7 +70,7 @@ Log files use JSON-structured format (timestamp, level, message) and rotate at 1
 mcp-sentinel scan [TARGET] [OPTIONS]
 ```
 
-Scans a directory or file for security vulnerabilities using all 13 detectors.
+Scans a directory or file for security vulnerabilities using all 17 detectors.
 
 ### `TARGET`
 
@@ -255,7 +255,7 @@ fi
 mcp-sentinel scan /path/to/mcp-server
 ```
 
-Runs all 13 detectors, shows colour-coded findings grouped by severity, an OWASP ASI01–ASI10 category breakdown, and a risk score.
+Runs all 17 detectors, shows colour-coded findings grouped by severity, an OWASP ASI01–ASI10 category breakdown, and a risk score.
 
 ---
 
@@ -327,7 +327,7 @@ jq -r '.vulnerabilities[] | [.severity, .title, .file_path, .line_number, .remed
 
 ## Detector reference
 
-All 13 detectors run on every scan. They cannot be individually disabled (by design — a scanner that lets you silence detectors is easier to misuse). Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10) category.
+All 17 detectors run on every scan. They cannot be individually disabled (by design — a scanner that lets you silence detectors is easier to misuse). Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10) category.
 
 | Detector | Severity range | ASI | What it catches |
 |---|---|---|---|
@@ -344,6 +344,10 @@ All 13 detectors run on every scan. They cannot be individually disabled (by des
 | `WeakCryptoDetector` | HIGH/MEDIUM | ASI07 | MD5/SHA-1, ECB mode, insecure random, deprecated ciphers, static IV, weak KDF |
 | `InsecureDeserializationDetector` | CRITICAL | ASI08 | `pickle.loads`, `yaml.load`, `marshal`, `ObjectInputStream`, PHP `unserialize`, Node.js `vm.runInContext` |
 | `MCPSamplingDetector` | CRITICAL/HIGH/MEDIUM | ASI10 | Sampling call audit, prompt injection via `create_message`, sensitive data in LLM calls, unconstrained token limits |
+| `RugPullDetector` | CRITICAL/HIGH | ASI01 | Global state mutation, first-call sentinel checks, time-based behavior evasion |
+| `OAuthFlowDetector` | CRITICAL/HIGH/MEDIUM | ASI04 | CVE-2025-6514 endpoint injection, open redirect via `redirect_uri`, token credential exposure, missing PKCE, implicit grant flow, disabled JWT verification |
+| `ContextFloodingDetector` | HIGH/MEDIUM/LOW | ASI06 | Unbounded `read()`, uncapped `os.walk()`, SQL without `LIMIT`, list tools missing pagination parameters |
+| `MCPResourcePoisoningDetector` | CRITICAL/HIGH/MEDIUM | ASI01 | Path traversal URIs, sensitive host paths (`.ssh`, `.aws`, `/etc/passwd`), wildcard subscriptions, prompt injection in resource metadata, invisible Unicode, env var exposure, MIME type confusion |
 
 ### Severity calibration
 
@@ -353,6 +357,64 @@ from `mcp.json`, `package.json`, or similar config files:
 - **Filesystem/network access declared** → `CODE_INJECTION`, `PATH_TRAVERSAL`, `SSRF`, `MCP_SAMPLING` elevated one step
 - **Sensitive tools** (`rm`, `delete`, `shell`, `sudo`) → `PATH_TRAVERSAL`, `CODE_INJECTION` elevated one step
 - **STDIO transport** → all findings annotated with a privilege-level context note
+
+---
+
+---
+
+## `baseline` command
+
+The `baseline` command fingerprints every MCP tool definition in a directory so you can detect **rug-pull attacks** — silent changes to tool names, descriptions, or input schemas after initial deployment.
+
+```
+mcp-sentinel baseline [TARGET] [OPTIONS]
+```
+
+Each tool is identified by `(name, source_file)` and hashed with SHA-256 over its canonical `{name, description, inputSchema}` JSON. Baselines are stored as `.sentinel/baseline.json` inside the target directory.
+
+### Create a baseline
+
+```bash
+# First run — creates .sentinel/baseline.json
+mcp-sentinel baseline /path/to/mcp-server
+```
+
+### Detect drift
+
+```bash
+# Subsequent runs — compares current tool definitions against the saved baseline
+mcp-sentinel baseline /path/to/mcp-server
+```
+
+Output shows:
+- **ADDED** — tools present now but not in the baseline
+- **REMOVED** — tools in the baseline that no longer exist (exit code 1)
+- **MODIFIED** — tools whose description or schema changed since baseline (exit code 1)
+
+Exit code 1 on `REMOVED` or `MODIFIED` tools makes it easy to fail CI on unexpected changes.
+
+### Accept changes
+
+```bash
+# Update the baseline to reflect intentional changes (exit code always 0)
+mcp-sentinel baseline /path/to/mcp-server --update
+```
+
+### Options
+
+| Option | Description |
+|---|---|
+| `--update` | Accept current tool definitions as the new baseline (no drift alert) |
+| `--baseline-file PATH` | Override the default `.sentinel/baseline.json` path |
+
+### CI integration
+
+```yaml
+- name: Detect rug-pull
+  run: mcp-sentinel baseline . --baseline-file .sentinel/baseline.json
+```
+
+Commit `.sentinel/baseline.json` to your repository. The `baseline diff` step in CI will exit 1 if any tool definition changes without an explicit `--update` commit.
 
 ---
 

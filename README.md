@@ -103,7 +103,7 @@ mcp-sentinel scan . --compliance-file compliance.json
 
 ## Detection Coverage
 
-14 detectors. Every finding maps to an OWASP Agentic AI Top 10 category and a CWE.
+17 detectors. Every finding maps to an OWASP Agentic AI Top 10 category and a CWE.
 
 | Detector | What It Catches | OWASP | Severity |
 |---|---|---|---|
@@ -116,11 +116,14 @@ mcp-sentinel scan . --compliance-file compliance.json
 | **MissingAuthDetector** | Routes without auth decorators, sensitive paths, unauthenticated system tools | ASI04 | HIGH |
 | **NetworkBindingDetector** | `0.0.0.0` binding across Python, JS, Go, Java, and config files | ASI06 | MEDIUM |
 | **ConfigSecurityDetector** | Debug mode, open CORS, TLS disabled, weak secrets, exposed admin endpoints | ASI02 | HIGH |
-| **WeakCryptoDetector** | MD5/SHA-1, ECB mode, insecure random, static IV, deprecated ciphers | ASI04 | HIGH |
+| **WeakCryptoDetector** | MD5/SHA-1, ECB mode, insecure random, static IV, deprecated ciphers | ASI07 | HIGH |
 | **InsecureDeserializationDetector** | `pickle.loads()`, `yaml.load()`, `marshal`, `eval()` as parser, PHP `unserialize()` | ASI08 | CRITICAL |
 | **SupplyChainDetector** | Encoded payloads, install-time exfiltration, silent BCC, typosquatted packages | ASI03 | CRITICAL |
-| **MCPSamplingDetector** | Sampling misuse, sensitive data in LLM calls, prompt injection via sampling | ASI01 | HIGH |
+| **MCPSamplingDetector** | Sampling misuse, sensitive data in LLM calls, prompt injection via sampling | ASI10 | HIGH |
 | **RugPullDetector** | Global state mutation, first-call sentinel, time-based behavior evasion | ASI01 | CRITICAL |
+| **OAuthFlowDetector** | CVE-2025-6514 endpoint injection, open redirects via `redirect_uri`, token exposure, missing PKCE, implicit grant | ASI04 | CRITICAL |
+| **ContextFloodingDetector** | Unbounded file reads, uncapped directory walks, SQL queries without `LIMIT`, list tools missing pagination | ASI06 | HIGH |
+| **MCPResourcePoisoningDetector** | Path traversal URIs, sensitive host path targeting, wildcard subscriptions, prompt injection in resource metadata, invisible Unicode, env var exposure, MIME confusion | ASI01 | CRITICAL |
 
 ---
 
@@ -342,11 +345,12 @@ Usage: mcp-sentinel scan [TARGET] [OPTIONS]
   TARGET is the path to scan — a directory or a single file.
   If omitted, mcp-sentinel will prompt you interactively.
 
-  Runs 14 pattern-based detectors covering: hardcoded secrets, code
+  Runs 17 pattern-based detectors covering: hardcoded secrets, code
   injection, prompt injection, tool poisoning, path traversal, config
   security, SSRF, network binding, missing auth, supply chain attacks,
   weak cryptography, insecure deserialization, MCP sampling misuse,
-  and rug pull / timed evasion attacks.
+  rug pull / timed evasion attacks, OAuth flow vulnerabilities,
+  context flooding, and MCP resource poisoning.
 
 Arguments:
   TARGET    Path to scan (file or directory). Prompts if omitted.

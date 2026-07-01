@@ -1,7 +1,7 @@
 # MCP Sentinel — Architecture
 
-**Version**: v0.5.0
-**Status**: 13 detectors, 619 tests, static engine + OWASP compliance + severity calibration
+**Version**: v0.6.0
+**Status**: 17 detectors, 715 tests, static engine + OWASP compliance + severity calibration + baseline rug-pull detection
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Overview
 
-MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.5.0 is intentionally focused: one engine (static), thirteen detectors, no external service dependencies.
+MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.6.0 is intentionally focused: one engine (static), seventeen detectors, a baseline rug-pull module, no external service dependencies.
 
 ### Key design decisions
 
@@ -166,7 +166,7 @@ class BaseDetector:
         """Analyze content and return any found vulnerabilities."""
 ```
 
-### Detector scope (v0.5.0)
+### Detector scope (v0.6.0)
 
 | Detector | Languages / File Types | Patterns | ASI |
 |---|---|---|---|
@@ -183,6 +183,10 @@ class BaseDetector:
 | `WeakCryptoDetector` | Python, JS, TS, Java, Go | MD5/SHA-1, insecure PRNG, ECB mode, deprecated ciphers, static IV, weak KDF | ASI07 |
 | `InsecureDeserializationDetector` | Python, JS, TS, Java, PHP | pickle, yaml.load, marshal, eval-as-parser, jsonpickle, ObjectInputStream, unserialize | ASI08 |
 | `MCPSamplingDetector` | Python, JS, TS | Sampling call audit, prompt injection via sampling, sensitive data in LLM calls, token limit abuse | ASI10 |
+| `RugPullDetector` | Python, JS, TS | Global state mutation, first-call sentinel checks, time-based behavior evasion | ASI01 |
+| `OAuthFlowDetector` | Python, JS, TS | CVE-2025-6514 endpoint injection, open redirect via `redirect_uri`, token credential exposure, missing PKCE, implicit grant, disabled JWT verification | ASI04 |
+| `ContextFloodingDetector` | Python, JS, TS | Unbounded `read()`, uncapped `os.walk()`, SQL without `LIMIT`, list tools missing pagination | ASI06 |
+| `MCPResourcePoisoningDetector` | JSON, YAML, Python, JS, TS | Path traversal URIs, sensitive host paths, wildcard subscriptions, prompt injection in metadata, invisible Unicode, env var exposure, MIME confusion | ASI01 |
 
 ### Adding a new detector
 
