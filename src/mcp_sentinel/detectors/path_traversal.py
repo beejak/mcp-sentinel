@@ -92,7 +92,7 @@ class PathTraversalDetector(BaseDetector):
             # Pattern 6: JS readFile with user-controlled variable names
             "js_readfile_user_input": [
                 re.compile(
-                    r"(?:readFileSync|readFile)\s*\(\s*(?!['\"__dirname])\w+(?:Path|File|Input|Arg|Param|name|rel|filePath)\b",
+                    r"(?:readFileSync|readFile)\s*\(\s*(?!(?:'|\"|__dirname|__filename))\w+(?:Path|File|Input|Arg|Param|name|rel|filePath)\b",
                     re.IGNORECASE,
                 ),
                 re.compile(
