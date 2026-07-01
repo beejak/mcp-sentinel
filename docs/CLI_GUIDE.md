@@ -70,7 +70,7 @@ Log files use JSON-structured format (timestamp, level, message) and rotate at 1
 mcp-sentinel scan [TARGET] [OPTIONS]
 ```
 
-Scans a directory or file for security vulnerabilities using all 17 detectors.
+Scans a directory or file for security vulnerabilities using all 20 detectors.
 
 ### `TARGET`
 
@@ -255,7 +255,7 @@ fi
 mcp-sentinel scan /path/to/mcp-server
 ```
 
-Runs all 17 detectors, shows colour-coded findings grouped by severity, an OWASP ASI01–ASI10 category breakdown, and a risk score.
+Runs all 20 detectors, shows colour-coded findings grouped by severity, an OWASP ASI01–ASI10 category breakdown, and a risk score.
 
 ---
 
@@ -327,7 +327,7 @@ jq -r '.vulnerabilities[] | [.severity, .title, .file_path, .line_number, .remed
 
 ## Detector reference
 
-All 17 detectors run on every scan. They cannot be individually disabled (by design — a scanner that lets you silence detectors is easier to misuse). Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10) category.
+All 20 detectors run on every scan. They cannot be individually disabled (by design — a scanner that lets you silence detectors is easier to misuse). Every finding is annotated with its OWASP Agentic AI Top 10 (ASI01–ASI10) category.
 
 | Detector | Severity range | ASI | What it catches |
 |---|---|---|---|

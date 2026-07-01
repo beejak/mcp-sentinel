@@ -1,7 +1,7 @@
 # MCP Sentinel — Architecture
 
-**Version**: v0.6.0
-**Status**: 17 detectors, 715 tests, static engine + OWASP compliance + severity calibration + baseline rug-pull detection
+**Version**: v0.7.0
+**Status**: 20 detectors, 761 tests, static engine + OWASP compliance + severity calibration + baseline rug-pull detection
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## Overview
 
-MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.6.0 is intentionally focused: one engine (static), seventeen detectors, a baseline rug-pull module, no external service dependencies.
+MCP Sentinel is a **static pattern-matching security scanner** purpose-built for MCP (Model Context Protocol) servers. v0.7.0 is intentionally focused: one engine (static), twenty detectors, a baseline rug-pull module, no external service dependencies.
 
 ### Key design decisions
 
@@ -187,6 +187,9 @@ class BaseDetector:
 | `OAuthFlowDetector` | Python, JS, TS | CVE-2025-6514 endpoint injection, open redirect via `redirect_uri`, token credential exposure, missing PKCE, implicit grant, disabled JWT verification | ASI04 |
 | `ContextFloodingDetector` | Python, JS, TS | Unbounded `read()`, uncapped `os.walk()`, SQL without `LIMIT`, list tools missing pagination | ASI06 |
 | `MCPResourcePoisoningDetector` | JSON, YAML, Python, JS, TS | Path traversal URIs, sensitive host paths, wildcard subscriptions, prompt injection in metadata, invisible Unicode, env var exposure, MIME confusion | ASI01 |
+| `PrototypePollutionDetector` | JS, TS | `__proto__` merge, `Object.keys` recursive assign without key guard, `JSON.parse` to unrestricted merge | ASI08 |
+| `XXEDetector` | JS, TS, XML | `<!ENTITY SYSTEM`, manual entity resolvers, `DOMParser`/`xml2js` without `noent: false` | ASI05 |
+| `ReDoSDetector` | JS, TS, Python | Nested quantifier patterns `(x+)+`, `(\w+)*`, `([a-z]+)*` on user-controlled `.test()`/`.match()` | ASI06 |
 
 ### Adding a new detector
 
@@ -371,10 +374,11 @@ tests/
 **Current benchmark scores** (updated each release):
 | Target | Detected / Detectable | Rate |
 |---|---|---|
-| MCPGoat | 7 / 7 core types | 100% core |
-| MCPGoat (all gaps) | 7 / 12 total | 58% |
-| mcpscanner/playground | 3 / 3 core types | 100% core |
-| playground (all gaps) | 3 / 6 total | 50% |
+| MCPGoat | 13 / 13 closed types | 100% closed |
+| MCPGoat (all gaps) | 13 / 22 total | 59% |
+| mcpscanner/playground | 5 / 5 closed types | 100% closed |
+| playground (all gaps) | 5 / 8 total | 63% |
+| **Benchmark tests** | **21 / 22 passing** | **1 xfail remaining** |
 
 The `test_benchmark_score_*` tests enforce a minimum rate floor — a PR that regresses detection will fail CI.
 
@@ -405,8 +409,8 @@ Context is detected by `MCPContextDetector` which inspects `mcp.json`, `.mcp/con
 
 | Version | Planned |
 |---|---|
-| v0.7.0 | `PrototypePollutionDetector`, `XXEDetector`, `ReDoSDetector` (P1 gaps from MCPGoat testing) |
-| v0.8.0 | `ToolShadowingDetector`; taint-tracking for path traversal through sanitized variables; `promisify(exec)` alias detection |
+| ~~v0.7.0~~ ✅ | `PrototypePollutionDetector`, `XXEDetector`, `ReDoSDetector` (P1 gaps from MCPGoat testing); `promisify(exec)` and `readFileSync(userInput)` detection |
+| v0.8.0 | `ToolShadowingDetector`; taint-tracking for path traversal through sanitized variables |
 | v1.0.0 | Stable API; plugin system for community detectors |
 | v1.1.0 | SARIF baseline diffing; suppress known findings |
 | v1.2.0 | Per-detector enable/disable via config; custom pattern rules |

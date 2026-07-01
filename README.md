@@ -103,7 +103,7 @@ mcp-sentinel scan . --compliance-file compliance.json
 
 ## Detection Coverage
 
-17 detectors. Every finding maps to an OWASP Agentic AI Top 10 category and a CWE.
+20 detectors. Every finding maps to an OWASP Agentic AI Top 10 category and a CWE.
 
 | Detector | What It Catches | OWASP | Severity |
 |---|---|---|---|
@@ -124,6 +124,9 @@ mcp-sentinel scan . --compliance-file compliance.json
 | **OAuthFlowDetector** | CVE-2025-6514 endpoint injection, open redirects via `redirect_uri`, token exposure, missing PKCE, implicit grant | ASI04 | CRITICAL |
 | **ContextFloodingDetector** | Unbounded file reads, uncapped directory walks, SQL queries without `LIMIT`, list tools missing pagination | ASI06 | HIGH |
 | **MCPResourcePoisoningDetector** | Path traversal URIs, sensitive host path targeting, wildcard subscriptions, prompt injection in resource metadata, invisible Unicode, env var exposure, MIME confusion | ASI01 | CRITICAL |
+| **PrototypePollutionDetector** | `__proto__` key injection, `Object.assign(t, JSON.parse(input))`, recursive merge without key guard | ASI08 | HIGH |
+| **XXEDetector** | `<!ENTITY SYSTEM>` declarations, unsafe Python stdlib XML parsing, lxml without `resolve_entities=False`, `DOMParser` in JS/TS | ASI05 | HIGH |
+| **ReDoSDetector** | Nested quantifier patterns `(a+)+`, `(\w+)*`, `(a|b)+` in JS/TS regex literals and Python `re.compile()` calls | ASI06 | HIGH |
 
 ---
 
@@ -237,17 +240,18 @@ Prompt injection in tool descriptions, resource body injection, OAuth endpoint s
 
 ### Known gaps (static analysis limits)
 
-| Gap | Why missed | Planned fix |
-|---|---|---|
-| Prototype pollution (`__proto__` merge) | JS/TS pattern not modelled | `PrototypePollutionDetector` (P1) |
-| XXE (`<!ENTITY SYSTEM "file://..."`) | No XXE detector | `XXEDetector` (P1) |
-| ReDoS (`/(a+)+$/`) | No catastrophic-backtracking detector | `ReDoSDetector` (P1) |
-| Tool shadowing (lookalike names) | No cross-tool name comparison | `ToolShadowingDetector` (P2) |
-| Command injection via `promisify(exec)` alias | Pattern match on alias name only | Extend `CodeInjectionDetector` (P2) |
-| Path traversal through sanitized variable | No taint tracking | Extend `PathTraversalDetector` (P2) |
-| Indirect prompt injection in return values | Only scans metadata, not payload strings | Extend `MCPResourcePoisoningDetector` (P2) |
-| IDOR (business-logic ownership check) | Requires semantic context | Limited static pattern (P3) |
-| OAuth audience confusion (`aud.includes()`) | Logic flaw, not structural | Extend `OAuthFlowDetector` (P3) |
+| Gap | Status |
+|---|---|
+| Prototype pollution (`__proto__` merge) | ✅ Fixed — `PrototypePollutionDetector` |
+| XXE (`<!ENTITY SYSTEM "file://..."`) | ✅ Fixed — `XXEDetector` |
+| ReDoS (`/(a+)+$/`) | ✅ Fixed — `ReDoSDetector` |
+| Command injection via `promisify(exec)` alias | ✅ Fixed — extended `CodeInjectionDetector` |
+| Path traversal `readFileSync(userInput)` | ✅ Fixed — extended `PathTraversalDetector` |
+| Tool shadowing (lookalike names) | ⏳ Pending — `ToolShadowingDetector` (P2) |
+| Path traversal through sanitized variable (`.replace('../','')`) | ⏳ Pending — needs taint tracking (P2) |
+| Indirect prompt injection in return values | ⏳ Pending — extend `MCPResourcePoisoningDetector` (P2) |
+| IDOR (business-logic ownership check) | ⏳ Pending — limited static pattern (P3) |
+| OAuth audience confusion (`aud.includes()`) | ⏳ Pending — extend `OAuthFlowDetector` (P3) |
 
 Full gap analysis with remediation recommendations: [`docs/DETECTION_GAPS.md`](docs/DETECTION_GAPS.md)
 
@@ -378,7 +382,7 @@ Usage: mcp-sentinel scan [TARGET] [OPTIONS]
   TARGET is the path to scan — a directory or a single file.
   If omitted, mcp-sentinel will prompt you interactively.
 
-  Runs 17 pattern-based detectors covering: hardcoded secrets, code
+  Runs 20 pattern-based detectors covering: hardcoded secrets, code
   injection, prompt injection, tool poisoning, path traversal, config
   security, SSRF, network binding, missing auth, supply chain attacks,
   weak cryptography, insecure deserialization, MCP sampling misuse,

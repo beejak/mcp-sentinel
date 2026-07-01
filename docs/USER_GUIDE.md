@@ -93,7 +93,7 @@ mcp-sentinel scan . --no-progress
 When you run a scan, MCP Sentinel:
 
 1. **Discovers files** — Python, JavaScript, TypeScript, Go, Java, YAML, JSON, config files
-2. **Runs 17 detectors** — each applicable to the file type being scanned
+2. **Runs 20 detectors** — each applicable to the file type being scanned
 3. **Generates a report** — severity breakdown, per-finding details, code snippets, remediation guidance
 
 **Terminal output includes:**
@@ -471,7 +471,7 @@ mcp-sentinel scan src/
 
 ### What vulnerabilities does MCP Sentinel detect?
 
-Nine detector categories:
+Twelve detector categories:
 
 1. **Secrets** — hardcoded API keys, tokens, database credentials
 2. **Code Injection** — shell execution, eval, SQL injection
